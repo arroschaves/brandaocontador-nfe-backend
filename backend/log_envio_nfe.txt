@@ -1,0 +1,8 @@
+2025-09-28T03:16:18.318Z - ⏳ Lendo XML: nfe-assinada.xml
+2025-09-28T03:16:18.320Z - ⏳ Carregando certificado...
+2025-09-28T03:16:18.322Z - ⏳ Criando client SOAP para: https://hom.sefaz.ms.gov.br/ws/NFeAutorizacao4.asmx?wsdl
+2025-09-28T03:16:18.351Z - ⏳ Lendo XML: nfe.xml
+2025-09-28T03:16:18.635Z - ⏳ Carregando certificado...
+2025-09-28T03:16:18.636Z - ⏳ Criando client SOAP para: https://hom.sefaz.ms.gov.br/ws/NFeAutorizacao4.asmx?wsdl
+2025-09-28T03:16:19.271Z - ❌ Erro no envio de nfe.xml: Root element of WSDL was <html>. This is likely an authentication issue.
+2025-09-28T03:16:19.313Z - ❌ Erro no envio de nfe-assinada.xml: Root element of WSDL was <html>. This is likely an authentication issue.
