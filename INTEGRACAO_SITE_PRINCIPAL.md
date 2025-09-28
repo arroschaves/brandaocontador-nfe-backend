@@ -123,15 +123,32 @@ if (!localStorage.getItem('nfe-modal-shown')) {
 </script>
 ```
 
-## Configuração de Subdomínio
+## 🌐 Configuração de Subdomínio (Recomendado)
 
-Para usar `nfe.brandaocontador.com.br`:
+### ⚠️ **IMPORTANTE - Evitar Erro CNAME Circular:**
 
-1. **No Cloudflare**:
-   - Adicionar registro CNAME: `nfe` → `cname.vercel-dns.com`
+**❌ NÃO FAÇA:**
+- CNAME apontando para o próprio domínio
+- CNAME no domínio raiz (@)
+- Misturar registros A e CNAME para o mesmo nome
 
-2. **No Vercel**:
-   - Adicionar domínio personalizado: `nfe.brandaocontador.com.br`
+**✅ CONFIGURAÇÃO CORRETA:**
+
+### Cloudflare DNS:
+```
+Tipo: CNAME
+Nome: nfe
+Conteúdo: brandaocontador-nfe-frontend.vercel.app
+Proxy: ✅ Ativado (nuvem laranja)
+TTL: Auto
+```
+
+### Se já existe registro A para "nfe":
+1. **Primeiro**: Delete o registro A existente
+2. **Depois**: Crie o CNAME conforme acima
+
+### No Vercel:
+- Adicionar domínio personalizado: `nfe.brandaocontador.com.br`
 
 ## URLs Finais Sugeridas
 
