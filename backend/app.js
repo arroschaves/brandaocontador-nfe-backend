@@ -26,16 +26,7 @@ app.use(cors({
 
 // Middleware para parsing JSON com tratamento de erros
 app.use(express.json({ 
-    limit: '10mb',
-    verify: (req, res, buf, encoding) => {
-        try {
-            JSON.parse(buf);
-        } catch (e) {
-            console.error('❌ Erro de parsing JSON:', e.message);
-            console.error('📄 Conteúdo recebido:', buf.toString());
-            throw new Error('JSON inválido');
-        }
-    }
+    limit: '10mb'
 }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
