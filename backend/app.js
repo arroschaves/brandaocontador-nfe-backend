@@ -51,6 +51,7 @@ app.use((req, res, next) => {
 
 // ==================== ROTAS DE AUTENTICAÇÃO ====================
 app.post('/auth/login', authMiddleware.login.bind(authMiddleware));
+app.post('/auth/register', authMiddleware.register.bind(authMiddleware));
 app.get('/auth/validate', 
   authMiddleware.verificarAutenticacao(), 
   authMiddleware.validarToken.bind(authMiddleware)

@@ -469,6 +469,213 @@ class AuthMiddleware {
       });
     }
   }
+
+  // ==================== REGISTRO DE USUÁRIO ====================
+
+  async register(req, res) {
+    try {
+      const { 
+        tipoCliente, 
+        nome, 
+        email, 
+        senha, 
+        documento, 
+        telefone, 
+        endereco,
+        razaoSocial,
+        nomeFantasia,
+        inscricaoEstadual
+      } = req.body;
+
+      // Validações básicas
+      if (!nome || !email || !senha || !documento || !telefone) {
+        return res.status(400).json({
+          sucesso: false,
+          erro: 'Dados obrigatórios não fornecidos',
+          codigo: 'MISSING_REQUIRED_FIELDS'
+        });
+      }
+
+      if (!tipoCliente || !['cpf', 'cnpj'].includes(tipoCliente)) {
+        return res.status(400).json({
+          sucesso: false,
+          erro: 'Tipo de cliente inválido',
+          codigo: 'INVALID_CLIENT_TYPE'
+        });
+      }
+
+      // Validação de email
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        return res.status(400).json({
+          sucesso: false,
+          erro: 'Email inválido',
+          codigo: 'INVALID_EMAIL'
+        });
+      }
+
+      // Verificar se o email já existe
+      const emailExistente = await this.verificarEmailExistente(email);
+      if (emailExistente) {
+        return res.status(409).json({
+          sucesso: false,
+          erro: 'Email já cadastrado',
+          codigo: 'EMAIL_ALREADY_EXISTS'
+        });
+      }
+
+      // Verificar se o documento já existe
+      const documentoExistente = await this.verificarDocumentoExistente(documento);
+      if (documentoExistente) {
+        return res.status(409).json({
+          sucesso: false,
+          erro: `${tipoCliente.toUpperCase()} já cadastrado`,
+          codigo: 'DOCUMENT_ALREADY_EXISTS'
+        });
+      }
+
+      // Validação de senha
+      if (senha.length < 6) {
+        return res.status(400).json({
+          sucesso: false,
+          erro: 'Senha deve ter pelo menos 6 caracteres',
+          codigo: 'WEAK_PASSWORD'
+        });
+      }
+
+      // Validações específicas para CNPJ
+      if (tipoCliente === 'cnpj') {
+        if (!razaoSocial || !nomeFantasia) {
+          return res.status(400).json({
+            sucesso: false,
+            erro: 'Razão Social e Nome Fantasia são obrigatórios para CNPJ',
+            codigo: 'MISSING_CNPJ_FIELDS'
+          });
+        }
+      }
+
+      // Validação de endereço
+      if (!endereco || !endereco.cep || !endereco.logradouro || !endereco.numero || 
+          !endereco.bairro || !endereco.cidade || !endereco.uf) {
+        return res.status(400).json({
+          sucesso: false,
+          erro: 'Dados de endereço incompletos',
+          codigo: 'INCOMPLETE_ADDRESS'
+        });
+      }
+
+      // Criar novo usuário
+      const novoUsuario = await this.criarUsuario({
+        tipoCliente,
+        nome,
+        email,
+        senha, // Em produção, fazer hash da senha
+        documento,
+        telefone,
+        endereco,
+        razaoSocial,
+        nomeFantasia,
+        inscricaoEstadual,
+        dataCadastro: new Date().toISOString(),
+        ativo: true,
+        permissoes: ['nfe_emitir', 'nfe_consultar'] // Permissões padrão para novos clientes
+      });
+
+      await logService.log('registro', 'SUCESSO', {
+        usuario: novoUsuario.id,
+        email: novoUsuario.email,
+        tipoCliente,
+        ip: req.ip
+      });
+
+      // Gerar token para login automático
+      const token = this.gerarToken(novoUsuario);
+
+      res.status(201).json({
+        sucesso: true,
+        mensagem: 'Usuário cadastrado com sucesso',
+        token,
+        usuario: {
+          id: novoUsuario.id,
+          nome: novoUsuario.nome,
+          email: novoUsuario.email,
+          tipoCliente: novoUsuario.tipoCliente,
+          documento: novoUsuario.documento,
+          permissoes: novoUsuario.permissoes
+        },
+        expiresIn: this.JWT_EXPIRES_IN
+      });
+
+    } catch (error) {
+      await logService.logErro('registro', error, {
+        ip: req.ip,
+        email: req.body.email
+      });
+
+      res.status(500).json({
+        sucesso: false,
+        erro: 'Erro interno no cadastro',
+        codigo: 'REGISTER_ERROR'
+      });
+    }
+  }
+
+  async verificarEmailExistente(email) {
+    // SIMULAÇÃO - Em produção, consultar banco de dados
+    const usuariosDemo = await this.obterUsuariosDemo();
+    return usuariosDemo.find(user => user.email.toLowerCase() === email.toLowerCase());
+  }
+
+  async verificarDocumentoExistente(documento) {
+    // SIMULAÇÃO - Em produção, consultar banco de dados
+    const usuariosDemo = await this.obterUsuariosDemo();
+    return usuariosDemo.find(user => user.documento === documento);
+  }
+
+  async criarUsuario(dadosUsuario) {
+    // SIMULAÇÃO - Em produção, salvar no banco de dados
+    const novoId = Date.now(); // ID temporário
+    
+    const novoUsuario = {
+      id: novoId,
+      ...dadosUsuario
+    };
+
+    // Em um sistema real, aqui salvaria no banco de dados
+    console.log('📝 Novo usuário criado (simulação):', {
+      id: novoUsuario.id,
+      nome: novoUsuario.nome,
+      email: novoUsuario.email,
+      tipoCliente: novoUsuario.tipoCliente,
+      documento: novoUsuario.documento
+    });
+
+    return novoUsuario;
+  }
+
+  async obterUsuariosDemo() {
+    // SIMULAÇÃO - Lista de usuários demo (em produção seria consulta ao banco)
+    return [
+      {
+        id: 1,
+        nome: 'Administrador',
+        email: 'admin@brandaocontador.com.br',
+        senha: 'admin123',
+        documento: '00000000000',
+        tipoCliente: 'cpf',
+        permissoes: ['admin', 'nfe_emitir', 'nfe_consultar', 'nfe_cancelar']
+      },
+      {
+        id: 2,
+        nome: 'Operador NFe',
+        email: 'operador@brandaocontador.com.br',
+        senha: 'operador123',
+        documento: '11111111111',
+        tipoCliente: 'cpf',
+        permissoes: ['nfe_emitir', 'nfe_consultar']
+      }
+    ];
+  }
 }
 
 module.exports = new AuthMiddleware();
