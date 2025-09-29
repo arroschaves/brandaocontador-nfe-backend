@@ -14,7 +14,7 @@ const PORT = process.env.PORT || 3001;
 
 // CORS configurado para permitir requisições do frontend
 app.use(cors({
-  origin: ['https://brandaocontador.com.br', 'https://app.brandaocontador.com.br', 'http://localhost:3000', 'http://localhost:3002'],
+  origin: ['https://brandaocontador.com.br', 'https://app.brandaocontador.com.br', 'https://nfe.brandaocontador.com.br', 'http://localhost:3000', 'http://localhost:3002'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Key']
