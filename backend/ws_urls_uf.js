@@ -107,5 +107,9 @@ module.exports = {
     'TO': {
         '1': 'https://nfe.sefaz.to.gov.br/ws/NFeAutorizacao4.asmx?wsdl',
         '2': 'https://hom.nfe.sefaz.to.gov.br/ws/NFeAutorizacao4.asmx?wsdl'
+    },
+    'SVRS': {
+        '1': 'https://nfe.svrs.rs.gov.br/ws/NfeAutorizacao/NFeAutorizacao4.asmx?wsdl',
+        '2': 'https://nfe-homologacao.svrs.rs.gov.br/ws/NfeAutorizacao/NFeAutorizacao4.asmx?wsdl'
     }
 };

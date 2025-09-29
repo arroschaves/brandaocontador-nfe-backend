@@ -1,3 +1,5 @@
+require('dotenv').config();
+
 const express = require('express');
 const cors = require('cors');
 const nfeService = require('./services/nfe-service');
@@ -18,8 +20,19 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Key']
 }));
 
-// Middleware para parsing de JSON
-app.use(express.json({ limit: '10mb' }));
+// Middleware para parsing JSON com tratamento de erros
+app.use(express.json({ 
+    limit: '10mb',
+    verify: (req, res, buf, encoding) => {
+        try {
+            JSON.parse(buf);
+        } catch (e) {
+            console.error('❌ Erro de parsing JSON:', e.message);
+            console.error('📄 Conteúdo recebido:', buf.toString());
+            throw new Error('JSON inválido');
+        }
+    }
+}));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Rate limiting global
@@ -32,36 +45,18 @@ app.use((req, res, next) => {
   next();
 });
 
-// ==================== ENDPOINTS DE AUTENTICAÇÃO ====================
-
-// Login (público)
-app.post('/auth/login', (req, res) => authMiddleware.login(req, res));
-
-// Gerar API Key (requer autenticação)
-app.post('/auth/api-key', 
+// ==================== ROTAS DE AUTENTICAÇÃO ====================
+app.post('/auth/login', authMiddleware.login.bind(authMiddleware));
+app.get('/auth/validate', 
+  authMiddleware.verificarAutenticacao(), 
+  authMiddleware.validarToken.bind(authMiddleware)
+);
+app.get('/auth/api-key', 
   authMiddleware.verificarAutenticacao(),
-  authMiddleware.verificarPermissao('admin'),
+  authMiddleware.verificarPermissao('admin'), 
   (req, res) => {
-    try {
-      const novaApiKey = authMiddleware.gerarApiKey();
-      
-      logService.log('api_key_gerada', 'SUCESSO', {
-        usuario: req.usuario.id,
-        apiKey: novaApiKey.substring(0, 8) + '...'
-      });
-
-      res.json({
-        sucesso: true,
-        apiKey: novaApiKey,
-        observacao: 'Guarde esta chave em local seguro. Ela não será exibida novamente.'
-      });
-    } catch (error) {
-      logService.logErro('api_key_geracao', error);
-      res.status(500).json({
-        sucesso: false,
-        erro: 'Erro ao gerar API Key'
-      });
-    }
+    const apiKey = authMiddleware.gerarApiKey();
+    res.json({ sucesso: true, apiKey });
   }
 );
 
@@ -246,6 +241,50 @@ app.get('/nfe/historico',
   }
 );
 
+// Salvar rascunho de NFe (requer autenticação)
+app.post('/nfe/rascunho', 
+  authMiddleware.verificarAutenticacao(),
+  async (req, res) => {
+    try {
+      // Validação básica dos dados
+      const validacao = await validationService.validarDadosNfe(req.body, { rascunho: true });
+      
+      // Para rascunho, permitimos dados incompletos
+      const rascunho = {
+        id: Date.now().toString(),
+        dados: req.body,
+        usuario: req.usuario.id,
+        dataUltimaAlteracao: new Date().toISOString(),
+        validacao: validacao
+      };
+      
+      // Simular salvamento do rascunho
+      await logService.log('rascunho_salvo', 'SUCESSO', { 
+        rascunho: rascunho.id,
+        usuario: req.usuario.id 
+      });
+
+      res.json({
+        sucesso: true,
+        mensagem: 'Rascunho salvo com sucesso',
+        id: rascunho.id,
+        dataUltimaAlteracao: rascunho.dataUltimaAlteracao
+      });
+
+    } catch (error) {
+      await logService.logErro('rascunho', error, { 
+        dados: req.body,
+        usuario: req.usuario.id 
+      });
+      res.status(500).json({
+        sucesso: false,
+        erro: 'Erro interno ao salvar rascunho',
+        codigo: 'RASCUNHO_ERROR'
+      });
+    }
+  }
+);
+
 // Endpoint de teste simples para debug
 app.post('/nfe/validar-debug', async (req, res) => {
   try {
@@ -335,15 +374,42 @@ app.get('/nfe/status', async (req, res) => {
 
 // ==================== MIDDLEWARE DE ERRO ====================
 
-// Middleware de tratamento de erros
-app.use((error, req, res, next) => {
-  console.error('Erro não tratado:', error);
-  
-  res.status(500).json({
-    status: "erro",
-    message: "Erro interno do servidor",
-    timestamp: new Date().toISOString()
-  });
+// Middleware de tratamento de erros global
+app.use((err, req, res, next) => {
+    console.error('❌ Erro não tratado:', {
+        message: err.message,
+        stack: err.stack,
+        url: req.url,
+        method: req.method,
+        body: req.body,
+        timestamp: new Date().toISOString()
+    });
+    
+    // Se o erro já foi enviado, não enviar novamente
+    if (res.headersSent) {
+        return next(err);
+    }
+    
+    // Tratar diferentes tipos de erro
+    let statusCode = 500;
+    let message = 'Erro interno do servidor';
+    
+    if (err.message === 'JSON inválido') {
+        statusCode = 400;
+        message = 'Dados JSON inválidos';
+    } else if (err.name === 'ValidationError') {
+        statusCode = 400;
+        message = 'Dados de entrada inválidos';
+    } else if (err.name === 'UnauthorizedError') {
+        statusCode = 401;
+        message = 'Não autorizado';
+    }
+    
+    res.status(statusCode).json({
+        erro: message,
+        detalhes: process.env.NODE_ENV === 'development' ? err.message : undefined,
+        timestamp: new Date().toISOString()
+    });
 });
 
 // Middleware para rotas não encontradas

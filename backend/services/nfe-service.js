@@ -3,6 +3,7 @@ const path = require("path");
 const axios = require("axios");
 const { carregarCertificado, assinarNFe } = require("../assinador");
 const { DOMParser, XMLSerializer } = require("xmldom");
+const CertificateService = require('./certificate-service');
 
 class NFeService {
   constructor() {
@@ -15,6 +16,8 @@ class NFeService {
     this.XMLS_DIR = path.join(__dirname, "../xmls");
     this.ENVIADAS_DIR = path.join(this.XMLS_DIR, "enviadas");
     this.FALHAS_DIR = path.join(this.XMLS_DIR, "falhas");
+    
+    this.certificateService = new CertificateService();
     
     // Cria diretórios se não existirem
     this.criarDiretorios();
@@ -31,20 +34,31 @@ class NFeService {
     });
   }
 
-  carregarCertificadoSistema() {
+  async carregarCertificadoSistema() {
+    // Se estiver em modo simulação, pula carregamento de certificado
+    if (process.env.SIMULATION_MODE === 'true') {
+      console.log('🔧 Modo simulação ativado - certificado não obrigatório');
+      this.certificadoCarregado = true;
+      return;
+    }
+    
     try {
-      if (!this.CERT_PATH) {
-        throw new Error("Caminho do certificado não configurado");
-      }
-
-      const certData = carregarCertificado(this.CERT_PATH, this.CERT_PASS);
-      this.chavePrivada = certData.chavePrivada;
-      this.certificado = certData.certificado;
+      const certificate = await this.certificateService.loadCertificate();
+      const info = this.certificateService.getCertificateInfo(certificate);
       
-      console.log("✅ Certificado carregado com sucesso");
+      this.chavePrivada = certificate.chavePrivada;
+      this.certificado = certificate.certificado;
+      
+      console.log("✅ Certificado carregado com sucesso:", {
+        subject: info.subject.commonName,
+        issuer: info.issuer.commonName,
+        expiresAt: info.validity.notAfter,
+        path: info.path
+      });
+      this.certificadoCarregado = true;
     } catch (error) {
       console.error("❌ Erro ao carregar certificado:", error.message);
-      this.certificadoCarregado = false;
+      throw new Error('Certificado digital é obrigatório para emissão real de NFe');
     }
   }
 
@@ -52,6 +66,24 @@ class NFeService {
 
   async emitirNfe(dadosNfe) {
     try {
+      console.log('📄 Iniciando emissão de NFe...');
+      
+      // Se estiver em modo simulação
+      if (process.env.SIMULATION_MODE === 'true') {
+        const chaveAcesso = this.gerarChaveAcesso(dadosNfe);
+        const resultado = {
+          sucesso: true,
+          chave: chaveAcesso,
+          protocolo: `${Date.now()}${Math.floor(Math.random() * 1000)}`,
+          dataEmissao: new Date().toISOString(),
+          mensagem: 'NFe autorizada (simulação)',
+          xml: this.gerarXmlNfe(dadosNfe)
+        };
+        
+        console.log('✅ NFe emitida com sucesso (simulação)!');
+        return resultado;
+      }
+      
       if (!this.chavePrivada || !this.certificado) {
         throw new Error("Certificado não carregado");
       }
@@ -75,6 +107,7 @@ class NFeService {
         const caminhoFinal = path.join(this.ENVIADAS_DIR, nomeArquivo);
         fs.renameSync(caminhoXml, caminhoFinal);
         
+        console.log('✅ NFe emitida com sucesso!');
         return {
           sucesso: true,
           chave: resultado.chave,
@@ -87,11 +120,12 @@ class NFeService {
         const caminhoFalha = path.join(this.FALHAS_DIR, nomeArquivo);
         fs.renameSync(caminhoXml, caminhoFalha);
         
+        console.log('❌ Falha na emissão da NFe');
         throw new Error(`Erro SEFAZ: ${resultado.erro}`);
       }
 
     } catch (error) {
-      console.error("Erro na emissão:", error);
+      console.error("❌ Erro na emissão:", error.message);
       throw error;
     }
   }
@@ -213,20 +247,41 @@ class NFeService {
 
   // ==================== CONSULTA NFE ====================
 
-  async consultarNfe(chave) {
+  async consultarNFe(chave) {
     try {
-      // Simula consulta à SEFAZ (implementar integração real)
-      const resultado = await this.consultarSefaz(chave);
+      console.log(`🔍 Consultando NFe: ${chave}`);
       
-      return {
-        chave,
-        situacao: resultado.situacao,
-        protocolo: resultado.protocolo,
-        dataConsulta: new Date().toISOString(),
-        xml: resultado.xml
-      };
+      // Se estiver em modo simulação, usar dados simulados
+      if (process.env.SIMULATION_MODE === 'true') {
+        const situacoes = ['Autorizada', 'Cancelada', 'Denegada'];
+        const situacao = situacoes[Math.floor(Math.random() * situacoes.length)];
+        
+        const resultado = {
+          chave,
+          situacao,
+          protocolo: `${Date.now()}${Math.floor(Math.random() * 1000)}`,
+          dataHora: new Date().toISOString(),
+          motivo: situacao === 'Autorizada' ? 'Autorizado o uso da NF-e' : 
+                 situacao === 'Cancelada' ? 'Cancelamento de NF-e homologado' :
+                 'Uso Denegado'
+        };
+        
+        console.log('✅ Consulta simulada realizada:', resultado);
+        return resultado;
+      }
+      
+      // Integração real com SEFAZ
+      if (!this.emissor) {
+        this.emissor = new EmissorNFeAxios();
+      }
+      
+      const resultado = await this.emissor.consultarNFe(chave);
+      console.log('✅ Consulta SEFAZ realizada:', resultado);
+      return resultado;
+      
     } catch (error) {
-      throw new Error(`Erro na consulta: ${error.message}`);
+      console.error('❌ Erro na consulta:', error.message);
+      throw error;
     }
   }
 
@@ -234,23 +289,45 @@ class NFeService {
 
   async cancelarNfe(chave, justificativa) {
     try {
-      // Gera XML de cancelamento
-      const xmlCancelamento = this.gerarXmlCancelamento(chave, justificativa);
+      console.log(`🚫 Cancelando NFe: ${chave}`);
+      console.log(`📝 Justificativa: ${justificativa}`);
       
-      // Assina o XML de cancelamento
-      const xmlAssinado = await this.assinarXml(xmlCancelamento);
+      // Validações
+      if (!chave || chave.length !== 44) {
+        throw new Error('Chave de acesso inválida');
+      }
       
-      // Envia para SEFAZ
-      const resultado = await this.enviarCancelamentoSefaz(xmlAssinado);
+      if (!justificativa || justificativa.length < 15) {
+        throw new Error('Justificativa deve ter pelo menos 15 caracteres');
+      }
       
-      return {
-        chave,
-        protocolo: resultado.protocolo,
-        dataCancelamento: new Date().toISOString(),
-        justificativa
-      };
+      // Se estiver em modo simulação
+      if (process.env.SIMULATION_MODE === 'true') {
+        const resultado = {
+          chave,
+          situacao: 'Cancelada',
+          protocolo: `${Date.now()}${Math.floor(Math.random() * 1000)}`,
+          dataHora: new Date().toISOString(),
+          motivo: 'Cancelamento de NF-e homologado',
+          justificativa
+        };
+        
+        console.log('✅ Cancelamento simulado processado:', resultado);
+        return resultado;
+      }
+      
+      // Integração real com SEFAZ
+      if (!this.emissor) {
+        this.emissor = new EmissorNFeAxios();
+      }
+      
+      const resultado = await this.emissor.cancelarNFe(chave, justificativa);
+      console.log('✅ Cancelamento SEFAZ processado:', resultado);
+      return resultado;
+      
     } catch (error) {
-      throw new Error(`Erro no cancelamento: ${error.message}`);
+      console.error('❌ Erro no cancelamento:', error.message);
+      throw error;
     }
   }
 

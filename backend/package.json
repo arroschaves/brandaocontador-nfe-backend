@@ -19,12 +19,18 @@
     "soap": "^1.0.0",
     "xml-crypto": "^4.0.0",
     "xml2js": "^0.6.2",
-    "xmldom": "^0.6.0"
+    "xmldom": "^0.6.0",
+    "xpath": "^0.0.34"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"
   },
-  "keywords": ["nfe", "sefaz", "xml", "fiscal"],
+  "keywords": [
+    "nfe",
+    "sefaz",
+    "xml",
+    "fiscal"
+  ],
   "author": "Brandão Contador",
   "license": "ISC"
 }

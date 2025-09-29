@@ -2,17 +2,23 @@ class ValidationService {
   
   // ==================== VALIDAÇÃO PRINCIPAL ====================
 
-  async validarDadosNfe(dados) {
+  async validarDadosNfe(dados, opcoes = {}) {
     const erros = [];
     const avisos = [];
+    const { rascunho = false } = opcoes;
 
     try {
-      // Validações obrigatórias
-      this.validarEmitente(dados.emitente, erros);
-      this.validarDestinatario(dados.destinatario, erros);
-      this.validarItens(dados.itens, erros);
-      this.validarTotais(dados.totais, erros);
-      this.validarDadosGerais(dados, erros);
+      if (rascunho) {
+        // Validações mais flexíveis para rascunho
+        this.validarRascunho(dados, erros, avisos);
+      } else {
+        // Validações obrigatórias para emissão
+        this.validarEmitente(dados.emitente, erros);
+        this.validarDestinatario(dados.destinatario, erros);
+        this.validarItens(dados.itens, erros);
+        this.validarTotais(dados.totais, erros);
+        this.validarDadosGerais(dados, erros);
+      }
 
       // Validações de aviso (não impedem emissão)
       this.validarAvisos(dados, avisos);
@@ -20,7 +26,8 @@ class ValidationService {
       return {
         valido: erros.length === 0,
         erros,
-        avisos
+        avisos,
+        rascunho
       };
 
     } catch (error) {
@@ -28,9 +35,72 @@ class ValidationService {
       return {
         valido: false,
         erros,
-        avisos
+        avisos,
+        rascunho
       };
     }
+  }
+
+  // ==================== VALIDAÇÃO DE RASCUNHO ====================
+
+  validarRascunho(dados, erros, avisos) {
+    // Para rascunho, apenas validações básicas e avisos
+    
+    // Validar destinatário se informado
+    if (dados.destinatario) {
+      if (dados.destinatario.nome && dados.destinatario.nome.trim().length < 2) {
+        avisos.push("Nome do destinatário deve ter pelo menos 2 caracteres");
+      }
+      
+      if (dados.destinatario.documento) {
+        const documento = dados.destinatario.documento.replace(/\D/g, '');
+        if (documento.length === 11 && !this.validarCPF(documento)) {
+          avisos.push("CPF do destinatário parece inválido");
+        } else if (documento.length === 14 && !this.validarCNPJ(documento)) {
+          avisos.push("CNPJ do destinatário parece inválido");
+        }
+      }
+      
+      if (dados.destinatario.email && !this.validarEmail(dados.destinatario.email)) {
+        avisos.push("Email do destinatário parece inválido");
+      }
+      
+      // Validar endereço se informado
+      if (dados.destinatario.endereco) {
+        if (dados.destinatario.endereco.cep && !this.validarCEP(dados.destinatario.endereco.cep)) {
+          avisos.push("CEP parece inválido");
+        }
+      }
+    }
+    
+    // Validar itens se informados
+    if (dados.itens && Array.isArray(dados.itens)) {
+      dados.itens.forEach((item, index) => {
+        const posicao = index + 1;
+        
+        if (item.quantidade && item.quantidade <= 0) {
+          avisos.push(`Item ${posicao}: Quantidade deve ser maior que zero`);
+        }
+        
+        if (item.valorUnitario && item.valorUnitario <= 0) {
+          avisos.push(`Item ${posicao}: Valor unitário deve ser maior que zero`);
+        }
+        
+        if (item.cfop && !/^\d{4}$/.test(item.cfop)) {
+          avisos.push(`Item ${posicao}: CFOP deve ter 4 dígitos`);
+        }
+      });
+    }
+    
+    // Validações mínimas obrigatórias apenas se dados estiverem muito incompletos
+    if (!dados.destinatario && !dados.itens) {
+      erros.push("Rascunho deve ter pelo menos dados do destinatário ou itens");
+    }
+  }
+  
+  validarEmail(email) {
+    const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return regex.test(email);
   }
 
   // ==================== VALIDAÇÃO DE EMITENTE ====================
@@ -188,11 +258,22 @@ class ValidationService {
         erros.push(`Item ${posicao}: Descrição deve ter no máximo 120 caracteres`);
       }
 
-      // CFOP
+      // CFOP - Validação mais específica
       if (!item.cfop) {
         erros.push(`Item ${posicao}: CFOP é obrigatório`);
       } else if (!/^\d{4}$/.test(item.cfop)) {
         erros.push(`Item ${posicao}: CFOP deve ter 4 dígitos`);
+      } else {
+        this.validarCFOP(item.cfop, posicao, erros);
+      }
+
+      // NCM - Validação específica
+      if (!item.ncm) {
+        erros.push(`Item ${posicao}: NCM é obrigatório`);
+      } else if (!/^\d{8}$/.test(item.ncm)) {
+        erros.push(`Item ${posicao}: NCM deve ter 8 dígitos`);
+      } else {
+        this.validarNCM(item.ncm, posicao, erros);
       }
 
       // Unidade
@@ -236,6 +317,69 @@ class ValidationService {
       // Validações de impostos
       this.validarImpostosItem(item, posicao, erros);
     });
+  }
+
+  // ==================== VALIDAÇÕES ESPECÍFICAS SEFAZ ====================
+
+  validarCFOP(cfop, posicao, erros) {
+    const cfopsValidos = {
+      // Vendas dentro do estado
+      '5101': 'Venda de produção do estabelecimento',
+      '5102': 'Venda de mercadoria adquirida ou recebida de terceiros',
+      '5103': 'Venda de produção do estabelecimento, que não deva por ele transitar',
+      '5104': 'Venda de mercadoria adquirida ou recebida de terceiros, que não deva por ele transitar',
+      '5109': 'Venda de produção do estabelecimento, destinada à Zona Franca de Manaus ou Áreas de Livre Comércio',
+      '5110': 'Venda de mercadoria adquirida ou recebida de terceiros, destinada à Zona Franca de Manaus ou Áreas de Livre Comércio',
+      '5116': 'Venda de produção do estabelecimento originada de encomenda para entrega futura',
+      '5117': 'Venda de mercadoria adquirida ou recebida de terceiros, originada de encomenda para entrega futura',
+      '5118': 'Venda de produção do estabelecimento entregue ao destinatário por conta e ordem do adquirente originário, em venda à ordem',
+      '5119': 'Venda de mercadoria adquirida ou recebida de terceiros entregue ao destinatário por conta e ordem do adquirente originário, em venda à ordem',
+      '5120': 'Venda de mercadoria adquirida ou recebida de terceiros entregue ao destinatário pelo vendedor remetente, em venda à ordem',
+      
+      // Vendas para outros estados
+      '6101': 'Venda de produção do estabelecimento',
+      '6102': 'Venda de mercadoria adquirida ou recebida de terceiros',
+      '6103': 'Venda de produção do estabelecimento, que não deva por ele transitar',
+      '6104': 'Venda de mercadoria adquirida ou recebida de terceiros, que não deva por ele transitar',
+      '6107': 'Venda de produção do estabelecimento, que deva transitar pelo estabelecimento do vendedor',
+      '6108': 'Venda de mercadoria adquirida ou recebida de terceiros, que deva transitar pelo estabelecimento do vendedor',
+      '6109': 'Venda de produção do estabelecimento, destinada à Zona Franca de Manaus ou Áreas de Livre Comércio',
+      '6110': 'Venda de mercadoria adquirida ou recebida de terceiros, destinada à Zona Franca de Manaus ou Áreas de Livre Comércio',
+      
+      // Prestação de serviços
+      '5933': 'Prestação de serviço sujeito ao ICMS',
+      '6933': 'Prestação de serviço sujeito ao ICMS'
+    };
+
+    if (!cfopsValidos[cfop]) {
+      erros.push(`Item ${posicao}: CFOP ${cfop} não é válido ou não está cadastrado`);
+    }
+  }
+
+  validarNCM(ncm, posicao, erros) {
+    // Validação básica de formato NCM
+    if (!/^\d{8}$/.test(ncm)) {
+      erros.push(`Item ${posicao}: NCM deve conter exatamente 8 dígitos`);
+      return;
+    }
+
+    // Validação de capítulos NCM válidos (01 a 99)
+    const capitulo = ncm.substring(0, 2);
+    const capituloNum = parseInt(capitulo);
+    
+    if (capituloNum < 1 || capituloNum > 99) {
+      erros.push(`Item ${posicao}: Capítulo NCM ${capitulo} inválido (deve estar entre 01 e 99)`);
+    }
+
+    // Validação de alguns NCMs específicos comuns
+    const ncmsEspeciais = {
+      '00000000': 'NCM genérico não permitido',
+      '99999999': 'NCM inválido'
+    };
+
+    if (ncmsEspeciais[ncm]) {
+      erros.push(`Item ${posicao}: ${ncmsEspeciais[ncm]}`);
+    }
   }
 
   // ==================== VALIDAÇÃO DE IMPOSTOS ====================
@@ -304,23 +448,75 @@ class ValidationService {
     }
 
     if (dados.numero && dados.numero > 999999999) {
-      erros.push("Número da NFe excede o limite máximo (999.999.999)");
+      erros.push("Número da NFe deve ter no máximo 9 dígitos");
     }
 
     // Série
-    if (dados.serie !== undefined) {
-      if (dados.serie < 1 || dados.serie > 999) {
-        erros.push("Série deve estar entre 1 e 999");
-      }
+    if (!dados.serie || dados.serie <= 0) {
+      erros.push("Série da NFe é obrigatória e deve ser maior que zero");
     }
 
-    // Natureza da operação
-    if (!dados.naturezaOperacao || dados.naturezaOperacao.trim().length < 1) {
+    if (dados.serie && dados.serie > 999) {
+      erros.push("Série da NFe deve ter no máximo 3 dígitos");
+    }
+
+    // Natureza da operação - Validação mais específica
+    if (!dados.naturezaOperacao || dados.naturezaOperacao.trim().length === 0) {
       erros.push("Natureza da operação é obrigatória");
+    } else {
+      this.validarNaturezaOperacao(dados.naturezaOperacao, erros);
     }
 
-    if (dados.naturezaOperacao && dados.naturezaOperacao.length > 60) {
+    // Tipo de operação
+    if (dados.tipoOperacao && ![0, 1].includes(dados.tipoOperacao)) {
+      erros.push("Tipo de operação deve ser 0 (Entrada) ou 1 (Saída)");
+    }
+
+    // Finalidade da emissão
+    if (dados.finalidade && ![1, 2, 3, 4].includes(dados.finalidade)) {
+      erros.push("Finalidade deve ser: 1-Normal, 2-Complementar, 3-Ajuste, 4-Devolução");
+    }
+
+    // Presença do comprador
+    if (dados.presencaComprador && ![0, 1, 2, 3, 4, 5, 9].includes(dados.presencaComprador)) {
+      erros.push("Presença do comprador deve ser: 0-Não se aplica, 1-Presencial, 2-Internet, 3-Teleatendimento, 4-NFCe entrega domicílio, 5-Presencial fora estabelecimento, 9-Outros");
+    }
+  }
+
+  validarNaturezaOperacao(natureza, erros) {
+    if (natureza.length > 60) {
       erros.push("Natureza da operação deve ter no máximo 60 caracteres");
+    }
+
+    if (natureza.length < 1) {
+      erros.push("Natureza da operação deve ter pelo menos 1 caractere");
+    }
+
+    // Validação de naturezas comuns
+    const naturezasComuns = [
+      'VENDA',
+      'VENDA DE MERCADORIA',
+      'VENDA DE PRODUÇÃO PRÓPRIA',
+      'VENDA DE MERCADORIA ADQUIRIDA',
+      'PRESTAÇÃO DE SERVIÇOS',
+      'REMESSA PARA DEMONSTRAÇÃO',
+      'REMESSA PARA CONSERTO',
+      'DEVOLUÇÃO DE VENDA',
+      'DEVOLUÇÃO DE COMPRA',
+      'TRANSFERÊNCIA',
+      'BONIFICAÇÃO',
+      'BRINDE',
+      'DOAÇÃO'
+    ];
+
+    // Verifica se contém pelo menos uma palavra-chave válida
+    const naturezaUpper = natureza.toUpperCase();
+    const contemPalavraValida = naturezasComuns.some(nat => 
+      naturezaUpper.includes(nat) || nat.includes(naturezaUpper)
+    );
+
+    if (!contemPalavraValida && natureza.length < 10) {
+      erros.push("Natureza da operação muito genérica. Seja mais específico (ex: 'Venda de mercadoria')");
     }
   }
 

@@ -407,7 +407,7 @@ class AuthMiddleware {
         nome: 'Administrador',
         email: 'admin@brandaocontador.com.br',
         senha: 'admin123', // Em produção, usar hash
-        permissoes: ['admin']
+        permissoes: ['admin', 'nfe_emitir', 'nfe_consultar', 'nfe_cancelar']
       },
       {
         id: 2,
@@ -415,6 +415,13 @@ class AuthMiddleware {
         email: 'operador@brandaocontador.com.br',
         senha: 'operador123',
         permissoes: ['nfe_emitir', 'nfe_consultar']
+      },
+      {
+        id: 3,
+        nome: 'Contador',
+        email: 'contador@brandaocontador.com.br',
+        senha: 'contador123',
+        permissoes: ['nfe_emitir', 'nfe_consultar', 'nfe_cancelar']
       }
     ];
 
@@ -427,6 +434,40 @@ class AuthMiddleware {
     }
 
     return null;
+  }
+
+  // Endpoint para validar token
+  async validarToken(req, res) {
+    try {
+      // O middleware já validou o token e adicionou o usuário ao req
+      if (req.usuario) {
+        res.json({
+          sucesso: true,
+          usuario: {
+            id: req.usuario.id,
+            nome: req.usuario.nome,
+            email: req.usuario.email,
+            permissoes: req.usuario.permissoes
+          }
+        });
+      } else {
+        res.status(401).json({
+          sucesso: false,
+          erro: 'Token inválido',
+          codigo: 'INVALID_TOKEN'
+        });
+      }
+    } catch (error) {
+      await logService.logErro('validar_token', error, {
+        ip: req.ip
+      });
+
+      res.status(500).json({
+        sucesso: false,
+        erro: 'Erro interno na validação do token',
+        codigo: 'TOKEN_VALIDATION_ERROR'
+      });
+    }
   }
 }
 
