@@ -476,24 +476,41 @@ class EmissorNFeAxios {
             const parser = new DOMParser();
             const doc = parser.parseFromString(xml, 'text/xml');
             
-            // Encontrar o elemento infNFe
-            const infNFe = doc.getElementsByTagName('infNFe')[0];
-            const infNFeId = infNFe.getAttribute('Id');
+            // Detectar tipo de XML e encontrar o elemento correto
+            let elementoAssinatura, elementoId;
             
-            // Canonicalizar o elemento infNFe
+            // Verificar se é XML de NFe
+            const infNFe = doc.getElementsByTagName('infNFe')[0];
+            if (infNFe) {
+                elementoAssinatura = infNFe;
+                elementoId = infNFe.getAttribute('Id');
+                console.log('📄 Detectado XML de NFe');
+            } else {
+                // Verificar se é XML de evento (cancelamento, carta de correção, etc.)
+                const infEvento = doc.getElementsByTagName('infEvento')[0];
+                if (infEvento) {
+                    elementoAssinatura = infEvento;
+                    elementoId = infEvento.getAttribute('Id');
+                    console.log('📄 Detectado XML de Evento');
+                } else {
+                    throw new Error('Elemento para assinatura não encontrado (infNFe ou infEvento)');
+                }
+            }
+            
+            // Canonicalizar o elemento
             const serializer = new XMLSerializer();
-            const infNFeXml = serializer.serializeToString(infNFe);
+            const elementoXml = serializer.serializeToString(elementoAssinatura);
             
             // Calcular hash SHA1
             const hash = crypto.createHash('sha1');
-            hash.update(infNFeXml, 'utf8');
+            hash.update(elementoXml, 'utf8');
             const digestValue = hash.digest('base64');
             
             // Criar SignedInfo
             const signedInfo = `<SignedInfo xmlns="http://www.w3.org/2000/09/xmldsig#">
                 <CanonicalizationMethod Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315" />
                 <SignatureMethod Algorithm="http://www.w3.org/2000/09/xmldsig#rsa-sha1" />
-                <Reference URI="#${infNFeId}">
+                <Reference URI="#${elementoId}">
                     <Transforms>
                         <Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature" />
                         <Transform Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315" />
@@ -527,9 +544,27 @@ class EmissorNFeAxios {
             </Signature>`;
             
             // Inserir assinatura no XML
+            let elementoPai;
+            
+            // Detectar onde inserir a assinatura baseado no tipo de XML
             const nfeElement = doc.getElementsByTagName('NFe')[0];
+            if (nfeElement) {
+                // XML de NFe - inserir dentro do elemento NFe
+                elementoPai = nfeElement;
+                console.log('📝 Inserindo assinatura no elemento NFe');
+            } else {
+                // XML de evento - inserir dentro do elemento evento
+                const eventoElement = doc.getElementsByTagName('evento')[0];
+                if (eventoElement) {
+                    elementoPai = eventoElement;
+                    console.log('📝 Inserindo assinatura no elemento evento');
+                } else {
+                    throw new Error('Elemento pai para assinatura não encontrado (NFe ou evento)');
+                }
+            }
+            
             const signatureElement = parser.parseFromString(signature, 'text/xml').documentElement;
-            nfeElement.appendChild(signatureElement);
+            elementoPai.appendChild(signatureElement);
             
             const xmlAssinado = serializer.serializeToString(doc);
             

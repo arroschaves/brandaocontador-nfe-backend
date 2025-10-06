@@ -31,32 +31,85 @@ function carregarCertificado(pfxPath, senha) {
 
 // Assina o XML da NFe
 function assinarNFe(xml, chavePrivada, certificado) {
-    const doc = new DOMParser().parseFromString(xml);
-    const sig = new SignedXml();
+    try {
+        console.log("🔐 Iniciando assinatura XML...");
+        
+        // Para desenvolvimento, vamos retornar o XML sem assinatura
+        // mas com uma estrutura de assinatura simulada
+        if (process.env.NODE_ENV === 'development' || process.env.DEBUG_MODE === 'true') {
+            console.log("⚠️ Modo desenvolvimento: retornando XML sem assinatura digital");
+            
+            // Adiciona uma assinatura simulada para testes
+            const xmlComAssinatura = xml.replace(
+                '</infNFe>',
+                `</infNFe>
+  <Signature xmlns="http://www.w3.org/2000/09/xmldsig#">
+    <SignedInfo>
+      <CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"/>
+      <SignatureMethod Algorithm="http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"/>
+      <Reference URI="#NFe${Date.now()}">
+        <Transforms>
+          <Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature"/>
+          <Transform Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"/>
+        </Transforms>
+        <DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256"/>
+        <DigestValue>SIMULADO_DESENVOLVIMENTO</DigestValue>
+      </Reference>
+    </SignedInfo>
+    <SignatureValue>ASSINATURA_SIMULADA_DESENVOLVIMENTO</SignatureValue>
+    <KeyInfo>
+      <X509Data>
+        <X509Certificate>CERTIFICADO_SIMULADO</X509Certificate>
+      </X509Data>
+    </KeyInfo>
+  </Signature>`
+            );
+            
+            return xmlComAssinatura;
+        }
 
-    sig.signingKey = chavePrivada;
+        // Implementação real da assinatura para produção
+        const doc = new DOMParser().parseFromString(xml, "text/xml");
+        
+        if (!doc || doc.getElementsByTagName("parsererror").length > 0) {
+            throw new Error("XML inválido para assinatura");
+        }
 
-    sig.keyInfoProvider = {
-        getKeyInfo() {
-            return `<X509Data><X509Certificate>${certificado
-                .replace("-----BEGIN CERTIFICATE-----", "")
-                .replace("-----END CERTIFICATE-----", "")
-                .replace(/\r?\n|\r/g, "")}</X509Certificate></X509Data>`;
-        },
-    };
+        const infNFeElement = doc.getElementsByTagName("infNFe")[0];
+        if (!infNFeElement) {
+            throw new Error("Elemento infNFe não encontrado no XML");
+        }
 
-    sig.addReference(
-        "//*[local-name()='infNFe']",
-        ["http://www.w3.org/2000/09/xmldsig#enveloped-signature"],
-        "http://www.w3.org/2000/09/xmldsig#sha1"
-    );
+        const sig = new SignedXml();
+        sig.signingKey = chavePrivada;
 
-    sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
-    sig.signatureAlgorithm = "http://www.w3.org/2000/09/xmldsig#rsa-sha1";
+        sig.keyInfoProvider = {
+            getKeyInfo() {
+                const cert = certificado
+                    .replace("-----BEGIN CERTIFICATE-----", "")
+                    .replace("-----END CERTIFICATE-----", "")
+                    .replace(/\r?\n|\r/g, "");
+                return `<X509Data><X509Certificate>${cert}</X509Certificate></X509Data>`;
+            },
+        };
 
-    sig.computeSignature(xml);
+        const idRef = infNFeElement.getAttribute("Id");
+        if (!idRef) {
+            throw new Error("Atributo Id não encontrado no elemento infNFe");
+        }
 
-    return sig.getSignedXml();
+        // Usa referência simples sem XPath complexo
+        sig.addReference(`#${idRef}`);
+        sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
+        sig.signatureAlgorithm = "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256";
+
+        sig.computeSignature(xml);
+        return sig.getSignedXml();
+
+    } catch (error) {
+        console.error("Erro na assinatura XML:", error);
+        throw new Error(`Falha na assinatura: ${error.message}`);
+    }
 }
 
 module.exports = { carregarCertificado, assinarNFe };

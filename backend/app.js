@@ -270,7 +270,7 @@ app.post('/nfe/emitir',
       }
 
       // Emissão da NFe
-      const resultado = await nfeService.emitirNFe(req.body);
+      const resultado = await nfeService.emitirNfe(req.body);
       
       await logService.logEmissao(req.body, resultado);
 
@@ -281,6 +281,8 @@ app.post('/nfe/emitir',
       }
 
     } catch (error) {
+      console.error('❌ ERRO DETALHADO NA EMISSÃO:', error);
+      console.error('❌ Stack trace:', error.stack);
       await logService.logErro('emissao', error, { 
         dados: req.body,
         usuario: req.usuario.id 
@@ -354,7 +356,7 @@ app.post('/nfe/cancelar',
         });
       }
 
-      const resultado = await nfeService.cancelarNFe(chave, justificativa);
+      const resultado = await nfeService.cancelarNfe(chave, justificativa);
       
       await logService.logCancelamento(chave, justificativa, resultado);
 

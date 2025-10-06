@@ -183,46 +183,70 @@ class AuthMiddleware {
     return async (req, res, next) => {
       try {
         const token = this.extrairToken(req);
+        const apiKey = this.extrairApiKey(req);
         
-        if (!token) {
+        // Verifica se há pelo menos um método de autenticação
+        if (!token && !apiKey) {
           return res.status(401).json({
             sucesso: false,
             erro: 'Token não fornecido'
           });
         }
 
-        // Verificar e decodificar token
-        const decoded = jwt.verify(token, JWT_SECRET);
-        
-        // Buscar usuário no banco de dados
-        const usuario = await database.buscarUsuarioPorId(decoded.id);
-        
-        if (!usuario || !usuario.ativo) {
-          return res.status(401).json({
-            sucesso: false,
-            erro: 'Usuário não encontrado ou inativo'
-          });
+        // Tenta autenticação por JWT primeiro
+        if (token) {
+          try {
+            // Verificar e decodificar token
+            const decoded = jwt.verify(token, JWT_SECRET);
+            
+            // Buscar usuário no banco de dados
+            const usuario = await database.buscarUsuarioPorId(decoded.id);
+            
+            if (usuario && usuario.ativo) {
+              // Adicionar usuário à requisição
+              req.usuario = usuario;
+              req.tipoAuth = 'JWT';
+              return next();
+            }
+          } catch (jwtError) {
+            // Se JWT falhar, tenta API Key se disponível
+            if (!apiKey) {
+              if (jwtError.name === 'JsonWebTokenError') {
+                return res.status(401).json({
+                  sucesso: false,
+                  erro: 'Token inválido'
+                });
+              }
+              
+              if (jwtError.name === 'TokenExpiredError') {
+                return res.status(401).json({
+                  sucesso: false,
+                  erro: 'Token expirado'
+                });
+              }
+              
+              throw jwtError;
+            }
+          }
         }
 
-        // Adicionar usuário à requisição
-        req.usuario = usuario;
-        
-        next();
+        // Tenta autenticação por API Key
+        if (apiKey) {
+          const usuarioApiKey = await this.verificarApiKey(apiKey);
+          if (usuarioApiKey) {
+            req.usuario = usuarioApiKey;
+            req.tipoAuth = 'API_KEY';
+            return next();
+          }
+        }
+
+        // Se chegou até aqui, nenhum método de autenticação funcionou
+        return res.status(401).json({
+          sucesso: false,
+          erro: 'Credenciais inválidas'
+        });
+
       } catch (error) {
-        if (error.name === 'JsonWebTokenError') {
-          return res.status(401).json({
-            sucesso: false,
-            erro: 'Token inválido'
-          });
-        }
-        
-        if (error.name === 'TokenExpiredError') {
-          return res.status(401).json({
-            sucesso: false,
-            erro: 'Token expirado'
-          });
-        }
-
         await logService.logErro('verificar_autenticacao', error, { ip: req.ip });
         res.status(401).json({
           sucesso: false,
@@ -334,6 +358,40 @@ class AuthMiddleware {
     }
     
     return req.headers['x-access-token'] || req.headers['x-auth-token'];
+  }
+
+  extrairApiKey(req) {
+    return req.headers['x-api-key'] || req.headers['api-key'];
+  }
+
+  async verificarApiKey(apiKey) {
+    try {
+      // Lista de API Keys válidas (em produção, isso deveria vir do banco de dados ou variáveis de ambiente)
+      const apiKeysValidas = [
+        'nfe-dev-key-123456',
+        'nfe-homolog-key-123456',
+        'nfe-prod-key-123456'
+      ];
+
+      // Verifica se a API Key está na lista de chaves válidas
+      if (!apiKeysValidas.includes(apiKey)) {
+        return null;
+      }
+
+      // Para API Keys, retorna um usuário padrão do sistema
+      return {
+        id: 'api-key-user',
+        nome: 'Sistema API',
+        email: 'sistema@brandaocontador.com.br',
+        permissoes: ['nfe_emitir', 'nfe_consultar', 'nfe_cancelar'],
+        tipo: 'api_key',
+        ativo: true,
+        apiKey: apiKey.substring(0, 8) + '...' // Para logs
+      };
+
+    } catch (error) {
+      return null;
+    }
   }
 
   definirPermissoesPorTipo(tipoCliente) {

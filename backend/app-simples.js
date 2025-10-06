@@ -5,6 +5,8 @@ const cors = require('cors');
 const database = require('./config/database-simples');
 const logService = require('./services/log-service');
 const authMiddleware = require('./middleware/auth-simples');
+const nfeService = require('./services/nfe-service');
+const validationService = require('./services/validation-service');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -197,6 +199,137 @@ app.get('/nfe/historico',
       res.status(500).json({
         sucesso: false,
         erro: 'Erro ao obter histórico de NFes'
+      });
+    }
+  }
+);
+
+// Emitir NFe (requer autenticação e permissão)
+app.post('/nfe/emitir', 
+  authMiddleware.verificarAutenticacao(),
+  authMiddleware.verificarPermissao('nfe_emitir'),
+  async (req, res) => {
+    try {
+      // Validação dos dados
+      const validacao = await validationService.validarDadosNfe(req.body);
+      
+      if (!validacao.valido) {
+        await logService.logValidacao(req.body, validacao);
+        return res.status(400).json({
+          sucesso: false,
+          erro: 'Dados inválidos',
+          erros: validacao.erros,
+          avisos: validacao.avisos
+        });
+      }
+
+      // Emissão da NFe
+      const resultado = await nfeService.emitirNfe(req.body);
+      
+      await logService.logEmissao(req.body, resultado);
+
+      if (resultado.sucesso) {
+        res.json(resultado);
+      } else {
+        res.status(400).json(resultado);
+      }
+
+    } catch (error) {
+      console.error('❌ ERRO DETALHADO NA EMISSÃO:', error);
+      console.error('❌ Stack trace:', error.stack);
+      await logService.logErro('emissao', error, { 
+        dados: req.body,
+        usuario: req.usuario.id 
+      });
+      res.status(500).json({
+        sucesso: false,
+        erro: 'Erro interno na emissão da NFe',
+        codigo: 'EMISSAO_ERROR'
+      });
+    }
+  }
+);
+
+// Cancelar NFe (requer autenticação e permissão)
+app.post('/nfe/cancelar', 
+  authMiddleware.verificarAutenticacao(),
+  authMiddleware.verificarPermissao('nfe_cancelar'),
+  async (req, res) => {
+    try {
+      const { chave, justificativa } = req.body;
+      
+      if (!chave || !justificativa) {
+        return res.status(400).json({
+          sucesso: false,
+          erro: 'Chave e justificativa são obrigatórias',
+          codigo: 'DADOS_OBRIGATORIOS'
+        });
+      }
+
+      if (justificativa.length < 15) {
+        return res.status(400).json({
+          sucesso: false,
+          erro: 'Justificativa deve ter pelo menos 15 caracteres',
+          codigo: 'JUSTIFICATIVA_CURTA'
+        });
+      }
+
+      const resultado = await nfeService.cancelarNfe(chave, justificativa);
+      
+      await logService.logCancelamento(chave, justificativa, resultado);
+
+      if (resultado.sucesso) {
+        res.json(resultado);
+      } else {
+        res.status(400).json(resultado);
+      }
+
+    } catch (error) {
+      await logService.logErro('cancelamento', error, { 
+        chave: req.body.chave,
+        justificativa: req.body.justificativa,
+        usuario: req.usuario.id 
+      });
+      res.status(500).json({
+        sucesso: false,
+        erro: 'Erro interno no cancelamento da NFe',
+        codigo: 'CANCELAMENTO_ERROR'
+      });
+    }
+  }
+);
+
+// Consultar NFe (requer autenticação)
+app.get('/nfe/consultar/:chave', 
+  authMiddleware.verificarAutenticacao(),
+  authMiddleware.verificarPermissao('nfe_consultar'),
+  async (req, res) => {
+    try {
+      const { chave } = req.params;
+      
+      if (!chave || chave.length !== 44) {
+        return res.status(400).json({
+          sucesso: false,
+          erro: 'Chave da NFe inválida. Deve ter 44 dígitos.',
+          codigo: 'CHAVE_INVALIDA'
+        });
+      }
+
+      const resultado = await nfeService.consultarNFe(chave);
+      
+      await logService.logConsulta(chave, resultado);
+
+      res.json(resultado);
+
+    } catch (error) {
+      await logService.logErro('consulta', error, { 
+        chave: req.params.chave,
+        usuario: req.usuario.id 
+      });
+      res.status(500).json({
+        sucesso: false,
+        erro: 'Erro interno na consulta da NFe',
+        codigo: 'CONSULTA_ERROR'
       });
     }
   }

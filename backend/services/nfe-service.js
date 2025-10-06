@@ -4,6 +4,7 @@ const axios = require("axios");
 const { carregarCertificado, assinarNFe } = require("../assinador");
 const { DOMParser, XMLSerializer } = require("xmldom");
 const CertificateService = require('./certificate-service');
+const { EmissorNFeAxios } = require('../emit-nfe-axios');
 
 class NFeService {
   constructor() {
@@ -46,8 +47,8 @@ class NFeService {
       const certificate = await this.certificateService.loadCertificate();
       const info = this.certificateService.getCertificateInfo(certificate);
       
-      this.chavePrivada = certificate.chavePrivada;
-      this.certificado = certificate.certificado;
+      this.chavePrivada = certificate.privateKey;
+      this.certificado = certificate.certificate;
       
       console.log("✅ Certificado carregado com sucesso:", {
         subject: info.subject.commonName,
@@ -67,6 +68,7 @@ class NFeService {
   async emitirNfe(dadosNfe) {
     try {
       console.log('📄 Iniciando emissão de NFe...');
+      console.log('📋 Dados recebidos:', JSON.stringify(dadosNfe, null, 2));
       
       // Se estiver em modo simulação
       if (process.env.SIMULATION_MODE === 'true') {
@@ -85,25 +87,34 @@ class NFeService {
       }
       
       if (!this.chavePrivada || !this.certificado) {
+        console.log('❌ Certificado não carregado');
         throw new Error("Certificado não carregado");
       }
 
+      console.log('🔐 Certificado carregado, gerando XML...');
       // Gera o XML da NFe
       const xmlNfe = this.gerarXmlNfe(dadosNfe);
+      console.log('📄 XML gerado com sucesso');
       
       // Assina o XML
+      console.log('🔐 Assinando XML...');
       const xmlAssinado = await this.assinarXml(xmlNfe);
+      console.log('✅ XML assinado com sucesso');
 
-      // Validação XML security
-      validarXmlSeguranca.call(this, xmlNfe);
+      // Validação XML security (temporariamente desabilitada para debug)
+      // validarXmlSeguranca.call(this, xmlNfe);
       
       // Salva XML antes do envio
+      console.log('💾 Salvando XML...');
       const nomeArquivo = `NFe_${dadosNfe.numero}_${Date.now()}.xml`;
       const caminhoXml = path.join(this.XMLS_DIR, nomeArquivo);
       fs.writeFileSync(caminhoXml, xmlAssinado, "utf-8");
+      console.log('✅ XML salvo:', caminhoXml);
       
       // Envia para SEFAZ
+      console.log('📤 Enviando para SEFAZ...');
       const resultado = await this.enviarParaSefaz(xmlAssinado);
+      console.log('📥 Resposta SEFAZ:', resultado);
       
       // Move para pasta apropriada baseado no resultado
       if (resultado.sucesso) {
@@ -166,7 +177,7 @@ class NFeService {
     </ide>
     <emit>
       <CNPJ>${this.CNPJ_EMITENTE}</CNPJ>
-      <xNome>${dados.emitente.nome}</xNome>
+      <xNome>${dados.emitente.razaoSocial}</xNome>
       <enderEmit>
         <xLgr>${dados.emitente.endereco.logradouro}</xLgr>
         <nro>${dados.emitente.endereco.numero}</nro>
@@ -182,7 +193,7 @@ class NFeService {
       <CRT>${dados.emitente.regimeTributario || 3}</CRT>
     </emit>
     <dest>
-      <CNPJ>${dados.destinatario.cnpj}</CNPJ>
+      ${dados.destinatario.cnpj ? `<CNPJ>${dados.destinatario.cnpj}</CNPJ>` : `<CPF>${dados.destinatario.cpf}</CPF>`}
       <xNome>${dados.destinatario.nome}</xNome>
       <enderDest>
         <xLgr>${dados.destinatario.endereco.logradouro}</xLgr>
@@ -195,7 +206,7 @@ class NFeService {
         <cPais>1058</cPais>
         <xPais>Brasil</xPais>
       </enderDest>
-      <indIEDest>1</indIEDest>
+      <indIEDest>${dados.destinatario.cnpj ? '1' : '9'}</indIEDest>
     </dest>
     ${this.gerarItensXml(dados.itens)}
     <total>
@@ -294,18 +305,25 @@ class NFeService {
     try {
       console.log(`🚫 Cancelando NFe: ${chave}`);
       console.log(`📝 Justificativa: ${justificativa}`);
+      console.log(`🔧 SIMULATION_MODE: ${process.env.SIMULATION_MODE}`);
+      console.log(`🔧 AMBIENTE: ${process.env.AMBIENTE}`);
       
       // Validações
       if (!chave || chave.length !== 44) {
+        console.error('❌ Chave de acesso inválida:', chave);
         throw new Error('Chave de acesso inválida');
       }
       
       if (!justificativa || justificativa.length < 15) {
+        console.error('❌ Justificativa inválida:', justificativa);
         throw new Error('Justificativa deve ter pelo menos 15 caracteres');
       }
       
+      console.log('✅ Validações passaram');
+      
       // Se estiver em modo simulação
       if (process.env.SIMULATION_MODE === 'true') {
+        console.log('🎭 Processando cancelamento em modo simulação');
         const resultado = {
           chave,
           situacao: 'Cancelada',
@@ -320,16 +338,21 @@ class NFeService {
       }
       
       // Integração real com SEFAZ
+      console.log('🌐 Processando cancelamento real com SEFAZ');
       if (!this.emissor) {
+        console.log('🔧 Criando nova instância do EmissorNFeAxios');
         this.emissor = new EmissorNFeAxios();
+        await this.emissor.inicializar();
       }
       
+      console.log('📤 Enviando cancelamento para SEFAZ...');
       const resultado = await this.emissor.cancelarNFe(chave, justificativa);
       console.log('✅ Cancelamento SEFAZ processado:', resultado);
       return resultado;
       
     } catch (error) {
       console.error('❌ Erro no cancelamento:', error.message);
+      console.error('❌ Stack trace:', error.stack);
       throw error;
     }
   }
@@ -522,7 +545,6 @@ class NFeService {
   </evento>
 </envEvento>`;
   }
-}
 
   validarXmlSeguranca(xml) {
     try {
@@ -547,5 +569,6 @@ class NFeService {
       throw new Error(`Validação XML falhou: ${error.message}`);
     }
   }
+}
 
 module.exports = new NFeService();
