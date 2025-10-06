@@ -120,26 +120,7 @@ if (process.env.NODE_ENV !== 'production') {
 
 // ==================== ENDPOINTS NFE ====================
 
-// Endpoint de teste (público para verificar conectividade)
-app.get('/nfe/teste', async (req, res) => {
-  try {
-    await logService.log('teste', 'SUCESSO', { ip: req.ip });
-    
-    res.json({
-      sucesso: true,
-      mensagem: 'API NFe funcionando corretamente!',
-      timestamp: new Date().toISOString(),
-      versao: '1.0.0',
-      bancoDados: database.isConnected() ? 'conectado' : 'desconectado'
-    });
-  } catch (error) {
-    await logService.logErro('teste', error);
-    res.status(500).json({
-      sucesso: false,
-      erro: 'Erro interno do servidor'
-    });
-  }
-});
+
 
 // Status do sistema NFe (requer autenticação)
 app.get('/nfe/status',
