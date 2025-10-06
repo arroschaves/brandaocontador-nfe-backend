@@ -1,0 +1,15 @@
+{
+  "servers": {
+    "my-mcp-server-771fba8a": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "@testsprite/testsprite-mcp@latest"
+      ],
+      "env": {
+        "API_KEY": "sk-user-u4LjBP9dEiyAeCpryfzRrnKG5ZiYaJz36V8uuFpFh3A3oeooeQivgtCq8a3yfGYDbfCFGOpuJPX_SYAvxeMQJYi7SI_z0WfkydWEtrfTRrH7-CGeuZU8t-81qKmolDY9V8w"
+      }
+    }
+  },
+  "inputs": []
+}

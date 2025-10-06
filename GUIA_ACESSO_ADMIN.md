@@ -86,8 +86,8 @@ Se preferir manter no Vercel, você pode:
 ## 🔐 Credenciais de Acesso Administrativo
 
 ### Usuário Administrador Padrão
-- **Email**: `admin@brandaocontador.com`
-- **Senha**: `admin123456`
+- **Email**: `admin@brandaocontador.com.br`
+- **Senha**: `admin123`
 - **Role**: `admin`
 
 ### URLs de Acesso

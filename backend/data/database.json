@@ -1,0 +1,90 @@
+{
+  "usuarios": [
+    {
+      "id": "1759352978853",
+      "nome": "Usuário de Teste",
+      "email": "teste@exemplo.com",
+      "senha": "$2b$10$uklW.Xi5t/O.t6ysXBw3KuIk4fGgwH08jhG4JlGaNE/QKYKIkFnaa",
+      "telefone": "(11) 98765-4321",
+      "documento": "123.456.789-09",
+      "tipoPessoa": "PF",
+      "tipoCliente": "contador",
+      "endereco": {
+        "cep": "01234-567",
+        "logradouro": "Rua de Teste",
+        "numero": "123",
+        "complemento": "Apto 45",
+        "bairro": "Centro",
+        "cidade": "São Paulo",
+        "uf": "SP"
+      },
+      "permissoes": [
+        "nfe_emitir",
+        "nfe_cancelar",
+        "nfe_cart_correcao",
+        "nfe_inutilizar",
+        "nfe_consultar",
+        "nfe_download",
+        "relatorios_ver",
+        "configuracoes_ver"
+      ],
+      "ativo": true,
+      "ultimoAcesso": "2025-10-01T21:09:38.929Z",
+      "criadoEm": "2025-10-01T21:09:38.853Z",
+      "atualizadoEm": "2025-10-01T21:09:38.929Z"
+    },
+    {
+      "id": "1759511810399",
+      "nome": "Test User",
+      "email": "test@brandao.com",
+      "senha": "$2b$10$kSDM/PPB1Fpp2RcrVmR.s.4x0o0z/3Wc19CxEzwb9IbQ2TuPkIrP2",
+      "telefone": "",
+      "documento": "",
+      "tipoPessoa": "PF",
+      "tipoCliente": "contador",
+      "endereco": {},
+      "permissoes": [
+        "nfe_emitir",
+        "nfe_cancelar",
+        "nfe_cart_correcao",
+        "nfe_inutilizar",
+        "nfe_consultar",
+        "nfe_download",
+        "relatorios_ver",
+        "configuracoes_ver"
+      ],
+      "ativo": true,
+      "ultimoAcesso": "2025-10-03T17:21:21.433Z",
+      "criadoEm": "2025-10-03T17:16:50.399Z",
+      "atualizadoEm": "2025-10-03T17:21:21.433Z"
+    },
+    {
+      "id": "1759523731086",
+      "nome": "Administrador",
+      "email": "admin@teste.com",
+      "senha": "$2b$10$ALGtiqxHkGZlZavwKM79re8f055v1.pndOkQlWKZLU5iTMkEIMy5K",
+      "telefone": "",
+      "documento": "",
+      "tipoPessoa": "PF",
+      "tipoCliente": "contador",
+      "endereco": {},
+      "permissoes": [
+        "nfe_emitir",
+        "nfe_cancelar",
+        "nfe_cart_correcao",
+        "nfe_inutilizar",
+        "nfe_consultar",
+        "nfe_download",
+        "relatorios_ver",
+        "configuracoes_ver"
+      ],
+      "ativo": true,
+      "ultimoAcesso": "2025-10-06T14:03:54.491Z",
+      "criadoEm": "2025-10-03T20:35:31.086Z",
+      "atualizadoEm": "2025-10-06T14:03:54.491Z"
+    }
+  ],
+  "nfes": [],
+  "logs": [],
+  "configuracoes": {}
+}

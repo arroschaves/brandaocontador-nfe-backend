@@ -108,8 +108,8 @@ Action: Block
 
 ## 🔐 Credenciais de Admin
 
-**Email**: `admin@brandaocontador.com`
-**Senha**: `admin123456`
+**Email**: `admin@brandaocontador.com.br`
+**Senha**: `admin123`
 **Role**: `admin`
 
 ## 📝 Próximos Passos
