@@ -15,7 +15,32 @@ const PORT = process.env.PORT || 3001;
 // CORS configurado para permitir requisições do frontend
 const corsOrigins = process.env.CORS_ORIGINS 
   ? process.env.CORS_ORIGINS.split(',').map(origin => origin.trim())
-  : ['https://brandaocontador.com.br', 'https://app.brandaocontador.com.br', 'https://nfe.brandaocontador.com.br', 'http://localhost:3000', 'http://localhost:3002'];
+  : [
+    'https://brandaocontador.com.br',
+    'https://app.brandaocontador.com.br',
+    'https://nfe.brandaocontador.com.br',
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'http://localhost:3002',
+    'http://localhost:3003',
+    'http://localhost:5173' // Vite dev server
+  ];
+
+// Middleware para lidar com requisições OPTIONS (preflight)
+app.use((req, res, next) => {
+  if (req.method === 'OPTIONS') {
+    const origin = req.headers.origin;
+    // Se a origem estiver na lista permitida, use-a, caso contrário, use localhost:3002
+    const allowedOrigin = corsOrigins.includes(origin) ? origin : 'http://localhost:3002';
+    res.header('Access-Control-Allow-Origin', allowedOrigin);
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-Key');
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Max-Age', '86400'); // 24 horas
+    return res.status(200).end();
+  }
+  next();
+});
 
 app.use(cors({
   origin: corsOrigins,
@@ -77,6 +102,153 @@ app.get('/nfe/teste', async (req, res) => {
     });
   }
 });
+
+// Status do sistema NFe (requer autenticação)
+app.get('/nfe/status',
+  authMiddleware.verificarAutenticacao(),
+  async (req, res) => {
+    try {
+      const status = await nfeService.verificarStatusSistema();
+      await logService.log('status', 'SUCESSO', { usuario: req.usuario?.id });
+      res.json({ sucesso: true, status });
+    } catch (error) {
+      await logService.logErro('status', error, { ip: req.ip });
+      res.status(500).json({ sucesso: false, erro: 'Erro ao obter status do sistema' });
+    }
+  }
+);
+
+// Histórico de NFes (simulação com paginação)
+app.get('/nfe/historico', 
+  authMiddleware.verificarAutenticacao(),
+  async (req, res) => {
+    try {
+      const pagina = parseInt(req.query.pagina) || 1;
+      const limite = parseInt(req.query.limite) || 10;
+
+      // Simulação de dados (substituir por consulta ao banco em produção)
+      const todasNfes = [
+        {
+          id: '1',
+          numero: '000001234',
+          serie: '001',
+          chave: '35200714200166000187550010000000015123456789',
+          destinatario: 'Empresa ABC Ltda',
+          documento: '12.345.678/0001-90',
+          valor: 15000.00,
+          status: 'autorizada',
+          dataEmissao: '2024-01-15T10:30:00Z'
+        },
+        {
+          id: '2',
+          numero: '000001235',
+          serie: '001',
+          chave: '35200714200166000187550010000000025123456789',
+          destinatario: 'Comércio XYZ S/A',
+          documento: '98.765.432/0001-00',
+          valor: 8500.75,
+          status: 'autorizada',
+          dataEmissao: '2024-01-15T09:15:00Z'
+        },
+        {
+          id: '3',
+          numero: '000001236',
+          serie: '001',
+          chave: '35200714200166000187550010000000035123456789',
+          destinatario: 'Indústria DEF Ltda',
+          documento: '11.222.333/0001-44',
+          valor: 32000.00,
+          status: 'pendente',
+          dataEmissao: '2024-01-15T08:45:00Z'
+        }
+      ];
+
+      const total = todasNfes.length;
+      const inicio = (pagina - 1) * limite;
+      const fim = inicio + limite;
+      const nfes = todasNfes.slice(inicio, fim);
+
+      await logService.log('historico', 'SUCESSO', {
+        usuario: req.usuario?.id,
+        pagina,
+        limite,
+        retornadas: nfes.length
+      });
+
+      res.json({
+        sucesso: true,
+        nfes,
+        total,
+        limite,
+        pagina
+      });
+    } catch (error) {
+      await logService.logErro('historico', error, { ip: req.ip });
+      res.status(500).json({
+        sucesso: false,
+        erro: 'Erro ao obter histórico de NFes'
+      });
+    }
+  }
+);
+
+// Download de XML/PDF da NFe (simulado para desenvolvimento)
+app.get('/nfe/download/:tipo/:chave',
+  authMiddleware.verificarAutenticacao(),
+  authMiddleware.verificarPermissao('nfe_consultar'),
+  async (req, res) => {
+    try {
+      const { tipo, chave } = req.params;
+
+      // Validações básicas
+      const chaveNumerica = (chave || '').replace(/\D/g, '');
+      if (chaveNumerica.length !== 44) {
+        return res.status(400).json({
+          sucesso: false,
+          erro: 'Chave da NFe inválida. Deve ter 44 dígitos.',
+          codigo: 'CHAVE_INVALIDA'
+        });
+      }
+
+      if (!['xml', 'pdf'].includes(tipo)) {
+        return res.status(400).json({
+          sucesso: false,
+          erro: 'Tipo de arquivo inválido. Use xml ou pdf.',
+          codigo: 'TIPO_INVALIDO'
+        });
+      }
+
+      await logService.log('download', 'SUCESSO', { tipo, chave, usuario: req.usuario?.id });
+
+      // Conteúdo simulado para desenvolvimento
+      if (tipo === 'xml') {
+        const xmlContent = `<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<NFe>\n  <chaveAcesso>${chaveNumerica}</chaveAcesso>\n  <situacao>Autorizada</situacao>\n  <geradoEm>${new Date().toISOString()}</geradoEm>\n</NFe>`;
+        res.setHeader('Content-Type', 'application/xml');
+        res.setHeader('Content-Disposition', `attachment; filename=\"NFe_${chaveNumerica}.xml\"`);
+        return res.status(200).send(xmlContent);
+      }
+
+      // PDF mínimo (placeholder) para desenvolvimento
+      const pdfMinimal = Buffer.from(
+        '%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n' +
+        '2 0 obj<</Type/Pages/Count 1/Kids[3 0 R]>>endobj\n' +
+        '3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 595 842]/Contents 4 0 R>>endobj\n' +
+        '4 0 obj<</Length 55>>stream\nBT /F1 12 Tf 72 720 Td(Comprovante NFe ' + chaveNumerica + ')Tj ET\nendstream\nendobj\n' +
+        'xref\n0 5\n0000000000 65535 f \n0000000010 00000 n \n0000000061 00000 n \n0000000116 00000 n \n0000000221 00000 n \ntrailer<</Size 5/Root 1 0 R>>\nstartxref\n320\n%%EOF'
+      );
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename=\"NFe_${chaveNumerica}.pdf\"`);
+      return res.status(200).send(pdfMinimal);
+    } catch (error) {
+      await logService.logErro('download', error, { ip: req.ip });
+      return res.status(500).json({
+        sucesso: false,
+        erro: 'Erro ao gerar arquivo para download',
+        codigo: 'DOWNLOAD_ERROR'
+      });
+    }
+  }
+);
 
 // Emitir NFe (requer autenticação e permissão)
 app.post('/nfe/emitir', 

@@ -93,6 +93,9 @@ class NFeService {
       
       // Assina o XML
       const xmlAssinado = await this.assinarXml(xmlNfe);
+
+      // Validação XML security
+      validarXmlSeguranca.call(this, xmlNfe);
       
       // Salva XML antes do envio
       const nomeArquivo = `NFe_${dadosNfe.numero}_${Date.now()}.xml`;
@@ -520,5 +523,29 @@ class NFeService {
 </envEvento>`;
   }
 }
+
+  validarXmlSeguranca(xml) {
+    try {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(xml, "text/xml");
+      
+      // Checa se tem <infNFe> tag obrigatória
+      const infNFe = doc.getElementsByTagName('infNFe')[0];
+      if (!infNFe) {
+        throw new Error('XML inválido: Tag <infNFe> obrigatória ausente - possível injection');
+      }
+      
+      // Checa CNPJ emitente matches env
+      const cnpj = doc.getElementsByTagName('CNPJ')[0];
+      if (cnpj && cnpj.textContent !== this.CNPJ_EMITENTE) {
+        throw new Error('XML inválido: CNPJ emitente não autorizado');
+      }
+      
+      console.log('✅ XML validado com sucesso');
+    } catch (error) {
+      console.error('❌ Erro validação XML:', error.message);
+      throw new Error(`Validação XML falhou: ${error.message}`);
+    }
+  }
 
 module.exports = new NFeService();
