@@ -6,6 +6,7 @@ class AuthMiddleware {
     this.JWT_SECRET = process.env.JWT_SECRET || 'nfe-secret-key-change-in-production';
     this.JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
     this.API_KEYS = this.carregarApiKeys();
+    this.usuariosCriados = new Map(); // Armazenamento em memória para usuários criados
   }
 
   carregarApiKeys() {
@@ -401,31 +402,10 @@ class AuthMiddleware {
 
   async verificarCredenciais(email, senha) {
     // SIMULAÇÃO - Substituir por consulta ao banco de dados
-    const usuariosDemo = [
-      {
-        id: 1,
-        nome: 'Administrador',
-        email: 'admin@brandaocontador.com.br',
-        senha: 'admin123', // Em produção, usar hash
-        permissoes: ['admin', 'nfe_emitir', 'nfe_consultar', 'nfe_cancelar']
-      },
-      {
-        id: 2,
-        nome: 'Operador NFe',
-        email: 'operador@brandaocontador.com.br',
-        senha: 'operador123',
-        permissoes: ['nfe_emitir', 'nfe_consultar']
-      },
-      {
-        id: 3,
-        nome: 'Contador',
-        email: 'contador@brandaocontador.com.br',
-        senha: 'contador123',
-        permissoes: ['nfe_emitir', 'nfe_consultar', 'nfe_cancelar']
-      }
-    ];
+    // Obter todos os usuários (demo + criados dinamicamente)
+    const todosUsuarios = await this.obterTodosUsuarios();
 
-    const usuario = usuariosDemo.find(u => u.email === email && u.senha === senha);
+    const usuario = todosUsuarios.find(u => u.email === email && u.senha === senha);
     
     if (usuario) {
       // Remove a senha do objeto retornado
@@ -622,14 +602,14 @@ class AuthMiddleware {
 
   async verificarEmailExistente(email) {
     // SIMULAÇÃO - Em produção, consultar banco de dados
-    const usuariosDemo = await this.obterUsuariosDemo();
-    return usuariosDemo.find(user => user.email.toLowerCase() === email.toLowerCase());
+    const todosUsuarios = await this.obterTodosUsuarios();
+    return todosUsuarios.find(user => user.email.toLowerCase() === email.toLowerCase());
   }
 
   async verificarDocumentoExistente(documento) {
     // SIMULAÇÃO - Em produção, consultar banco de dados
-    const usuariosDemo = await this.obterUsuariosDemo();
-    return usuariosDemo.find(user => user.documento === documento);
+    const todosUsuarios = await this.obterTodosUsuarios();
+    return todosUsuarios.find(user => user.documento === documento);
   }
 
   async criarUsuario(dadosUsuario) {
@@ -640,6 +620,9 @@ class AuthMiddleware {
       id: novoId,
       ...dadosUsuario
     };
+
+    // Salva o usuário no armazenamento em memória
+    this.usuariosCriados.set(novoId, novoUsuario);
 
     // Em um sistema real, aqui salvaria no banco de dados
     console.log('📝 Novo usuário criado (simulação):', {
@@ -675,6 +658,14 @@ class AuthMiddleware {
         permissoes: ['nfe_emitir', 'nfe_consultar']
       }
     ];
+  }
+
+  async obterTodosUsuarios() {
+    // Combina usuários demo com usuários criados dinamicamente
+    const usuariosDemo = await this.obterUsuariosDemo();
+    const usuariosCriados = Array.from(this.usuariosCriados.values());
+    
+    return [...usuariosDemo, ...usuariosCriados];
   }
 }
 
