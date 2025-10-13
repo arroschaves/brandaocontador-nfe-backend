@@ -112,6 +112,14 @@ class DatabaseService {
     return this.data.usuarios;
   }
 
+  async removerUsuario(id) {
+    const index = this.data.usuarios.findIndex(u => u.id === id);
+    if (index === -1) return false;
+    this.data.usuarios.splice(index, 1);
+    this.saveData();
+    return true;
+  }
+
   // Métodos de NFe
   async criarNFe(nfeData) {
     const nfe = {
@@ -173,6 +181,21 @@ class DatabaseService {
       totalLogs: this.data.logs.length,
       ultimaAtualizacao: new Date().toISOString()
     };
+  }
+
+  // Configurações
+  async getConfiguracoes() {
+    return this.data.configuracoes || {};
+  }
+
+  async atualizarConfiguracoes(novasConfiguracoes) {
+    this.data.configuracoes = {
+      ...this.data.configuracoes,
+      ...novasConfiguracoes,
+      atualizadoEm: new Date().toISOString()
+    };
+    this.saveData();
+    return this.data.configuracoes;
   }
 }
 

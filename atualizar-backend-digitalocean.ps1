@@ -75,7 +75,7 @@ $pm2Status = Invoke-SSHCommand "pm2 list" "Status do PM2"
 # Fazer backup do .env
 Write-Host ""
 Write-Host "Fazendo backup das configuracoes..." -ForegroundColor Yellow
-$backupEnv = Invoke-SSHCommand "cd $APP_DIR && cp .env .env.backup.`$(date +%Y%m%d_%H%M%S)" "Backup do arquivo .env"
+$backupEnv = Invoke-SSHCommand "cd $APP_DIR && cp .env .env.backup" "Backup do arquivo .env"
 
 # Atualizar codigo do repositorio
 Write-Host ""
@@ -87,10 +87,10 @@ Write-Host ""
 Write-Host "Instalando dependencias..." -ForegroundColor Yellow
 $npmInstall = Invoke-SSHCommand "cd $APP_DIR && npm install --production" "Instalacao de dependencias"
 
-# Reiniciar aplicacao com PM2
+# Reiniciar aplicacao com PM2 (nome correto do processo em producao)
 Write-Host ""
 Write-Host "Reiniciando aplicacao..." -ForegroundColor Yellow
-$pm2Restart = Invoke-SSHCommand "pm2 restart brandaocontador-nfe-backend" "Reinicializacao da aplicacao"
+$pm2Restart = Invoke-SSHCommand "pm2 restart brandaocontador-nfe-backend || (cd $APP_DIR && pm2 start deploy/ecosystem.production.js --env production)" "Reinicializacao da aplicacao"
 
 # Verificar se a aplicacao esta rodando
 Write-Host ""
@@ -98,26 +98,30 @@ Write-Host "Verificando status da aplicacao..." -ForegroundColor Yellow
 Start-Sleep -Seconds 5
 $pm2Status = Invoke-SSHCommand "pm2 list | grep brandaocontador-nfe-backend" "Status final da aplicacao"
 
-# Testar API
+# Testar API /health e /api/health
 Write-Host ""
-Write-Host "Testando conectividade da API..." -ForegroundColor Yellow
+Write-Host "Testando conectividade da API (/health)..." -ForegroundColor Yellow
 try {
-    $apiTest = Invoke-WebRequest -Uri "https://api.brandaocontador.com.br/" -Method GET -TimeoutSec 10 -ErrorAction SilentlyContinue
-    if ($apiTest.StatusCode -eq 404) {
-        Write-Host "API respondendo (404 e esperado para rota raiz)" -ForegroundColor Green
-    } else {
-        Write-Host "API respondendo (Status: $($apiTest.StatusCode))" -ForegroundColor Green
-    }
+    $healthTest = Invoke-WebRequest -Uri "https://api.brandaocontador.com.br/health" -Method GET -TimeoutSec 10 -ErrorAction SilentlyContinue
+    Write-Host "Status /health: $($healthTest.StatusCode)" -ForegroundColor Green
 }
 catch {
-    Write-Host "API pode estar inicializando ainda..." -ForegroundColor Yellow
-    Write-Host "   Aguarde alguns minutos e teste novamente" -ForegroundColor White
+    Write-Host "Falha ao acessar /health" -ForegroundColor Red
+}
+
+Write-Host "Testando conectividade da API (/api/health)..." -ForegroundColor Yellow
+try {
+    $healthTest2 = Invoke-WebRequest -Uri "https://api.brandaocontador.com.br/api/health" -Method GET -TimeoutSec 10 -ErrorAction SilentlyContinue
+    Write-Host "Status /api/health: $($healthTest2.StatusCode)" -ForegroundColor Green
+}
+catch {
+    Write-Host "Falha ao acessar /api/health" -ForegroundColor Red
 }
 
 # Mostrar logs recentes
 Write-Host ""
 Write-Host "Logs recentes da aplicacao:" -ForegroundColor Yellow
-$recentLogs = Invoke-SSHCommand "pm2 logs brandaocontador-nfe-backend --lines 10 --nostream" "Logs da aplicacao"
+$recentLogs = Invoke-SSHCommand "pm2 logs api-nfe --lines 10 --nostream" "Logs da aplicacao"
 
 Write-Host ""
 Write-Host "ATUALIZACAO CONCLUIDA!" -ForegroundColor Green

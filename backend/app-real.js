@@ -7,6 +7,7 @@ const nfeService = require('./services/nfe-service');
 const validationService = require('./services/validation-service');
 const logService = require('./services/log-service');
 const authMiddleware = require('./middleware/auth-real');
+const Usuario = require('./models/Usuario');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -40,6 +41,10 @@ async function iniciarServidor() {
       console.log(`   - GET  http://localhost:${PORT}/nfe/download/:tipo/:chave`);
       console.log(`   - POST http://localhost:${PORT}/nfe/validar`);
       console.log(`   - GET  http://localhost:${PORT}/nfe/consultar/:chave`);
+      console.log(`   - GET  http://localhost:${PORT}/admin/usuarios`);
+      console.log(`   - GET  http://localhost:${PORT}/admin/usuarios`);
+      console.log(`   - GET  http://localhost:${PORT}/admin/health`);
+      console.log(`   - GET  http://localhost:${PORT}/health`);
       console.log('');
       console.log('⚠️  MODO DESENVOLVIMENTO: Certificado A3 não configurado');
       console.log('⚠️  Usando simulação para operações NFe');
@@ -76,7 +81,7 @@ app.use((req, res, next) => {
     // Se a origem estiver na lista permitida, use-a, caso contrário, use localhost:3002
     const allowedOrigin = corsOrigins.includes(origin) ? origin : 'http://localhost:3002';
     res.header('Access-Control-Allow-Origin', allowedOrigin);
-    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
     res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-Key');
     res.header('Access-Control-Allow-Credentials', 'true');
     res.header('Access-Control-Max-Age', '86400'); // 24 horas
@@ -88,7 +93,7 @@ app.use((req, res, next) => {
 app.use(cors({
   origin: corsOrigins,
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Key']
 }));
 
@@ -255,6 +260,143 @@ app.get('/nfe/download/:tipo/:chave',
 
 // ==================== ROTAS ADMINISTRATIVAS ====================
 
+// Listar usuários (apenas admin)
+app.get('/admin/usuarios',
+  authMiddleware.verificarAutenticacao(),
+  authMiddleware.verificarPermissao('admin'),
+  async (req, res) => {
+    try {
+      const usuarios = await Usuario.find({}, {
+        nome: 1,
+        email: 1,
+        documento: 1,
+        tipoCliente: 1,
+        telefone: 1,
+        razaoSocial: 1,
+        nomeFantasia: 1,
+        permissoes: 1,
+        ativo: 1,
+        dataCadastro: 1,
+        ultimoAcesso: 1
+      }).lean();
+
+      const usuariosMapeados = (usuarios || []).map((u) => {
+        const documento = (u.documento || '').replace(/\D/g, '');
+        const tipoCliente = u.tipoCliente && ['cpf', 'cnpj'].includes(u.tipoCliente)
+          ? u.tipoCliente
+          : (documento.length === 14 ? 'cnpj' : 'cpf');
+        const perfil = Array.isArray(u.permissoes) && u.permissoes.includes('admin') ? 'admin' : 'usuario';
+        const status = u.status ? u.status : (u.ativo === false ? 'inativo' : 'ativo');
+
+        return {
+          id: u._id?.toString() || u.id?.toString() || String(Date.now()),
+          nome: u.nome || 'Usuário',
+          email: u.email || '',
+          documento: u.documento || '',
+          tipoCliente,
+          telefone: u.telefone || '',
+          empresa: u.razaoSocial || u.nomeFantasia || '',
+          perfil,
+          permissoes: Array.isArray(u.permissoes) ? u.permissoes : [],
+          status,
+          dataCriacao: (u.dataCadastro || new Date().toISOString()),
+          ultimoAcesso: u.ultimoAcesso || null
+        };
+      });
+
+      await logService.log('admin_usuarios_list', 'SUCESSO', {
+        usuario: req.usuario?.id,
+        quantidade: usuariosMapeados.length
+      });
+
+      res.json({ sucesso: true, usuarios: usuariosMapeados });
+    } catch (error) {
+      await logService.logErro('admin_usuarios_list', error, { ip: req.ip });
+      res.status(500).json({ sucesso: false, erro: 'Erro ao listar usuários' });
+    }
+  }
+);
+
+// Atualizar usuário (apenas admin)
+app.patch('/admin/usuarios/:id',
+  authMiddleware.verificarAutenticacao(),
+  authMiddleware.verificarPermissao('admin'),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const dados = req.body || {};
+
+      const camposPermitidos = ['nome', 'email', 'documento', 'tipoCliente', 'telefone', 'razaoSocial', 'nomeFantasia', 'permissoes', 'status', 'ativo'];
+      const atualizacoes = Object.keys(dados)
+        .filter(k => camposPermitidos.includes(k))
+        .reduce((acc, k) => ({ ...acc, [k]: dados[k] }), {});
+
+      const usuario = await Usuario.findByIdAndUpdate(id, {
+        ...atualizacoes,
+        atualizadoEm: new Date().toISOString()
+      }, { new: true });
+
+      if (!usuario) {
+        return res.status(404).json({ sucesso: false, erro: 'Usuário não encontrado' });
+      }
+
+      await logService.log('admin_usuario_update', 'SUCESSO', { usuario: req.usuario?.id, alvo: id, campos: Object.keys(atualizacoes) });
+      res.json({ sucesso: true, usuario });
+    } catch (error) {
+      await logService.logErro('admin_usuario_update', error, { ip: req.ip });
+      res.status(500).json({ sucesso: false, erro: 'Erro ao atualizar usuário' });
+    }
+  }
+);
+
+// Alterar status do usuário (apenas admin)
+app.patch('/admin/usuarios/:id/status',
+  authMiddleware.verificarAutenticacao(),
+  authMiddleware.verificarPermissao('admin'),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { status } = req.body || {};
+      if (!['ativo', 'inativo', 'bloqueado'].includes(status)) {
+        return res.status(400).json({ sucesso: false, erro: 'Status inválido' });
+      }
+      const usuario = await Usuario.findByIdAndUpdate(id, {
+        status,
+        ativo: status === 'ativo',
+        atualizadoEm: new Date().toISOString()
+      }, { new: true });
+      if (!usuario) {
+        return res.status(404).json({ sucesso: false, erro: 'Usuário não encontrado' });
+      }
+      await logService.log('admin_usuario_status', 'SUCESSO', { usuario: req.usuario?.id, alvo: id, status });
+      res.json({ sucesso: true, usuario });
+    } catch (error) {
+      await logService.logErro('admin_usuario_status', error, { ip: req.ip });
+      res.status(500).json({ sucesso: false, erro: 'Erro ao alterar status do usuário' });
+    }
+  }
+);
+
+// Remover usuário (apenas admin)
+app.delete('/admin/usuarios/:id',
+  authMiddleware.verificarAutenticacao(),
+  authMiddleware.verificarPermissao('admin'),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const usuario = await Usuario.findByIdAndDelete(id);
+      if (!usuario) {
+        return res.status(404).json({ sucesso: false, erro: 'Usuário não encontrado' });
+      }
+      await logService.log('admin_usuario_delete', 'SUCESSO', { usuario: req.usuario?.id, alvo: id });
+      res.json({ sucesso: true });
+    } catch (error) {
+      await logService.logErro('admin_usuario_delete', error, { ip: req.ip });
+      res.status(500).json({ sucesso: false, erro: 'Erro ao remover usuário' });
+    }
+  }
+);
+
 // Limpar banco de dados (apenas desenvolvimento)
 app.delete('/admin/limpar-banco',
   authMiddleware.verificarAutenticacao(),
@@ -299,6 +441,38 @@ app.get('/admin/health',
     }
   }
 );
+
+// Health check público
+app.get('/health', async (req, res) => {
+  try {
+    res.json({
+      sucesso: true,
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      bancoDados: database.isConnected() ? 'conectado' : 'desconectado',
+      uptime: process.uptime(),
+      versaoNode: process.version
+    });
+  } catch (error) {
+    res.status(500).json({ sucesso: false, erro: 'Erro ao verificar saúde' });
+  }
+});
+
+// Alias compatível com documentação antiga
+app.get('/api/health', async (req, res) => {
+  try {
+    res.json({
+      sucesso: true,
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      bancoDados: database.isConnected() ? 'conectado' : 'desconectado',
+      uptime: process.uptime(),
+      versaoNode: process.version
+    });
+  } catch (error) {
+    res.status(500).json({ sucesso: false, erro: 'Erro ao verificar saúde' });
+  }
+});
 
 // ==================== TRATAMENTO DE ERROS ====================
 

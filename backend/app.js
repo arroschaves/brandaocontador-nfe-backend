@@ -564,6 +564,38 @@ app.use((err, req, res, next) => {
     });
 });
 
+// ==================== HEALTH CHECK PÚBLICO ====================
+
+// Endpoint simples de saúde para monitoramento externo
+app.get('/health', async (req, res) => {
+  try {
+    res.json({
+      sucesso: true,
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      versaoNode: process.version
+    });
+  } catch (error) {
+    res.status(500).json({ sucesso: false, erro: 'Erro ao verificar saúde' });
+  }
+});
+
+// Alias compatível com documentação antiga
+app.get('/api/health', async (req, res) => {
+  try {
+    res.json({
+      sucesso: true,
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      versaoNode: process.version
+    });
+  } catch (error) {
+    res.status(500).json({ sucesso: false, erro: 'Erro ao verificar saúde' });
+  }
+});
+
 // Middleware para rotas não encontradas
 app.use('*', (req, res) => {
   res.status(404).json({

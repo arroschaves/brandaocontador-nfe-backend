@@ -77,3 +77,8 @@ node --tls-min-v1.2 --use-system-ca .\nfe-send.js
 - ✅ TLS 1.2 obrigatório
 - ✅ Validação de SSL estrita
 - ✅ Headers de segurança adequados
+## Ajuste PM2 - Produção
+
+- Atualizado `deploy/ecosystem.production.js` para iniciar `app-real.js` em produção.
+- Certifique-se de configurar corretamente `.env` com `JWT_SECRET`, `CORS_ORIGINS`, e parâmetros da NFe.
+- Reinicie com `pm2 restart brandaocontador-nfe-backend` após atualizar no servidor.

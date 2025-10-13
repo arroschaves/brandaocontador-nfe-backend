@@ -25,6 +25,39 @@
       "ultimoAcesso": null,
       "criadoEm": "2025-01-01T00:00:00.000Z",
       "atualizadoEm": "2025-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "1760315401087",
+      "nome": "Dev Teste",
+      "email": "dev.teste.20251012202958@example.com",
+      "senha": "$2b$10$fQo6q1d9OYcTu3Zruxbaneahyt4xPu1GI/Od/FgBC5VCsEO90zt/i",
+      "telefone": "11999999999",
+      "documento": "45669746000120",
+      "tipoPessoa": "juridica",
+      "tipoCliente": "contador",
+      "endereco": {
+        "cep": "79000000",
+        "numero": "123",
+        "logradouro": "Rua Teste",
+        "bairro": "Centro",
+        "codigoMunicipio": "5002704",
+        "uf": "MS",
+        "municipio": "Campo Grande"
+      },
+      "permissoes": [
+        "nfe_emitir",
+        "nfe_cancelar",
+        "nfe_cart_correcao",
+        "nfe_inutilizar",
+        "nfe_consultar",
+        "nfe_download",
+        "relatorios_ver",
+        "configuracoes_ver"
+      ],
+      "ativo": true,
+      "ultimoAcesso": "2025-10-13T00:30:01.880Z",
+      "criadoEm": "2025-10-13T00:30:01.087Z",
+      "atualizadoEm": "2025-10-13T00:30:01.880Z"
     }
   ],
   "nfes": [],

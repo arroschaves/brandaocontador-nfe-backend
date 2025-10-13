@@ -1,7 +1,7 @@
 module.exports = {
   apps: [{
     name: 'brandaocontador-nfe-backend',
-    script: './app.js',
+    script: './app-real.js',
     instances: 1,
     autorestart: true,
     watch: false,
