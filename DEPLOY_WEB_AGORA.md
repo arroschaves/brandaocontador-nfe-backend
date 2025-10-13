@@ -14,20 +14,20 @@
 
 1. **Acesse**: https://vercel.com/dashboard
 2. **Clique em**: "Add New..." → "Project"
-3. **Conecte o repositório**: `arroschaves/brandaocontador-nfe-backend`
+3. **Conecte o repositório**: `arroschaves/brandaocontador-nfe-frontend`
 4. **Configure**:
-   - **Framework Preset**: Next.js
+   - **Framework Preset**: Vite
    - **Root Directory**: `frontend` ⚠️ **IMPORTANTE**
    - **Build Command**: `npm run build`
-   - **Output Directory**: `.next`
+   - **Output Directory**: `dist`
 
 ### 2️⃣ **CONFIGURAR VARIÁVEIS DE AMBIENTE**
 
 No Vercel, adicione estas variáveis:
 ```
-NEXT_PUBLIC_BACKEND_URL=https://api.brandaocontador.com.br
-NEXT_PUBLIC_API_URL=https://api.brandaocontador.com.br
-NEXT_PUBLIC_ENVIRONMENT=production
+VITE_API_URL=https://api.brandaocontador.com.br
+VITE_ENVIRONMENT=production
+VITE_APP_NAME=Sistema NFe
 ```
 
 ### 3️⃣ **CONFIGURAR DNS NO CLOUDFLARE**

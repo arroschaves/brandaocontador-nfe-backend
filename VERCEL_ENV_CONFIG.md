@@ -8,30 +8,30 @@ O painel administrativo não está funcionando no Vercel porque as variáveis de
 
 Acesse o painel do Vercel → Projeto → Settings → Environment Variables e adicione:
 
-### Autenticação (Obrigatórias)
+### Autenticação (se usar NextAuth no frontend)
 ```
 NEXTAUTH_URL=https://nfe.brandaocontador.com.br
 NEXTAUTH_SECRET=sua_secret_key_super_segura_aqui_min_32_chars
 ```
 
-### Backend API
+### Backend API (Vite)
 ```
-NEXT_PUBLIC_BACKEND_URL=https://api.brandaocontador.com.br
-NEXT_PUBLIC_ENVIRONMENT=production
+VITE_API_URL=https://api.brandaocontador.com.br
+VITE_ENVIRONMENT=production
 ```
 
-### Aplicação
+### Aplicação (Vite)
 ```
-NEXT_PUBLIC_APP_NAME=Brandão Contador NFe
-NEXT_PUBLIC_APP_VERSION=1.0.0
-NEXT_PUBLIC_COMPANY_NAME=Brandão Contador
+VITE_APP_NAME=Brandão Contador NFe
+VITE_APP_VERSION=1.0.0
+VITE_COMPANY_NAME=Brandão Contador
 ```
 
 ## Como Configurar
 
 1. **Acesse o Vercel Dashboard**
    - Vá para https://vercel.com/dashboard
-   - Selecione o projeto `brandaocontador-nfe-frontend`
+   - Selecione o projeto `arroschaves/brandaocontador-nfe-frontend`
 
 2. **Configure as Variáveis**
    - Clique em "Settings" → "Environment Variables"

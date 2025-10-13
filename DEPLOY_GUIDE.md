@@ -76,12 +76,38 @@ mkdir -p certs
 # Copiar certificados para o diretório certs/
 ```
 
+#### Variáveis essenciais do .env (Backend)
+```
+# Seed de administrador (primeiro acesso)
+SEED_ADMIN_NOME=Administrador
+SEED_ADMIN_EMAIL=admin@brandaocontador.com.br
+SEED_ADMIN_SENHA=admin123
+
+# Modo de simulação (deve ser false em produção)
+SIMULATION_MODE=false
+
+# Segredo JWT existente
+JWT_SECRET=defina_um_segredo_forte_aqui
+```
+
+### Autenticação Social
+- Backend expõe `POST /auth/social` para login/registro via Google/Facebook
+- Frontend envia dados do provedor através do NextAuth
+- Campos adicionais no usuário: `socialProvider`, `socialProviderId`, `image`
+
 ### 3. Deploy
 ```bash
 # Executar script de deploy
 chmod +x deploy/deploy.sh
 ./deploy/deploy.sh
 ```
+
+#### Atualização posterior
+```
+chmod +x deploy/deploy-update.sh
+./deploy/deploy-update.sh
+```
+O script de atualização garante que `.env` mantenha `SEED_ADMIN_*` e `SIMULATION_MODE`.
 
 ### 4. Configurar Nginx
 ```bash
@@ -162,6 +188,17 @@ sudo apt update && sudo apt upgrade -y
 
 # Renovar certificados SSL
 sudo certbot renew --dry-run
+```
+### Boas Práticas: JWT e Seed Admin
+- `JWT_SECRET`: use uma chave aleatória forte (32+ caracteres). Gere com `openssl rand -base64 48`. Não versione nem compartilhe; mantenha apenas no `.env` do servidor. Defina `JWT_EXPIRES_IN` (ex.: `12h` ou `24h`) e planeje rotação periódica.
+- `NEXTAUTH_SECRET`: configure um segredo próprio (diferente do `JWT_SECRET`) com 32+ caracteres no Vercel. Valide `NEXTAUTH_URL` para o domínio de produção.
+- `SEED_ADMIN_*`: utilize apenas no primeiro acesso para criar o usuário administrador. Antes do deploy, altere os valores padrão. Após criar e validar o login do admin, remova ou comente `SEED_ADMIN_NOME`, `SEED_ADMIN_EMAIL`, `SEED_ADMIN_SENHA` no `.env` (o seed não sobrescreve usuários existentes). Mantenha `SIMULATION_MODE=false` em produção.
+- Pós-primeiro acesso: altere a senha do admin, confirme as roles `admin_total` e `admin`, habilite logs e monitore tentativas de login.
+
+```bash
+# Gerar segredos fortes
+openssl rand -base64 48  # JWT_SECRET
+openssl rand -base64 32  # NEXTAUTH_SECRET
 ```
 
 ## 🚨 Troubleshooting

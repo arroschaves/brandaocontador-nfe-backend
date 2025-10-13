@@ -9,20 +9,21 @@ O deployment atual no Vercel (`https://brandaocontador-nfe-frontend.vercel.app/`
 
 1. Acesse [vercel.com](https://vercel.com) e faça login
 2. Vá em "Dashboard" → "Import Project"
-3. Conecte com GitHub e selecione o repositório: `arroschaves/brandaocontador-nfe-backend`
+3. Conecte com GitHub e selecione o repositório: `arroschaves/brandaocontador-nfe-frontend`
 4. Configure as seguintes opções:
-   - **Framework Preset**: Next.js
+   - **Framework Preset**: Vite
    - **Root Directory**: `frontend`
    - **Build Command**: `npm run build`
-   - **Output Directory**: `.next`
+   - **Output Directory**: `dist`
    - **Install Command**: `npm install`
 
 ### 2. Variáveis de Ambiente no Vercel
 
 Configure estas variáveis no painel do Vercel:
 ```
-NEXT_PUBLIC_API_URL=https://api.brandaocontador.com.br
-NEXT_PUBLIC_ENVIRONMENT=production
+VITE_API_URL=https://api.brandaocontador.com.br
+VITE_ENVIRONMENT=production
+VITE_APP_NAME=Sistema NFe
 ```
 
 ### 3. Configuração de Domínio Personalizado

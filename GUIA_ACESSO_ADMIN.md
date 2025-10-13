@@ -88,7 +88,11 @@ Se preferir manter no Vercel, você pode:
 ### Usuário Administrador Padrão
 - **Email**: `admin@brandaocontador.com.br`
 - **Senha**: `admin123`
-- **Role**: `admin`
+- **Role**: `admin` (ou `admin_total` para acesso completo)
+- Variáveis de seed no `.env` do backend:
+  - `SEED_ADMIN_NOME=Administrador`
+  - `SEED_ADMIN_EMAIL=admin@brandaocontador.com.br`
+  - `SEED_ADMIN_SENHA=admin123`
 
 ### URLs de Acesso
 - **Painel Admin**: `https://admin.brandaocontador.com.br/admin`
@@ -115,6 +119,14 @@ Se preferir manter no Vercel, você pode:
 - 🛡️ Verificação de role 'admin'
 - 🚫 Redirecionamento automático para não-admins
 - 🔐 Middleware de proteção
+ - 🔑 Suporte a login social (Google/Facebook) integrado via `/auth/social`
+ 
+#### Boas Práticas Pós-Primeiro Acesso
+- Altere imediatamente a senha do usuário administrador padrão.
+- Confirme as roles `admin_total` e `admin` no usuário admin e remova permissões desnecessárias.
+- Após criar o admin, remova/comente `SEED_ADMIN_NOME`, `SEED_ADMIN_EMAIL`, `SEED_ADMIN_SENHA` do `.env` do backend para evitar reuso acidental.
+- Mantenha `SIMULATION_MODE=false` em produção.
+- Gere segredos fortes: `JWT_SECRET` e `NEXTAUTH_SECRET` (32+ caracteres) e não versione.
 
 ## 🔍 Verificação de Status
 
@@ -145,7 +157,7 @@ curl -I http://admin.brandaocontador.com.br
 Para acessar o painel administrativo:
 1. Acesse: `https://admin.brandaocontador.com.br`
 2. Será redirecionado para: `/admin/login`
-3. Use as credenciais: `admin@brandaocontador.com` / `admin123456`
+3. Use as credenciais: `admin@brandaocontador.com.br` / `admin123`
 4. Após login, acesse: `/admin` para o dashboard
 
 ---

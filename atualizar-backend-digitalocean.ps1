@@ -85,12 +85,13 @@ $gitPull = Invoke-SSHCommand "cd $APP_DIR && git fetch origin && git reset --har
 # Instalar/atualizar dependencias
 Write-Host ""
 Write-Host "Instalando dependencias..." -ForegroundColor Yellow
-$npmInstall = Invoke-SSHCommand "cd $APP_DIR && npm install --production" "Instalacao de dependencias"
+$npmInstall = Invoke-SSHCommand "bash -lc 'cd $APP_DIR && (npm ci --omit=dev --silent || npm ci --production --silent || npm install --production --silent)'" "Instalacao de dependencias"
 
 # Reiniciar aplicacao com PM2 (nome correto do processo em producao)
 Write-Host ""
 Write-Host "Reiniciando aplicacao..." -ForegroundColor Yellow
-$pm2Restart = Invoke-SSHCommand "pm2 restart brandaocontador-nfe-backend || (cd $APP_DIR && pm2 start deploy/ecosystem.production.js --env production)" "Reinicializacao da aplicacao"
+# Reiniciar pelo nome; caso não exista, usar ecosystem.config.js como prioridade
+$pm2Restart = Invoke-SSHCommand "bash -lc 'if pm2 list | grep -q brandaocontador-nfe-backend; then pm2 restart brandaocontador-nfe-backend; else cd $APP_DIR; if [ -f ecosystem.config.js ]; then pm2 start ecosystem.config.js --env production; elif [ -f backend/deploy/ecosystem.production.js ]; then pm2 start backend/deploy/ecosystem.production.js --env production; elif [ -f app.js ]; then PORT=3001 NODE_ENV=production pm2 start app.js --name brandaocontador-nfe-backend; else echo Nenhum arquivo de entrada encontrado; fi; fi'" "Reinicializacao da aplicacao"
 
 # Verificar se a aplicacao esta rodando
 Write-Host ""
@@ -121,7 +122,8 @@ catch {
 # Mostrar logs recentes
 Write-Host ""
 Write-Host "Logs recentes da aplicacao:" -ForegroundColor Yellow
-$recentLogs = Invoke-SSHCommand "pm2 logs api-nfe --lines 10 --nostream" "Logs da aplicacao"
+# Usa o nome do processo configurado no ecosystem
+$recentLogs = Invoke-SSHCommand "pm2 logs brandaocontador-nfe-backend --lines 10 --nostream" "Logs da aplicacao"
 
 Write-Host ""
 Write-Host "ATUALIZACAO CONCLUIDA!" -ForegroundColor Green
