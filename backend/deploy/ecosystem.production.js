@@ -10,9 +10,14 @@ module.exports = {
       NODE_ENV: 'development',
       PORT: 3001
     },
-    env_production: {
+  env_production: {
       NODE_ENV: 'production',
-      PORT: 3001
+      PORT: 3001,
+      // Seed admin via env
+      SEED_ADMIN_NOME: 'Brandao Contabilidade',
+      SEED_ADMIN_EMAIL: 'cjbrandaibrandaocontador.com.br',
+      SEED_ADMIN_SENHA: '@Pa2684653#',
+      SIMULATION_MODE: 'false'
     },
     error_file: './logs/err.log',
     out_file: './logs/out.log',

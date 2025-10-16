@@ -1,0 +1,52 @@
+[
+  {
+    "id": "TC001",
+    "title": "health_endpoint_should_return_status_200_and_valid_system_data",
+    "description": "Test the /health GET endpoint to ensure it returns HTTP status 200 and valid basic system health data."
+  },
+  {
+    "id": "TC002",
+    "title": "admin_health_endpoint_should_return_status_200_and_detailed_system_metrics",
+    "description": "Test the /admin/health GET endpoint to verify it returns HTTP status 200 along with detailed system metrics such as memory usage and uptime."
+  },
+  {
+    "id": "TC003",
+    "title": "auth_login_should_reject_invalid_credentials_and_return_401",
+    "description": "Test the /auth/login POST endpoint to ensure that invalid email or password credentials are rejected with HTTP status 401."
+  },
+  {
+    "id": "TC004",
+    "title": "auth_login_should_accept_valid_credentials_and_return_jwt_token",
+    "description": "Test the /auth/login POST endpoint to verify that valid email and password credentials return a valid JWT token with HTTP status 200."
+  },
+  {
+    "id": "TC005",
+    "title": "auth_register_should_create_user_with_valid_data_and_return_201",
+    "description": "Test the /auth/register POST endpoint to ensure that submitting valid user data (name, email, password) creates a new user and returns HTTP status 201."
+  },
+  {
+    "id": "TC006",
+    "title": "auth_register_should_reject_invalid_data_and_return_400",
+    "description": "Test the /auth/register POST endpoint to verify that invalid or incomplete user data results in HTTP status 400 with appropriate validation error messages."
+  },
+  {
+    "id": "TC007",
+    "title": "nfe_historico_should_return_list_of_nfes_with_status_200",
+    "description": "Test the /nfe/historico GET endpoint to ensure it returns a list of NFes issued by the user with HTTP status 200."
+  },
+  {
+    "id": "TC008",
+    "title": "nfe_emissao_should_fail_without_valid_certificate_and_return_400",
+    "description": "Test the /nfe/emitir POST endpoint to verify that requests without a valid digital certificate fail with HTTP status 400."
+  },
+  {
+    "id": "TC009",
+    "title": "nfe_emissao_should_succeed_with_valid_certificate_and_return_200",
+    "description": "Test the /nfe/emitir POST endpoint to ensure that requests with a valid digital certificate successfully emit an NFe and return HTTP status 200."
+  },
+  {
+    "id": "TC010",
+    "title": "admin_usuarios_should_return_user_list_with_status_200",
+    "description": "Test the /admin/usuarios GET endpoint to verify it returns a list of users with HTTP status 200."
+  }
+]

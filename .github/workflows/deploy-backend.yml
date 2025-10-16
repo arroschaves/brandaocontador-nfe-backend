@@ -1,0 +1,69 @@
+name: Manual Deploy Backend
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "Branch para deploy"
+        required: false
+        default: "main"
+
+env:
+  NODE_VERSION: '18'
+
+jobs:
+  test-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.branch }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies - Backend
+        run: |
+          cd backend
+          npm ci
+
+      - name: Run backend verification script
+        run: |
+          cd backend
+          npm run testar
+
+  deploy-backend:
+    needs: test-backend
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.branch }}
+
+      - name: Deploy to DigitalOcean
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.DO_HOST }}
+          username: ${{ secrets.DO_USERNAME }}
+          key: ${{ secrets.DO_SSH_KEY }}
+          script: |
+            set -e
+            cd /opt/nfe-system
+            echo "Fetching latest code..."
+            git fetch origin
+            git reset --hard origin/${{ github.event.inputs.branch }}
+            echo "Rebuilding backend image..."
+            docker-compose build --pull
+            docker-compose up -d --remove-orphans
+            echo "Cleaning up..."
+            docker system prune -f
+
+      - name: Health Check
+        run: |
+          sleep 30
+          curl -f ${{ secrets.BACKEND_URL }}/health || exit 1

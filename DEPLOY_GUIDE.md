@@ -134,8 +134,24 @@ NEXTAUTH_SECRET=sua_secret_key_aqui
 - Adicionar domínio: `brandaocontador.com.br`
 - Configurar redirecionamento: `www.brandaocontador.com.br` → `brandaocontador.com.br`
 
-### 2. Deploy Automático
-O deploy é automático via GitHub. Cada push na branch `main` dispara um novo deploy.
+### 2. Deploy Manual (Workflows separados)
+Agora existem dois workflows independentes para deploy manual via GitHub Actions:
+
+1) Backend
+- Acesse `Actions` > `Manual Deploy Backend`.
+- Clique em `Run workflow` e selecione a branch (padrão `main`).
+- Aguarde os jobs: testes do backend, deploy via SSH no servidor DigitalOcean e health check.
+- Pré-requisitos de secrets: `DO_HOST`, `DO_USERNAME`, `DO_SSH_KEY`, `BACKEND_URL`.
+
+2) Frontend
+- Acesse `Actions` > `Manual Deploy Frontend`.
+- Clique em `Run workflow` e selecione a branch (padrão `main`).
+- Aguarde os jobs: testes do frontend e deploy no Vercel.
+- Pré-requisitos de secrets: `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`, `GITHUB_TOKEN`.
+
+Observações:
+- O workflow anterior `Deploy NFe System` permanece, mas recomenda-se usar os novos workflows separados.
+- Pushes em `main` não disparam mais deploy automaticamente; apenas testes continuam rodando conforme configurado.
 
 ## 🔧 Monitoramento e Manutenção
 

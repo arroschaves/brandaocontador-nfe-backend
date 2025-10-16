@@ -280,6 +280,12 @@ docker-compose --profile monitoring up -d
 - ✅ JWT com expiração
 - ✅ Logs de auditoria
 
+### Boas Práticas: JWT e Seed Admin
+- `JWT_SECRET`: utilize segredo forte (32+ chars) gerado com `openssl rand -base64 48`; defina `JWT_EXPIRES_IN` (ex.: `12h`) e rotacione periodicamente. Nunca versione segredos.
+- `SEED_ADMIN_*`: altere valores padrão antes do deploy. Use apenas para o primeiro acesso (seed cria admin se não existir). Depois de validar o login, remova/comente `SEED_ADMIN_NOME`, `SEED_ADMIN_EMAIL`, `SEED_ADMIN_SENHA` no `.env` e altere a senha do admin.
+- `SIMULATION_MODE`: mantenha `false` em produção. Evite dados fictícios.
+- `NEXTAUTH_SECRET`: configure segredo exclusivo para o frontend (Vercel) com 32+ chars.
+
 ### Firewall DigitalOcean
 
 ```bash

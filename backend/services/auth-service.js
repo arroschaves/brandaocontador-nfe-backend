@@ -55,13 +55,14 @@ class AuthService {
         throw new Error('Email já cadastrado');
       }
 
-      // Verificar se documento já existe
-      const documentoExistente = await Usuario.findOne({ 
-        documento: dadosUsuario.documento 
-      });
-
-      if (documentoExistente) {
-        throw new Error(`${dadosUsuario.tipoCliente.toUpperCase()} já cadastrado`);
+      // Verificar se documento já existe (se fornecido)
+      if (dadosUsuario.documento) {
+        const documentoExistente = await Usuario.findOne({ 
+          documento: dadosUsuario.documento 
+        });
+        if (documentoExistente) {
+          throw new Error(`${(dadosUsuario.tipoCliente || 'cpf').toUpperCase()} já cadastrado`);
+        }
       }
 
       // Criar novo usuário
@@ -81,6 +82,53 @@ class AuthService {
 
     } catch (error) {
       console.error('❌ Erro no registro:', error.message);
+      throw error;
+    }
+  }
+
+  async socialLogin({ provider, providerId, email, name, image }) {
+    try {
+      // Tentar encontrar usuário pelo providerId ou email
+      let usuario = await Usuario.findOne({
+        $or: [
+          { socialProvider: provider, socialProviderId: providerId },
+          { email: email?.toLowerCase() }
+        ]
+      });
+
+      if (!usuario) {
+        // Criar usuário básico sem senha obrigatória (gera senha aleatória)
+        const senhaTemporaria = Math.random().toString(36).slice(-10);
+        usuario = new Usuario({
+          nome: name || email?.split('@')[0] || 'Usuário',
+          email: email?.toLowerCase(),
+          senha: senhaTemporaria,
+          tipoCliente: 'cpf',
+          documento: undefined,
+          socialProvider: provider,
+          socialProviderId: providerId,
+          image,
+          permissoes: ['nfe_emitir', 'nfe_consultar'],
+          ativo: true
+        });
+        await usuario.save();
+      } else {
+        // Atualizar dados sociais
+        usuario.socialProvider = provider;
+        usuario.socialProviderId = providerId;
+        usuario.image = image || usuario.image;
+        await usuario.save();
+      }
+
+      const token = this.gerarToken(usuario);
+      return {
+        sucesso: true,
+        token,
+        usuario: usuario.toJSON(),
+        expiresIn: this.JWT_EXPIRES_IN
+      };
+    } catch (error) {
+      console.error('❌ Erro no login social:', error.message);
       throw error;
     }
   }

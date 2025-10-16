@@ -1,14 +1,23 @@
 const mongoose = require('mongoose');
+const { MongoMemoryServer } = require('mongodb-memory-server');
 
 class Database {
   constructor() {
     this.connection = null;
+    this.memoryServer = null;
   }
 
   async connect() {
     try {
-      const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/brandaocontador_nfe';
+      const useMemory = String(process.env.USE_MEMORY_DB || '').toLowerCase() === 'true' || process.env.NODE_ENV === 'test';
+      let mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/brandaocontador_nfe';
       
+      if (useMemory) {
+        console.log('🧠 Iniciando MongoDB em memória para desenvolvimento/testes...');
+        this.memoryServer = await MongoMemoryServer.create();
+        mongoUri = this.memoryServer.getUri();
+      }
+
       console.log('🔄 Conectando ao MongoDB...');
       
       this.connection = await mongoose.connect(mongoUri, {
@@ -28,6 +37,25 @@ class Database {
       
       if (error.message.includes('ECONNREFUSED')) {
         console.error('💡 Verifique se o MongoDB está rodando na porta 27017');
+        // Fallback automático para memória se não estiver usando ainda
+        if (!this.memoryServer) {
+          try {
+            console.log('🛟 Ativando fallback: MongoDB em memória');
+            this.memoryServer = await MongoMemoryServer.create();
+            const uri = this.memoryServer.getUri();
+            this.connection = await mongoose.connect(uri, {
+              useNewUrlParser: true,
+              useUnifiedTopology: true,
+              maxPoolSize: 10,
+              serverSelectionTimeoutMS: 5000,
+              socketTimeoutMS: 45000,
+            });
+            console.log('✅ Conectado ao MongoDB em memória');
+            return this.connection;
+          } catch (memErr) {
+            console.error('❌ Fallback de memória falhou:', memErr.message);
+          }
+        }
       }
       
       throw error;
@@ -40,6 +68,11 @@ class Database {
         await mongoose.disconnect();
         console.log('🔌 Desconectado do MongoDB');
       }
+      if (this.memoryServer) {
+        await this.memoryServer.stop();
+        this.memoryServer = null;
+        console.log('🧼 MongoDB em memória finalizado');
+      }
     } catch (error) {
       console.error('❌ Erro ao desconectar do MongoDB:', error.message);
       throw error;
@@ -50,7 +83,7 @@ class Database {
     try {
       console.log('🧹 Limpando coleções do banco de dados...');
       
-      const collections = ['usuarios', 'clientes', 'nfes', 'logs'];
+      const collections = ['usuarios', 'clientes', 'nfes', 'logs', 'configuracoes'];
       
       for (const collection of collections) {
         try {

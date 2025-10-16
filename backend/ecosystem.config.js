@@ -18,7 +18,9 @@ module.exports = {
       script: "./app-simples.js",
       env: {
         NODE_ENV: "development",
-        MODE: "simple"
+        MODE: "simple",
+        PORT: "3002",
+        JWT_SECRET: "brandaocontador-nfe-secret-key-2024"
       }
     }
   ]

@@ -2,13 +2,13 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
 const enderecoSchema = new mongoose.Schema({
-  cep: { type: String, required: true },
-  logradouro: { type: String, required: true },
-  numero: { type: String, required: true },
+  cep: { type: String },
+  logradouro: { type: String },
+  numero: { type: String },
   complemento: { type: String, default: '' },
-  bairro: { type: String, required: true },
-  cidade: { type: String, required: true },
-  uf: { type: String, required: true, maxlength: 2 }
+  bairro: { type: String },
+  cidade: { type: String },
+  uf: { type: String, maxlength: 2 }
 }, { _id: false });
 
 const usuarioSchema = new mongoose.Schema({
@@ -33,19 +33,19 @@ const usuarioSchema = new mongoose.Schema({
   },
   tipoCliente: {
     type: String,
-    required: [true, 'Tipo de cliente é obrigatório'],
     enum: {
       values: ['cpf', 'cnpj'],
       message: 'Tipo de cliente deve ser cpf ou cnpj'
-    }
+    },
+    default: 'cpf'
   },
   documento: {
     type: String,
-    required: [true, 'Documento é obrigatório'],
     unique: true,
     trim: true,
     validate: {
       validator: function(v) {
+        if (!v) return true; // opcional
         if (this.tipoCliente === 'cpf') {
           return /^\d{11}$/.test(v); // CPF: 11 dígitos
         } else {
@@ -57,7 +57,6 @@ const usuarioSchema = new mongoose.Schema({
   },
   telefone: {
     type: String,
-    required: [true, 'Telefone é obrigatório'],
     trim: true
   },
   razaoSocial: {
@@ -74,9 +73,21 @@ const usuarioSchema = new mongoose.Schema({
     type: String,
     trim: true
   },
+  // Campos opcionais para login social
+  socialProvider: {
+    type: String,
+    trim: true
+  },
+  socialProviderId: {
+    type: String,
+    trim: true
+  },
+  image: {
+    type: String,
+    trim: true
+  },
   endereco: {
-    type: enderecoSchema,
-    required: [true, 'Endereço é obrigatório']
+    type: enderecoSchema
   },
   permissoes: {
     type: [String],
@@ -104,8 +115,8 @@ const usuarioSchema = new mongoose.Schema({
 });
 
 // Índices para melhor performance
-usuarioSchema.index({ email: 1 });
-usuarioSchema.index({ documento: 1 });
+usuarioSchema.index({ email: 1 }, { unique: true });
+usuarioSchema.index({ documento: 1 }, { unique: true, sparse: true });
 usuarioSchema.index({ ativo: 1 });
 
 // Hash da senha antes de salvar

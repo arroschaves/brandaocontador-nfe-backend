@@ -147,8 +147,8 @@ class AuthMiddleware {
 
         const permissoesUsuario = req.usuario.permissoes || [];
         
-        // Admin tem todas as permissões
-        if (permissoesUsuario.includes('admin')) {
+        // Admin e superadmin têm todas as permissões
+        if (permissoesUsuario.includes('admin') || permissoesUsuario.includes('admin_total')) {
           return next();
         }
 

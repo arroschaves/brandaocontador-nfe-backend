@@ -9,7 +9,7 @@ const nfeService = require('./services/nfe-service');
 const validationService = require('./services/validation-service');
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3002;
 
 // ==================== INICIALIZAÇÃO ====================
 
@@ -413,7 +413,7 @@ app.get('/admin/usuarios',
         const tipoCliente = u.tipoCliente && ['cpf', 'cnpj'].includes(u.tipoCliente)
           ? u.tipoCliente
           : (documento.length === 14 ? 'cnpj' : 'cpf');
-        const perfil = Array.isArray(u.permissoes) && u.permissoes.includes('admin') ? 'admin' : 'usuario';
+        const perfil = Array.isArray(u.permissoes) && (u.permissoes.includes('admin') || u.permissoes.includes('admin_total')) ? 'admin' : 'usuario';
         const status = u.status ? u.status : (u.ativo === false ? 'inativo' : 'ativo');
 
         return {

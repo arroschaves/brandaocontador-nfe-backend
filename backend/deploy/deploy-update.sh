@@ -77,13 +77,35 @@ if [ ! -f ".env" ]; then
     fi
 fi
 
+# Garantir variáveis essenciais de seed e modo de simulação
+echo_info "Verificando variáveis essenciais (SEED_ADMIN_* e SIMULATION_MODE) no .env..."
+if ! grep -q "^SEED_ADMIN_NOME=" .env; then
+  echo "SEED_ADMIN_NOME=Administrador" >> .env
+  echo_warning "Adicionada SEED_ADMIN_NOME=Administrador ao .env"
+fi
+if ! grep -q "^SEED_ADMIN_EMAIL=" .env; then
+  echo "SEED_ADMIN_EMAIL=admin@brandaocontador.com.br" >> .env
+  echo_warning "Adicionada SEED_ADMIN_EMAIL=admin@brandaocontador.com.br ao .env"
+fi
+if ! grep -q "^SEED_ADMIN_SENHA=" .env; then
+  echo "SEED_ADMIN_SENHA=admin123" >> .env
+  echo_warning "Adicionada SEED_ADMIN_SENHA=admin123 ao .env"
+fi
+if ! grep -q "^SIMULATION_MODE=" .env; then
+  echo "SIMULATION_MODE=false" >> .env
+  echo_warning "Adicionada SIMULATION_MODE=false ao .env"
+fi
+
+echo_info "Resumo das variáveis essenciais:"
+grep -E "^(SEED_ADMIN_|SIMULATION_MODE)" .env || true
+
 # Criar diretórios necessários
 echo_info "Criando diretórios necessários..."
 mkdir -p logs xmls/enviadas xmls/falhas certs
 
 # Verificar sintaxe do código
 echo_info "Verificando sintaxe do código..."
-node -c app.js && echo_success "Sintaxe OK" || { echo_error "Erro de sintaxe!"; exit 1; }
+node -c app-real.js && echo_success "Sintaxe OK" || { echo_error "Erro de sintaxe!"; exit 1; }
 
 # Parar aplicação atual
 echo_info "Parando aplicação atual..."

@@ -69,8 +69,8 @@ Write-Host ""
 Write-Host "Verificando status atual do sistema..." -ForegroundColor Yellow
 $statusCheck = Invoke-SSHCommand "cd $APP_DIR && pwd && ls -la" "Verificacao do diretorio da aplicacao"
 
-# Verificar PM2
-$pm2Status = Invoke-SSHCommand "pm2 list" "Status do PM2"
+# Verificar PM2 (usa JSON e timeout para evitar travas)
+$pm2Status = Invoke-SSHCommand "bash -lc 'timeout 5s pm2 jlist || timeout 5s pm2 list || echo PM2 indisponivel'" "Status do PM2"
 
 # Fazer backup do .env
 Write-Host ""
@@ -85,7 +85,10 @@ $gitPull = Invoke-SSHCommand "cd $APP_DIR && git fetch origin && git reset --har
 # Instalar/atualizar dependencias
 Write-Host ""
 Write-Host "Instalando dependencias..." -ForegroundColor Yellow
-$npmInstall = Invoke-SSHCommand "bash -lc 'cd $APP_DIR && (npm ci --omit=dev --silent || npm ci --production --silent || npm install --production --silent)'" "Instalacao de dependencias"
+Write-Host "Adicionando swap temporaria para evitar OOM..." -ForegroundColor Yellow
+$addSwap = Invoke-SSHCommand "bash -lc 'if ! swapon --show | grep -q .; then (sudo fallocate -l 1G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=1024); sudo chmod 600 /swapfile; sudo mkswap /swapfile; sudo swapon /swapfile; fi; free -h'" "Criacao de swap temporaria"
+
+$npmInstall = Invoke-SSHCommand "bash -lc 'cd $APP_DIR && npm set progress=false && npm config set jobs 1 && export NODE_OPTIONS=--max-old-space-size=256 && (npm install --production --no-audit --no-fund --prefer-offline --silent || npm ci --production --silent || npm ci --omit=dev --silent)'" "Instalacao de dependencias"
 
 # Reiniciar aplicacao com PM2 (nome correto do processo em producao)
 Write-Host ""
@@ -97,7 +100,7 @@ $pm2Restart = Invoke-SSHCommand "bash -lc 'if pm2 list | grep -q brandaocontador
 Write-Host ""
 Write-Host "Verificando status da aplicacao..." -ForegroundColor Yellow
 Start-Sleep -Seconds 5
-$pm2Status = Invoke-SSHCommand "pm2 list | grep brandaocontador-nfe-backend" "Status final da aplicacao"
+$pm2Status = Invoke-SSHCommand "bash -lc 'pm2 jlist | grep -i brandaocontador-nfe-backend || pm2 list | grep -i brandaocontador-nfe-backend || true'" "Status final da aplicacao"
 
 # Testar API /health e /api/health
 Write-Host ""

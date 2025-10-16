@@ -2,13 +2,14 @@
   "name": "brandaocontador-nfe-backend",
   "version": "1.0.0",
   "description": "Backend para sistema NFe do Brandão Contador",
-  "main": "app-simples.js",
+  "main": "app-real.js",
   "scripts": {
-    "start": "node app-simples.js",
-    "dev": "nodemon app-simples.js",
+    "start": "node app-real.js",
+    "dev": "nodemon app-real.js",
     "start:original": "node app.js",
     "start:real": "node app-real.js",
     "limpar-banco": "node scripts/limpar-banco-simples.js",
+    "seed:users": "node scripts/seed-users.js",
     "testar": "node scripts/testar-sistema.js",
     "setup": "npm run limpar-banco && npm start",
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -33,6 +34,7 @@
   },
   "devDependencies": {
     "jest": "^30.2.0",
+    "mongodb-memory-server": "^10.2.3",
     "nodemon": "^3.0.1",
     "supertest": "^7.1.4"
   },

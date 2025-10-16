@@ -267,6 +267,10 @@ class AuthMiddleware {
       }
 
       const permissoesUsuario = req.usuario.permissoes || [];
+      // Admin e superadmin têm todas as permissões
+      if (permissoesUsuario.includes('admin') || permissoesUsuario.includes('admin_total')) {
+        return next();
+      }
       
       if (!permissoesUsuario.includes(permissaoRequerida)) {
         return res.status(403).json({

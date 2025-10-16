@@ -5,6 +5,16 @@ on:
     branches: [ main, develop ]
   pull_request:
     branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      deploy_frontend:
+        description: "Deploy frontend para Vercel"
+        required: false
+        default: "false"
+      deploy_backend:
+        description: "Deploy backend para DigitalOcean"
+        required: false
+        default: "false"
 
 env:
   NODE_VERSION: '18'
@@ -54,7 +64,7 @@ jobs:
   deploy-frontend:
     needs: test
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.deploy_frontend == 'true' && github.ref == 'refs/heads/main'
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -72,7 +82,7 @@ jobs:
   build-and-push:
     needs: test
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.deploy_backend == 'true' && github.ref == 'refs/heads/main'
     permissions:
       contents: read
       packages: write
@@ -109,7 +119,7 @@ jobs:
   deploy-backend:
     needs: [test, build-and-push]
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.deploy_backend == 'true' && github.ref == 'refs/heads/main'
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -121,10 +131,15 @@ jobs:
           username: ${{ secrets.DO_USERNAME }}
           key: ${{ secrets.DO_SSH_KEY }}
           script: |
+            set -e
             cd /opt/nfe-system
-            git pull origin main
-            docker-compose pull
+            echo "Fetching latest code..."
+            git fetch origin
+            git reset --hard origin/main
+            echo "Rebuilding backend image..."
+            docker-compose build --pull
             docker-compose up -d --remove-orphans
+            echo "Cleaning up..."
             docker system prune -f
 
       - name: Health Check

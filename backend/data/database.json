@@ -4,7 +4,7 @@
       "id": "admin_user_001",
       "nome": "Administrador",
       "email": "admin@brandaocontador.com.br",
-      "senha": "$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi",
+      "senha": "$2b$10$642N2N/zdvWEQHP155WWH.JwnU.t74vpSX.24jETAgr0X6/HMK.8i",
       "telefone": "",
       "documento": "",
       "tipoPessoa": "PF",
@@ -22,9 +22,9 @@
         "admin_total"
       ],
       "ativo": true,
-      "ultimoAcesso": null,
+      "ultimoAcesso": "2025-10-16T18:22:14.316Z",
       "criadoEm": "2025-01-01T00:00:00.000Z",
-      "atualizadoEm": "2025-01-01T00:00:00.000Z"
+      "atualizadoEm": "2025-10-16T18:22:14.316Z"
     },
     {
       "id": "1760315401087",
@@ -62,5 +62,52 @@
   ],
   "nfes": [],
   "logs": [],
-  "configuracoes": {}
+  "configuracoes": {
+    "empresa": {
+      "razaoSocial": "A. S. CHAVES LTDA",
+      "nomeFantasia": "BRANDAO CONTABILIDADE",
+      "cnpj": "17.448.680/0001-03",
+      "inscricaoEstadual": "",
+      "inscricaoMunicipal": "",
+      "email": "contato@brandaocontador.com.br",
+      "telefone": "(67) 3272-3266",
+      "formaTributacao": "simples_nacional",
+      "endereco": {
+        "cep": "79170-000",
+        "logradouro": "SANTA CATARINA",
+        "numero": "1010",
+        "complemento": "Sala 456",
+        "bairro": "CENTRO",
+        "municipio": "SIDROLANDIA",
+        "uf": "MS"
+      }
+    },
+    "nfe": {
+      "ambiente": "homologacao",
+      "serie": "1",
+      "numeracaoInicial": 1,
+      "certificadoDigital": {
+        "arquivo": "",
+        "senha": "",
+        "validade": "2025-12-31",
+        "status": "nao_configurado"
+      },
+      "emailEnvio": {
+        "servidor": "smtp.gmail.com",
+        "porta": 587,
+        "usuario": "",
+        "senha": "",
+        "ssl": true
+      }
+    },
+    "notificacoes": {
+      "emailNFeEmitida": true,
+      "emailNFeCancelada": true,
+      "emailErroEmissao": true,
+      "emailVencimentoCertificado": true,
+      "whatsappNotificacoes": false,
+      "numeroWhatsapp": ""
+    },
+    "atualizadoEm": "2025-10-16T18:26:12.086Z"
+  }
 }

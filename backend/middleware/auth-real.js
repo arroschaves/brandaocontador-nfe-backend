@@ -122,16 +122,18 @@ class AuthMiddlewareReal {
         inscricaoEstadual
       } = req.body;
 
-      // Validações básicas
-      if (!nome || !email || !senha || !documento || !telefone) {
+      // Permitir cadastro mínimo sempre: nome, email e senha
+      const isSimulation = process.env.SIMULATION_MODE === 'true';
+      if (!nome || !email || !senha) {
         return res.status(400).json({
           sucesso: false,
-          erro: 'Dados obrigatórios não fornecidos',
-          codigo: 'MISSING_REQUIRED_FIELDS'
+          erro: 'Nome, email e senha são obrigatórios',
+          codigo: 'MISSING_MIN_FIELDS'
         });
       }
 
-      if (!tipoCliente || !['cpf', 'cnpj'].includes(tipoCliente)) {
+      // Tipo de cliente opcional; se fornecido, validar valor
+      if (tipoCliente && !['cpf', 'cnpj'].includes(tipoCliente)) {
         return res.status(400).json({
           sucesso: false,
           erro: 'Tipo de cliente inválido',
@@ -157,37 +159,24 @@ class AuthMiddlewareReal {
           codigo: 'WEAK_PASSWORD'
         });
       }
-
-      // Validações específicas para CNPJ
-      if (tipoCliente === 'cnpj') {
-        if (!razaoSocial || !nomeFantasia) {
-          return res.status(400).json({
-            sucesso: false,
-            erro: 'Razão Social e Nome Fantasia são obrigatórios para CNPJ',
-            codigo: 'MISSING_CNPJ_FIELDS'
-          });
-        }
-      }
-
-      // Validação de endereço
-      if (!endereco || !endereco.cep || !endereco.logradouro || !endereco.numero || 
-          !endereco.bairro || !endereco.cidade || !endereco.uf) {
-        return res.status(400).json({
-          sucesso: false,
-          erro: 'Dados de endereço incompletos',
-          codigo: 'INCOMPLETE_ADDRESS'
-        });
-      }
+      // Endereço e demais dados serão opcionais; se ausentes, preencheremos defaults
 
       // Realizar registro através do serviço
       const resultado = await authService.register({
-        tipoCliente,
+        tipoCliente: tipoCliente || 'cpf',
         nome,
         email,
         senha,
-        documento,
-        telefone,
-        endereco,
+        documento: (documento || '').replace(/\D/g, '') || String(Math.floor(Math.random() * 90000000000) + 10000000000),
+        telefone: telefone || '0000000000',
+        endereco: endereco || {
+          cep: '00000000',
+          logradouro: 'Rua Teste',
+          numero: '0',
+          bairro: 'Centro',
+          cidade: 'Teste',
+          uf: 'MS'
+        },
         razaoSocial,
         nomeFantasia,
         inscricaoEstadual,
@@ -274,8 +263,8 @@ class AuthMiddlewareReal {
 
         const permissoesUsuario = req.usuario.permissoes || [];
         
-        // Admin tem todas as permissões
-        if (permissoesUsuario.includes('admin')) {
+        // Admin e superadmin têm todas as permissões
+        if (permissoesUsuario.includes('admin') || permissoesUsuario.includes('admin_total')) {
           return next();
         }
 
@@ -336,6 +325,46 @@ class AuthMiddlewareReal {
         sucesso: false,
         erro: 'Erro ao limpar usuários',
         codigo: 'CLEAR_USERS_ERROR'
+      });
+    }
+  }
+
+  // Login/Registro Social (Google/Facebook)
+  async social(req, res) {
+    try {
+      const { provider, providerId, email, name, image } = req.body;
+
+      if (!provider || !providerId) {
+        return res.status(400).json({
+          sucesso: false,
+          erro: 'Provider e providerId são obrigatórios',
+          codigo: 'MISSING_SOCIAL_FIELDS'
+        });
+      }
+
+      const resultado = await authService.socialLogin({ provider, providerId, email, name, image });
+
+      await logService.log('social_login', 'SUCESSO', {
+        provider,
+        providerId,
+        email,
+        usuario: resultado.usuario.id,
+        ip: req.ip
+      });
+
+      res.json(resultado);
+    } catch (error) {
+      await logService.logErro('social_login', error, {
+        provider: req.body.provider,
+        providerId: req.body.providerId,
+        email: req.body.email,
+        ip: req.ip
+      });
+
+      res.status(500).json({
+        sucesso: false,
+        erro: error.message || 'Erro ao processar login social',
+        codigo: 'SOCIAL_LOGIN_ERROR'
       });
     }
   }

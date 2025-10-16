@@ -503,6 +503,84 @@ app.post('/nfe/validar',
   }
 );
 
+// ==================== ROTAS DE CONFIGURAÇÕES ====================
+
+// Merge profundo simples para objetos
+function mergeDeep(target, source) {
+  if (!target || typeof target !== 'object') target = {};
+  if (!source || typeof source !== 'object') return target;
+  for (const key of Object.keys(source)) {
+    const value = source[key];
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      target[key] = mergeDeep(target[key] || {}, value);
+    } else {
+      target[key] = value;
+    }
+  }
+  return target;
+}
+
+// Armazenamento simples em memória para configurações (sem persistência)
+const configuracoesEstado = {
+  empresa: {
+    razaoSocial: 'Brandão Contador Ltda',
+    nomeFantasia: 'Brandão Contador',
+    cnpj: '12.345.678/0001-90',
+    inscricaoEstadual: '123.456.789.012',
+    inscricaoMunicipal: '12345678',
+    emailCorporativo: 'contato@brandaocontador.com.br',
+    telefoneComercial: '(11) 99999-9999',
+    formaTributacao: 'Simples Nacional',
+    endereco: {
+      cep: '01234567',
+      logradouro: 'Rua das Empresas',
+      numero: '123',
+      complemento: 'Sala 456',
+      bairro: 'Centro',
+      cidade: 'São Paulo',
+      uf: 'SP'
+    }
+  },
+  nfe: {},
+  notificacoes: {},
+  sistema: {}
+};
+
+// Obter configurações (requer permissão)
+app.get('/configuracoes',
+  authMiddleware.verificarAutenticacao(),
+  authMiddleware.verificarPermissao('configuracoes_ver'),
+  async (req, res) => {
+    try {
+      res.json({ sucesso: true, configuracoes: configuracoesEstado });
+    } catch (error) {
+      await logService.logErro('configuracoes_get', error, { ip: req.ip });
+      res.status(500).json({ sucesso: false, erro: 'Erro ao obter configurações' });
+    }
+  }
+);
+
+// Atualizar configurações (apenas admin)
+app.post('/configuracoes',
+  authMiddleware.verificarAutenticacao(),
+  authMiddleware.verificarPermissao('admin'),
+  async (req, res) => {
+    try {
+      const dados = req.body || {};
+      // Mescla dados enviados com estado atual
+      mergeDeep(configuracoesEstado, dados);
+      await logService.log('configuracoes_update', 'SUCESSO', {
+        usuario: req.usuario?.id,
+        camposAtualizados: Object.keys(dados)
+      });
+      res.json({ sucesso: true, configuracoes: configuracoesEstado });
+    } catch (error) {
+      await logService.logErro('configuracoes_update', error, { ip: req.ip });
+      res.status(500).json({ sucesso: false, erro: 'Erro ao salvar configurações' });
+    }
+  }
+);
+
 // Status do sistema (público)
 app.get('/nfe/status', async (req, res) => {
   try {
