@@ -67,7 +67,7 @@ jobs:
     needs: test
     runs-on: ubuntu-latest
     # Allow manual dispatch OR opt-in deploy on push to main with commit message flag
-    if: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.deploy_frontend == 'true' && github.ref == 'refs/heads/main') || (github.event_name == 'push' && github.ref == 'refs/heads/main' && contains(github.event.head_commit.message || '', '[deploy-frontend]')) }}
+    if: (github.event_name == 'workflow_dispatch' && github.event.inputs.deploy_frontend == 'true' && github.ref == 'refs/heads/main') || (github.event_name == 'push' && github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, '[deploy-frontend]'))
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
