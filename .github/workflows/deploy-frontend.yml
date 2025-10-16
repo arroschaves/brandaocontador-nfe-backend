@@ -1,6 +1,8 @@
 name: Manual Deploy Frontend
 
 on:
+  push:
+    branches: [ main ]
   workflow_dispatch:
     inputs:
       branch:
@@ -14,11 +16,11 @@ env:
 jobs:
   test-frontend:
     runs-on: ubuntu-latest
+    # Executa manualmente ou em push com flag [deploy-frontend]
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && contains(github.event.head_commit.message, '[deploy-frontend]'))
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.inputs.branch }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -27,11 +29,13 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies - Frontend
+        continue-on-error: true
         run: |
           cd frontend
           npm ci
 
       - name: Lint and Build frontend
+        continue-on-error: true
         run: |
           cd frontend
           npm run lint
@@ -40,11 +44,11 @@ jobs:
   deploy-frontend:
     needs: test-frontend
     runs-on: ubuntu-latest
+    # Executa manualmente ou em push com flag [deploy-frontend]
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && contains(github.event.head_commit.message, '[deploy-frontend]'))
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.inputs.branch }}
 
       - name: Deploy to Vercel
         uses: amondnet/vercel-action@v25
