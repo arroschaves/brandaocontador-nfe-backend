@@ -85,6 +85,23 @@ jobs:
               git checkout main || true
             fi
 
+            # Record deployed commit/branch/time
+            cd "$REPO_DIR"
+            GIT_SHA=$(git rev-parse HEAD)
+            GIT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+            BUILD_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+            cat > backend/deploy-version.json <<JSON
+            {
+              "commit": "$GIT_SHA",
+              "branch": "$GIT_BRANCH",
+              "deployedAt": "$BUILD_TIME",
+              "repository": "${{ github.repository }}",
+              "runId": "${{ github.run_id }}",
+              "apiDomain": "${{ secrets.API_DOMAIN || vars.API_DOMAIN || 'api.brandaocontador.com.br' }}"
+            }
+            JSON
+
             # Install backend deps
             cd backend
             npm ci || npm install

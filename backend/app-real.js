@@ -9,6 +9,12 @@ const logService = require('./services/log-service');
 const authMiddleware = require('./middleware/auth-real');
 const Usuario = require('./models/Usuario');
 const Configuracao = require('./models/Configuracao');
+const path = require('path');
+const fs = require('fs');
+const multer = require('multer');
+const CertificateService = require('./services/certificate-service');
+const Cliente = require('./models/Cliente');
+const Produto = require('./models/Produto');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -448,17 +454,184 @@ app.post('/configuracoes',
   authMiddleware.verificarPermissao('admin'),
   async (req, res) => {
     try {
-      const dados = req.body || {};
-      const configuracoes = await Configuracao.findOneAndUpdate(
-        { chave: 'padrao' },
-        { $set: dados },
-        { new: true, upsert: true }
-      ).lean();
-      await logService.log('configuracoes_update', 'SUCESSO', { usuario: req.usuario?.id });
-      res.json({ sucesso: true, configuracoes });
+      const dados = req.body;
+      let config = await Configuracao.findOne({ chave: 'padrao' });
+      if (!config) {
+        config = new Configuracao({ chave: 'padrao' });
+      }
+      Object.assign(config, dados);
+      await config.save();
+      res.json({ sucesso: true, configuracao: config });
     } catch (error) {
-      await logService.logErro('configuracoes_update', error, { ip: req.ip });
-      res.status(500).json({ sucesso: false, erro: 'Erro ao atualizar configurações' });
+      console.error('Erro ao salvar configurações:', error);
+      res.status(500).json({ sucesso: false, erro: 'Erro ao salvar configurações' });
+    }
+  }
+);
+
+// ==================== CLIENTES ====================
+app.get('/clientes',
+  authMiddleware.verificarAutenticacao(),
+  authMiddleware.verificarPermissao('nfe_consultar'),
+  async (req, res) => {
+    try {
+      const { q, ativo } = req.query;
+      const filtro = {};
+      const permissoes = Array.isArray(req.usuario?.permissoes) ? req.usuario.permissoes : [];
+      const isAdmin = permissoes.includes('admin') || permissoes.includes('admin_total');
+      if (q) {
+        const qNum = String(q).replace(/\D/g, '');
+        filtro.$or = [
+          { nome: new RegExp(q, 'i') },
+          { razaoSocial: new RegExp(q, 'i') },
+          { nomeFantasia: new RegExp(q, 'i') },
+          { documento: new RegExp(qNum, 'i') },
+          { email: new RegExp(q, 'i') }
+        ];
+      }
+      if (ativo !== undefined) {
+        filtro.ativo = ativo === 'true';
+      }
+      if (!isAdmin) {
+        const usuarioId = req.usuario?._id || req.usuario?.id;
+        if (usuarioId) filtro.usuarioId = usuarioId;
+      }
+      const clientes = await Cliente.find(filtro).sort({ nome: 1 }).lean();
+      res.json({ sucesso: true, clientes });
+    } catch (error) {
+      console.error('Erro listar clientes:', error);
+      res.status(500).json({ sucesso: false, erro: 'Erro ao listar clientes' });
+    }
+  }
+);
+
+app.post('/clientes',
+  authMiddleware.verificarAutenticacao(),
+  authMiddleware.verificarPermissao('nfe_emitir'),
+  async (req, res) => {
+    try {
+      const dados = req.body;
+      const usuarioId = req.usuario?._id || req.usuario?.id;
+      if (usuarioId) dados.usuarioId = usuarioId;
+      const novo = await Cliente.create(dados);
+      res.status(201).json({ sucesso: true, cliente: novo.toJSON() });
+    } catch (error) {
+      console.error('Erro criar cliente:', error);
+      const status = error.code === 11000 ? 409 : 400;
+      res.status(status).json({ sucesso: false, erro: error.message || 'Erro ao criar cliente' });
+    }
+  }
+);
+
+app.patch('/clientes/:id',
+  authMiddleware.verificarAutenticacao(),
+  authMiddleware.verificarPermissao('nfe_emitir'),
+  async (req, res) => {
+    try {
+      const atualizado = await Cliente.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
+      if (!atualizado) return res.status(404).json({ sucesso: false, erro: 'Cliente não encontrado' });
+      res.json({ sucesso: true, cliente: atualizado.toJSON() });
+    } catch (error) {
+      console.error('Erro atualizar cliente:', error);
+      res.status(400).json({ sucesso: false, erro: error.message || 'Erro ao atualizar cliente' });
+    }
+  }
+);
+
+app.delete('/clientes/:id',
+  authMiddleware.verificarAutenticacao(),
+  authMiddleware.verificarPermissao('nfe_emitir'),
+  async (req, res) => {
+    try {
+      const removido = await Cliente.findByIdAndDelete(req.params.id);
+      if (!removido) return res.status(404).json({ sucesso: false, erro: 'Cliente não encontrado' });
+      res.json({ sucesso: true });
+    } catch (error) {
+      console.error('Erro remover cliente:', error);
+      res.status(400).json({ sucesso: false, erro: 'Erro ao remover cliente' });
+    }
+  }
+);
+
+// ==================== PRODUTOS ====================
+app.get('/produtos',
+  authMiddleware.verificarAutenticacao(),
+  authMiddleware.verificarPermissao('nfe_consultar'),
+  async (req, res) => {
+    try {
+      const { q, ativo } = req.query;
+      const filtro = {};
+      const permissoes = Array.isArray(req.usuario?.permissoes) ? req.usuario.permissoes : [];
+      const isAdmin = permissoes.includes('admin') || permissoes.includes('admin_total');
+      if (q) {
+        const regex = new RegExp(q, 'i');
+        filtro.$or = [
+          { nome: regex },
+          { codigo: regex },
+          { ncm: regex },
+          { descricao: regex }
+        ];
+      }
+      if (ativo !== undefined) {
+        filtro.ativo = ativo === 'true';
+      }
+      if (!isAdmin) {
+        const usuarioId = req.usuario?._id || req.usuario?.id;
+        if (usuarioId) filtro.usuarioId = usuarioId;
+      }
+      const produtos = await Produto.find(filtro).sort({ nome: 1 }).lean();
+      res.json({ sucesso: true, produtos });
+    } catch (error) {
+      console.error('Erro listar produtos:', error);
+      res.status(500).json({ sucesso: false, erro: 'Erro ao listar produtos' });
+    }
+  }
+);
+
+app.post('/produtos',
+  authMiddleware.verificarAutenticacao(),
+  authMiddleware.verificarPermissao('nfe_emitir'),
+  async (req, res) => {
+    try {
+      const dados = req.body;
+      const usuarioId = req.usuario?._id || req.usuario?.id;
+      if (usuarioId) dados.usuarioId = usuarioId;
+      const novo = await Produto.create(dados);
+      res.status(201).json({ sucesso: true, produto: novo.toJSON() });
+    } catch (error) {
+      console.error('Erro criar produto:', error);
+      const status = error.code === 11000 ? 409 : 400;
+      res.status(status).json({ sucesso: false, erro: error.message || 'Erro ao criar produto' });
+    }
+  }
+);
+
+app.patch('/produtos/:id',
+  authMiddleware.verificarAutenticacao(),
+  authMiddleware.verificarPermissao('nfe_emitir'),
+  async (req, res) => {
+    try {
+      const atualizado = await Produto.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
+      if (!atualizado) return res.status(404).json({ sucesso: false, erro: 'Produto não encontrado' });
+      res.json({ sucesso: true, produto: atualizado.toJSON() });
+    } catch (error) {
+      console.error('Erro atualizar produto:', error);
+      res.status(400).json({ sucesso: false, erro: error.message || 'Erro ao atualizar produto' });
+    }
+  }
+);
+
+app.delete('/produtos/:id',
+  authMiddleware.verificarAutenticacao(),
+  authMiddleware.verificarPermissao('nfe_emitir'),
+  async (req, res) => {
+    try {
+      const removido = await Produto.findByIdAndDelete(req.params.id);
+      if (!removido) return res.status(404).json({ sucesso: false, erro: 'Produto não encontrado' });
+      res.json({ sucesso: true });
+    } catch (error) {
+      console.error('Erro remover produto:', error);
+      res.status(400).json({ sucesso: false, erro: 'Erro ao remover produto' });
     }
   }
 );
@@ -694,6 +867,59 @@ app.get('/api/health', async (req, res) => {
   }
 });
 
+// Versão do deploy (commit/branch/timestamp)
+const DEPLOY_VERSION_PATH = path.join(__dirname, 'deploy-version.json');
+app.get('/version', async (req, res) => {
+  try {
+    const pkgVersion = (() => { try { return require('./package.json').version; } catch (_) { return null; } })();
+    let meta = {
+      sucesso: true,
+      commit: null,
+      branch: null,
+      deployedAt: null,
+      packageVersion: pkgVersion,
+      node: process.version,
+      env: process.env.NODE_ENV || 'development'
+    };
+    if (fs.existsSync(DEPLOY_VERSION_PATH)) {
+      try {
+        const raw = fs.readFileSync(DEPLOY_VERSION_PATH, 'utf-8');
+        const data = JSON.parse(raw);
+        meta = { ...meta, ...data };
+      } catch (e) {}
+    }
+    res.json(meta);
+  } catch (error) {
+    res.status(500).json({ sucesso: false, erro: 'Erro ao obter versão' });
+  }
+});
+
+// Alias antigo
+app.get('/api/version', async (req, res) => {
+  try {
+    const pkgVersion = (() => { try { return require('./package.json').version; } catch (_) { return null; } })();
+    let meta = {
+      sucesso: true,
+      commit: null,
+      branch: null,
+      deployedAt: null,
+      packageVersion: pkgVersion,
+      node: process.version,
+      env: process.env.NODE_ENV || 'development'
+    };
+    if (fs.existsSync(DEPLOY_VERSION_PATH)) {
+      try {
+        const raw = fs.readFileSync(DEPLOY_VERSION_PATH, 'utf-8');
+        const data = JSON.parse(raw);
+        meta = { ...meta, ...data };
+      } catch (e) {}
+    }
+    res.json(meta);
+  } catch (error) {
+    res.status(500).json({ sucesso: false, erro: 'Erro ao obter versão' });
+  }
+});
+
 // ==================== TRATAMENTO DE ERROS ====================
 
 // Middleware para tratamento de erros
@@ -743,3 +969,79 @@ app.use('*', (req, res) => {
 iniciarServidor();
 
 module.exports = app;
+
+// Configuração de armazenamento para upload de certificados
+const CERTS_DIR = path.join(__dirname, 'certs');
+if (!fs.existsSync(CERTS_DIR)) {
+  fs.mkdirSync(CERTS_DIR, { recursive: true });
+}
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, CERTS_DIR),
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname) || '.pfx';
+    const base = path.basename(file.originalname, ext).replace(/[^a-zA-Z0-9_\-]/g, '');
+    const uniq = Date.now();
+    cb(null, `${base || 'certificado'}_${uniq}${ext}`);
+  }
+});
+const uploadCert = multer({ storage, limits: { fileSize: 12 * 1024 * 1024 } });
+
+// Upload de certificado digital (apenas admin)
+app.post('/configuracoes/certificado',
+  authMiddleware.verificarAutenticacao(),
+  authMiddleware.verificarPermissao('admin'),
+  uploadCert.single('certificado'),
+  async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ sucesso: false, erro: 'Arquivo de certificado (.pfx) é obrigatório' });
+      }
+      const senha = req.body?.senha || req.body?.password || req.body?.certPass;
+      if (!senha || String(senha).length < 3) {
+        return res.status(400).json({ sucesso: false, erro: 'Senha do certificado é obrigatória' });
+      }
+
+      const certPath = req.file.path;
+
+      // Valida certificado e extrai informações
+      const certService = new CertificateService();
+      const cert = await certService.loadCertificateFromPath(certPath, senha);
+      const info = certService.getCertificateInfo(cert);
+
+      // Persiste em Configuracao
+      const configuracoes = await Configuracao.findOneAndUpdate(
+        { chave: 'padrao' },
+        {
+          $set: {
+            'nfe.certificadoDigital': {
+              arquivo: certPath,
+              senha: senha,
+              validade: info?.validity?.notAfter || cert.expiresAt,
+              status: 'ativo'
+            }
+          }
+        },
+        { new: true, upsert: true }
+      ).lean();
+
+      await logService.log('configuracoes_certificado_upload', 'SUCESSO', {
+        usuario: req.usuario?.id,
+        path: certPath
+      });
+
+      res.json({
+        sucesso: true,
+        configuracoes,
+        certificado: {
+          subject: info?.subject,
+          issuer: info?.issuer,
+          validity: info?.validity,
+          path: info?.path
+        }
+      });
+    } catch (error) {
+      await logService.logErro('configuracoes_certificado_upload', error, { ip: req.ip });
+      res.status(400).json({ sucesso: false, erro: error?.message || 'Falha ao validar certificado' });
+    }
+  }
+);
