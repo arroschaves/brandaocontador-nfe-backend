@@ -1,0 +1,97 @@
+name: Initialize Repository Variables
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ "main" ]
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  set-vars:
+    runs-on: ubuntu-latest
+    env:
+      # Permite atualizar valores existentes se explicitamente habilitado via repo vars
+      ALLOW_UPDATE_DEFAULTS: ${{ vars.ALLOW_UPDATE_DEFAULTS || 'false' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Define default values
+        run: |
+          echo "API_DOMAIN=${API_DOMAIN:-api.brandaocontador.com.br}" >> $GITHUB_ENV
+          echo "BACKEND_URL=${BACKEND_URL:-https://api.brandaocontador.com.br}" >> $GITHUB_ENV
+          echo "VITE_API_URL=${VITE_API_URL:-https://api.brandaocontador.com.br}" >> $GITHUB_ENV
+          echo "VITE_BASE=${VITE_BASE:-/}" >> $GITHUB_ENV
+          echo "UF=${UF:-MS}" >> $GITHUB_ENV
+          echo "AMBIENTE=${AMBIENTE:-2}" >> $GITHUB_ENV
+          echo "CORS_ORIGINS=${CORS_ORIGINS:-https://brandaocontador.com.br,https://app.brandaocontador.com.br}" >> $GITHUB_ENV
+          echo "SEED_ADMIN_NOME=${SEED_ADMIN_NOME:-Administrador}" >> $GITHUB_ENV
+          echo "SEED_ADMIN_EMAIL=${SEED_ADMIN_EMAIL:-admin@brandaocontador.com.br}" >> $GITHUB_ENV
+          echo "SEED_ADMIN_SENHA=${SEED_ADMIN_SENHA:-admin123}" >> $GITHUB_ENV
+          echo "SIMULATION_MODE=${SIMULATION_MODE:-false}" >> $GITHUB_ENV
+          echo "ALLOW_UPDATE_DEFAULTS=${ALLOW_UPDATE_DEFAULTS:-$ALLOW_UPDATE_DEFAULTS}" >> $GITHUB_ENV
+
+      - name: Create/Update repository variables (create-if-missing)
+        env:
+          GH_API: https://api.github.com
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          AUTH_HEADER="Authorization: Bearer $GITHUB_TOKEN"
+          ACCEPT_HEADER="Accept: application/vnd.github+json"
+          REPO="$GITHUB_REPOSITORY"
+          VARS_ENDPOINT="$GH_API/repos/$REPO/actions/variables"
+
+          create_if_missing_or_update() {
+            NAME="$1"; VALUE="$2";
+            # Check existence
+            GET_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+              -H "$AUTH_HEADER" -H "$ACCEPT_HEADER" \
+              "$VARS_ENDPOINT/$NAME")
+
+            if [ "$GET_STATUS" = "200" ]; then
+              if [ "$ALLOW_UPDATE_DEFAULTS" = "true" ]; then
+                UPDATE_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X PATCH \
+                  -H "$AUTH_HEADER" -H "$ACCEPT_HEADER" \
+                  "$VARS_ENDPOINT/$NAME" \
+                  -d "{\"name\":\"$NAME\",\"value\":\"$VALUE\"}")
+                if [ "$UPDATE_STATUS" = "204" ]; then
+                  echo "[OK] Updated variable $NAME"
+                else
+                  echo "[WARN] Could not update $NAME (status=$UPDATE_STATUS)"
+                fi
+              else
+                echo "[SKIP] Variable $NAME exists; update disabled"
+              fi
+            else
+              CREATE_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
+                -H "$AUTH_HEADER" -H "$ACCEPT_HEADER" \
+                "$VARS_ENDPOINT" \
+                -d "{\"name\":\"$NAME\",\"value\":\"$VALUE\"}")
+              if [ "$CREATE_STATUS" = "201" ]; then
+                echo "[OK] Created variable $NAME"
+              else
+                echo "[WARN] Could not create $NAME (status=$CREATE_STATUS)"
+              fi
+            fi
+          }
+
+          create_if_missing_or_update API_DOMAIN "$API_DOMAIN"
+          create_if_missing_or_update BACKEND_URL "$BACKEND_URL"
+          create_if_missing_or_update VITE_API_URL "$VITE_API_URL"
+          create_if_missing_or_update VITE_BASE "$VITE_BASE"
+          create_if_missing_or_update UF "$UF"
+          create_if_missing_or_update AMBIENTE "$AMBIENTE"
+          create_if_missing_or_update CORS_ORIGINS "$CORS_ORIGINS"
+          create_if_missing_or_update SEED_ADMIN_NOME "$SEED_ADMIN_NOME"
+          create_if_missing_or_update SEED_ADMIN_EMAIL "$SEED_ADMIN_EMAIL"
+          create_if_missing_or_update SEED_ADMIN_SENHA "$SEED_ADMIN_SENHA"
+          create_if_missing_or_update SIMULATION_MODE "$SIMULATION_MODE"
+
+      - name: Summary
+        run: |
+          echo "Repository variables initialized. Existing variables are preserved unless ALLOW_UPDATE_DEFAULTS=true." >> $GITHUB_STEP_SUMMARY
+          echo "This runs on push to main and can be re-run manually." >> $GITHUB_STEP_SUMMARY
