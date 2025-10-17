@@ -19,8 +19,14 @@ jobs:
     # Executa manualmente ou em push com flag [deploy-frontend]
     if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && contains(github.event.head_commit.message, '[deploy-frontend]'))
     steps:
-      - name: Checkout code
+      - name: Checkout frontend repository
         uses: actions/checkout@v4
+        with:
+          repository: arroschaves/brandaocontador-nfe-frontend
+          ref: main
+          path: frontend
+          token: ${{ secrets.GH_PAT_CHECKOUT || github.token }}
+          fetch-depth: 1
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -48,8 +54,14 @@ jobs:
     # Executa manualmente ou em push com flag [deploy-frontend]
     if: always() && (github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && contains(github.event.head_commit.message, '[deploy-frontend]')))
     steps:
-      - name: Checkout code
+      - name: Checkout frontend repository
         uses: actions/checkout@v4
+        with:
+          repository: arroschaves/brandaocontador-nfe-frontend
+          ref: main
+          path: frontend
+          token: ${{ secrets.GH_PAT_CHECKOUT || github.token }}
+          fetch-depth: 1
 
       - name: Deploy to Vercel
         uses: amondnet/vercel-action@v25
