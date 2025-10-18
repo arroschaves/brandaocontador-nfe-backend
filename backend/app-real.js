@@ -469,6 +469,85 @@ app.post('/configuracoes',
   }
 );
 
+// ==================== PERFIL DO USUÁRIO (ME) ====================
+
+// Obter dados do usuário autenticado
+app.get('/me',
+  authMiddleware.verificarAutenticacao(),
+  async (req, res) => {
+    try {
+      const usuarioId = req.usuario?._id || req.usuario?.id;
+      if (!usuarioId) {
+        return res.status(401).json({ sucesso: false, erro: 'Não autenticado' });
+      }
+      const usuario = await Usuario.findById(usuarioId).lean();
+      if (!usuario) {
+        return res.status(404).json({ sucesso: false, erro: 'Usuário não encontrado' });
+      }
+      delete usuario.senha;
+      res.json({ sucesso: true, usuario });
+    } catch (error) {
+      await logService.logErro('me_get', error, { ip: req.ip });
+      res.status(500).json({ sucesso: false, erro: 'Erro ao obter dados do usuário' });
+    }
+  }
+);
+
+// Atualizar dados do usuário autenticado
+app.patch('/me',
+  authMiddleware.verificarAutenticacao(),
+  async (req, res) => {
+    try {
+      const usuarioId = req.usuario?._id || req.usuario?.id;
+      if (!usuarioId) {
+        return res.status(401).json({ sucesso: false, erro: 'Não autenticado' });
+      }
+
+      const body = req.body || {};
+      const atualizacoes = {};
+      if (body.razaoSocial !== undefined) atualizacoes.razaoSocial = body.razaoSocial;
+      if (body.nomeFantasia !== undefined) atualizacoes.nomeFantasia = body.nomeFantasia;
+      if (body.documento !== undefined) atualizacoes.documento = String(body.documento).replace(/\D/g, '');
+      if (body.inscricaoEstadual !== undefined) atualizacoes.inscricaoEstadual = body.inscricaoEstadual;
+      if (body.email !== undefined) atualizacoes.email = String(body.email).toLowerCase();
+      if (body.telefone !== undefined) atualizacoes.telefone = body.telefone;
+      if (body.endereco && typeof body.endereco === 'object') {
+        atualizacoes.endereco = {
+          ...(body.endereco.cep !== undefined ? { cep: body.endereco.cep } : {}),
+          ...(body.endereco.logradouro !== undefined ? { logradouro: body.endereco.logradouro } : {}),
+          ...(body.endereco.numero !== undefined ? { numero: body.endereco.numero } : {}),
+          ...(body.endereco.complemento !== undefined ? { complemento: body.endereco.complemento } : {}),
+          ...(body.endereco.bairro !== undefined ? { bairro: body.endereco.bairro } : {}),
+          ...(body.endereco.cidade !== undefined ? { cidade: body.endereco.cidade } : {}),
+          ...(body.endereco.uf !== undefined ? { uf: body.endereco.uf } : {})
+        };
+      }
+
+      const usuarioAtualizado = await Usuario.findByIdAndUpdate(
+        usuarioId,
+        { $set: atualizacoes },
+        { new: true }
+      ).lean();
+
+      if (!usuarioAtualizado) {
+        return res.status(404).json({ sucesso: false, erro: 'Usuário não encontrado' });
+      }
+
+      await logService.log('me_update', 'SUCESSO', { usuario: usuarioId, campos: Object.keys(atualizacoes) });
+      delete usuarioAtualizado.senha;
+      res.json({ sucesso: true, usuario: usuarioAtualizado });
+    } catch (error) {
+      if (error && error.code === 11000) {
+        // Violação de unicidade (email/documento)
+        const campo = Object.keys(error.keyPattern || {})[0] || 'campo';
+        return res.status(409).json({ sucesso: false, erro: `${campo} já está em uso` });
+      }
+      await logService.logErro('me_update', error, { ip: req.ip });
+      res.status(500).json({ sucesso: false, erro: 'Erro ao atualizar dados do usuário' });
+    }
+  }
+);
+
 // ==================== CLIENTES ====================
 app.get('/clientes',
   authMiddleware.verificarAutenticacao(),
@@ -1041,6 +1120,179 @@ app.post('/configuracoes/certificado',
       });
     } catch (error) {
       await logService.logErro('configuracoes_certificado_upload', error, { ip: req.ip });
+      res.status(400).json({ sucesso: false, erro: error?.message || 'Falha ao validar certificado' });
+    }
+  }
+);
+
+// ==================== ENDPOINTS CLIENTE PARA NFE ====================
+
+// Obter apenas configurações de NFe (acesso autenticado)
+app.get('/configuracoes/nfe',
+  authMiddleware.verificarAutenticacao(),
+  async (req, res) => {
+    try {
+      let configuracao = await Configuracao.findOne({ chave: 'padrao' }).lean();
+      if (!configuracao) {
+        const nova = await Configuracao.create({ chave: 'padrao' });
+        configuracao = nova.toObject();
+      }
+      res.json({ sucesso: true, nfe: configuracao.nfe || {} });
+    } catch (error) {
+      await logService.logErro('configuracoes_nfe_get', error, { ip: req.ip });
+      res.status(500).json({ sucesso: false, erro: 'Erro ao obter configurações de NFe' });
+    }
+  }
+);
+
+// Atualizar configurações de NFe (acesso autenticado; limita apenas campos NFe)
+app.patch('/configuracoes/nfe',
+  authMiddleware.verificarAutenticacao(),
+  async (req, res) => {
+    try {
+      const body = req.body || {};
+      const nfeBody = body.nfe || body;
+      const setFields = {};
+
+      if (nfeBody.ambiente !== undefined) setFields['nfe.ambiente'] = nfeBody.ambiente;
+      if (nfeBody.serie !== undefined) setFields['nfe.serie'] = nfeBody.serie;
+      if (nfeBody.numeracaoInicial !== undefined) setFields['nfe.numeracaoInicial'] = nfeBody.numeracaoInicial;
+
+      if (nfeBody.emailEnvio && typeof nfeBody.emailEnvio === 'object') {
+        const email = nfeBody.emailEnvio;
+        if (email.servidor !== undefined) setFields['nfe.emailEnvio.servidor'] = email.servidor;
+        if (email.porta !== undefined) setFields['nfe.emailEnvio.porta'] = email.porta;
+        if (email.usuario !== undefined) setFields['nfe.emailEnvio.usuario'] = email.usuario;
+        if (email.senha !== undefined) setFields['nfe.emailEnvio.senha'] = email.senha;
+        if (email.ssl !== undefined) setFields['nfe.emailEnvio.ssl'] = email.ssl;
+      }
+
+      const configuracoes = await Configuracao.findOneAndUpdate(
+        { chave: 'padrao' },
+        { $set: setFields },
+        { new: true, upsert: true }
+      ).lean();
+
+      await logService.log('configuracoes_nfe_update', 'SUCESSO', {
+        usuario: req.usuario?.id,
+        campos: Object.keys(setFields)
+      });
+
+      res.json({ sucesso: true, nfe: configuracoes.nfe || {} });
+    } catch (error) {
+      await logService.logErro('configuracoes_nfe_update', error, { ip: req.ip });
+      res.status(400).json({ sucesso: false, erro: error?.message || 'Erro ao atualizar NFe' });
+    }
+  }
+);
+
+// ==================== ENDPOINTS CLIENTE PARA NOTIFICAÇÕES ====================
+
+// Obter configurações de Notificações (acesso autenticado)
+app.get('/configuracoes/notificacoes',
+  authMiddleware.verificarAutenticacao(),
+  async (req, res) => {
+    try {
+      let configuracao = await Configuracao.findOne({ chave: 'padrao' }).lean();
+      if (!configuracao) {
+        const nova = await Configuracao.create({ chave: 'padrao' });
+        configuracao = nova.toObject();
+      }
+      res.json({ sucesso: true, notificacoes: configuracao.notificacoes || {} });
+    } catch (error) {
+      await logService.logErro('configuracoes_notificacoes_get', error, { ip: req.ip });
+      res.status(500).json({ sucesso: false, erro: 'Erro ao obter configurações de Notificações' });
+    }
+  }
+);
+
+// Atualizar configurações de Notificações (acesso autenticado; limita apenas campos de Notificações)
+app.patch('/configuracoes/notificacoes',
+  authMiddleware.verificarAutenticacao(),
+  async (req, res) => {
+    try {
+      const body = req.body || {};
+      const notifBody = body.notificacoes || body;
+      const setFields = {};
+
+      if (notifBody.emailNFeEmitida !== undefined) setFields['notificacoes.emailNFeEmitida'] = !!notifBody.emailNFeEmitida;
+      if (notifBody.emailNFeCancelada !== undefined) setFields['notificacoes.emailNFeCancelada'] = !!notifBody.emailNFeCancelada;
+      if (notifBody.emailErroEmissao !== undefined) setFields['notificacoes.emailErroEmissao'] = !!notifBody.emailErroEmissao;
+      if (notifBody.emailVencimentoCertificado !== undefined) setFields['notificacoes.emailVencimentoCertificado'] = !!notifBody.emailVencimentoCertificado;
+      if (notifBody.whatsappNotificacoes !== undefined) setFields['notificacoes.whatsappNotificacoes'] = !!notifBody.whatsappNotificacoes;
+      if (notifBody.numeroWhatsapp !== undefined) setFields['notificacoes.numeroWhatsapp'] = notifBody.numeroWhatsapp;
+
+      const configuracoes = await Configuracao.findOneAndUpdate(
+        { chave: 'padrao' },
+        { $set: setFields },
+        { new: true, upsert: true }
+      ).lean();
+
+      await logService.log('configuracoes_notificacoes_update', 'SUCESSO', {
+        usuario: req.usuario?.id,
+        campos: Object.keys(setFields)
+      });
+
+      res.json({ sucesso: true, notificacoes: configuracoes.notificacoes || {} });
+    } catch (error) {
+      await logService.logErro('configuracoes_notificacoes_update', error, { ip: req.ip });
+      res.status(400).json({ sucesso: false, erro: error?.message || 'Erro ao atualizar Notificações' });
+    }
+  }
+);
+
+// Upload de certificado digital pelo cliente (acesso autenticado)
+app.post('/me/certificado',
+  authMiddleware.verificarAutenticacao(),
+  uploadCert.single('certificado'),
+  async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ sucesso: false, erro: 'Arquivo de certificado (.pfx) é obrigatório' });
+      }
+      const senha = req.body?.senha || req.body?.password || req.body?.certPass;
+      if (!senha || String(senha).length < 3) {
+        return res.status(400).json({ sucesso: false, erro: 'Senha do certificado é obrigatória' });
+      }
+
+      const certPath = req.file.path;
+
+      const certService = new CertificateService();
+      const cert = await certService.loadCertificateFromPath(certPath, senha);
+      const info = certService.getCertificateInfo(cert);
+
+      const configuracoes = await Configuracao.findOneAndUpdate(
+        { chave: 'padrao' },
+        {
+          $set: {
+            'nfe.certificadoDigital': {
+              arquivo: certPath,
+              senha: senha,
+              validade: info?.validity?.notAfter || cert.expiresAt,
+              status: 'ativo'
+            }
+          }
+        },
+        { new: true, upsert: true }
+      ).lean();
+
+      await logService.log('me_certificado_upload', 'SUCESSO', {
+        usuario: req.usuario?.id,
+        path: certPath
+      });
+
+      res.json({
+        sucesso: true,
+        configuracoes,
+        certificado: {
+          subject: info?.subject,
+          issuer: info?.issuer,
+          validity: info?.validity,
+          path: info?.path
+        }
+      });
+    } catch (error) {
+      await logService.logErro('me_certificado_upload', error, { ip: req.ip });
       res.status(400).json({ sucesso: false, erro: error?.message || 'Falha ao validar certificado' });
     }
   }
