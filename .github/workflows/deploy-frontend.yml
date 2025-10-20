@@ -63,9 +63,29 @@ jobs:
           token: ${{ secrets.GH_PAT_CHECKOUT || github.token }}
           fetch-depth: 1
 
+      - name: Validate Vercel credentials
+        id: check_vercel_secrets
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          MISSING=""
+          [ -z "$VERCEL_TOKEN" ] && MISSING="$MISSING VERCEL_TOKEN"
+          [ -z "$VERCEL_ORG_ID" ] && MISSING="$MISSING VERCEL_ORG_ID"
+          [ -z "$VERCEL_PROJECT_ID" ] && MISSING="$MISSING VERCEL_PROJECT_ID"
+          if [ -n "$MISSING" ]; then
+            echo "missing=true" >> $GITHUB_OUTPUT
+            echo "[ERRO] Secrets ausentes:$MISSING" >> $GITHUB_STEP_SUMMARY
+            echo "Vercel Action será pulada. Tentando Deploy Hook se disponível." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "missing=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Deploy to Vercel (vercel-action)
         id: vercel_action
         uses: amondnet/vercel-action@v25
+        if: ${{ steps.check_vercel_secrets.outputs.missing != 'true' }}
         continue-on-error: true
         with:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
@@ -77,20 +97,22 @@ jobs:
 
       - name: Deploy via Vercel Deploy Hook
         id: deploy_hook
-        if: ${{ steps.vercel_action.outcome == 'failure' }}
+        if: ${{ steps.vercel_action.outcome == 'failure' || steps.check_vercel_secrets.outputs.missing == 'true' }}
         continue-on-error: true
         env:
-          HOOK_URL: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
+          HOOK_URL_SECRET: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
+          HOOK_URL_VAR: ${{ vars.VERCEL_DEPLOY_HOOK_URL }}
         run: |
+          HOOK_URL="${HOOK_URL_SECRET:-$HOOK_URL_VAR}"
           if [ -z "$HOOK_URL" ]; then
-            echo "VERCEL_DEPLOY_HOOK_URL não configurado. Pulando fallback."
+            echo "VERCEL_DEPLOY_HOOK_URL não configurado (secret ou var). Pulando fallback."
             exit 1
           fi
           echo "Disparando Deploy Hook do Vercel..."
           curl -X POST "$HOOK_URL"
 
       - name: Fail if no deploy method succeeded
-        if: ${{ steps.vercel_action.outcome == 'failure' && steps.deploy_hook.outcome == 'failure' }}
+        if: ${{ (steps.vercel_action.outcome != 'success') && steps.deploy_hook.outcome == 'failure' }}
         run: |
           echo "Falha: nenhum método de deploy (Action/Hook) foi bem-sucedido."
           exit 1
