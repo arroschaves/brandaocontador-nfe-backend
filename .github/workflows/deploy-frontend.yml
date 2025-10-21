@@ -27,6 +27,7 @@ jobs:
           path: frontend
           token: ${{ secrets.GH_PAT_CHECKOUT || github.token }}
           fetch-depth: 1
+          persist-credentials: true
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -62,6 +63,7 @@ jobs:
           path: frontend
           token: ${{ secrets.GH_PAT_CHECKOUT || github.token }}
           fetch-depth: 1
+          persist-credentials: true
 
       - name: Validate Vercel credentials
         id: check_vercel_secrets
@@ -111,8 +113,19 @@ jobs:
           echo "Disparando Deploy Hook do Vercel..."
           curl -X POST "$HOOK_URL"
 
+      # Novo fallback: empurra commit vazio no repositório frontend para gatilhar Vercel via GitHub
+      - name: Push empty commit to frontend repo (fallback trigger)
+        if: ${{ steps.vercel_action.outcome != 'success' }}
+        continue-on-error: true
+        run: |
+          cd frontend
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git commit --allow-empty -m "[deploy-frontend] Bump via workflow"
+          git push origin HEAD:main
+
       - name: Fail if no deploy method succeeded
-        if: ${{ (steps.vercel_action.outcome != 'success') && steps.deploy_hook.outcome == 'failure' }}
+        if: ${{ (steps.vercel_action.outcome != 'success') && (steps.deploy_hook.outcome != 'success') }}
         run: |
           echo "Falha: nenhum método de deploy (Action/Hook) foi bem-sucedido."
           exit 1
