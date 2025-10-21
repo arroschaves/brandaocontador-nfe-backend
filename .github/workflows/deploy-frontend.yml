@@ -99,7 +99,7 @@ jobs:
 
       - name: Deploy via Vercel Deploy Hook
         id: deploy_hook
-        if: ${{ steps.vercel_action.outcome == 'failure' || steps.check_vercel_secrets.outputs.missing == 'true' }}
+        if: ${{ steps.vercel_action.conclusion == 'failure' || steps.check_vercel_secrets.outputs.missing == 'true' }}
         continue-on-error: true
         env:
           HOOK_URL_SECRET: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
@@ -115,7 +115,7 @@ jobs:
 
       # Novo fallback: empurra commit vazio no repositório frontend para gatilhar Vercel via GitHub
       - name: Push empty commit to frontend repo (fallback trigger)
-        if: ${{ steps.vercel_action.outcome != 'success' }}
+        if: ${{ steps.vercel_action.conclusion != 'success' }}
         continue-on-error: true
         run: |
           cd frontend
@@ -125,7 +125,7 @@ jobs:
           git push origin HEAD:main
 
       - name: Fail if no deploy method succeeded
-        if: ${{ (steps.vercel_action.outcome != 'success') && (steps.deploy_hook.outcome != 'success') }}
+        if: ${{ (steps.vercel_action.conclusion != 'success') && (steps.deploy_hook.conclusion != 'success') }}
         run: |
           echo "Falha: nenhum método de deploy (Action/Hook) foi bem-sucedido."
           exit 1
