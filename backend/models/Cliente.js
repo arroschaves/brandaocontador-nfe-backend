@@ -24,6 +24,7 @@ const clienteSchema = new mongoose.Schema({
     unique: true,
     trim: true,
     required: [true, 'Documento é obrigatório'],
+    set: v => (v || '').replace(/\D/g, ''),
     validate: {
       validator: function(v) {
         if (!v) return false;
@@ -101,3 +102,17 @@ clienteSchema.methods.toJSON = function() {
 const Cliente = mongoose.model('Cliente', clienteSchema);
 
 module.exports = Cliente;
+
+// Sanitização em operações de update
+clienteSchema.pre('findOneAndUpdate', function(next) {
+  const update = this.getUpdate() || {};
+  const setObj = update.$set || update;
+  if (setObj && typeof setObj.documento === 'string') {
+    setObj.documento = setObj.documento.replace(/\D/g, '');
+    if (update.$set) {
+      update.$set.documento = setObj.documento;
+    }
+    this.setUpdate(update);
+  }
+  next();
+});
