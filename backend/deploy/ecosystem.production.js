@@ -12,7 +12,9 @@ module.exports = {
     },
     env_production: {
       NODE_ENV: 'production',
-      PORT: 3001
+      PORT: 3001,
+      SIMULATION_MODE: 'false',
+      AMBIENTE: 1
     },
     error_file: './logs/err.log',
     out_file: './logs/out.log',

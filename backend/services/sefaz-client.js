@@ -116,6 +116,22 @@ class SefazClient {
     const [result] = await op.call(this.client, args);
     return result;
   }
+
+  async inutilizar(xmlInutilizacaoAssinado) {
+    if (!this.client) {
+      await this.init();
+    }
+    // Alguns UFs: NFeInutilizacao4; outros: nfeInutilizacaoNF ou nfeInutilizacao
+    const op = this.client.NFeInutilizacao4Async 
+      || this.client.nfeInutilizacaoNFAsync 
+      || this.client.nfeInutilizacaoAsync;
+    if (!op) {
+      throw new Error('Operação de inutilização não disponível no WSDL carregado');
+    }
+    const args = { nfeDadosMsg: xmlInutilizacaoAssinado };
+    const [result] = await op.call(this.client, args);
+    return result;
+  }
 }
 
 module.exports = SefazClient;

@@ -88,7 +88,7 @@ Write-Host "Instalando dependencias..." -ForegroundColor Yellow
 Write-Host "Adicionando swap temporaria para evitar OOM..." -ForegroundColor Yellow
 $addSwap = Invoke-SSHCommand "bash -lc 'if ! swapon --show | grep -q .; then (sudo fallocate -l 1G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=1024); sudo chmod 600 /swapfile; sudo mkswap /swapfile; sudo swapon /swapfile; fi; free -h'" "Criacao de swap temporaria"
 
-$npmInstall = Invoke-SSHCommand "bash -lc 'cd $APP_DIR && npm set progress=false && npm config set jobs 1 && export NODE_OPTIONS=--max-old-space-size=256 && (npm install --production --no-audit --no-fund --prefer-offline --silent || npm ci --production --silent || npm ci --omit=dev --silent)'" "Instalacao de dependencias"
+$npmInstall = Invoke-SSHCommand "bash -lc 'cd $APP_DIR && npm set progress=false && export NODE_OPTIONS=--max-old-space-size=256 && (npm ci --omit=dev --no-audit --no-fund --prefer-offline --silent || npm ci --production --silent || npm install --omit=dev --no-audit --no-fund --prefer-offline --silent)'" "Instalacao de dependencias"
 
 # Reiniciar aplicacao com PM2 (nome correto do processo em producao)
 Write-Host ""

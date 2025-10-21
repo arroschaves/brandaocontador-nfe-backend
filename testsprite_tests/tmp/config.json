@@ -1,21 +1,16 @@
 {
   "status": "commited",
-  "type": "backend",
+  "type": "frontend",
   "scope": "codebase",
-  "localEndpoint": "http://localhost:3001",
-  "backendAuthType": "public",
+  "localEndpoint": "http://localhost:4173",
   "executionArgs": {
     "projectName": "brandaocontador-nfe",
     "projectPath": "E:\\PROJETOS\\brandaocontador-nfe",
-    "testIds": [
-      "d1236c4d-bc54-422f-b5c2-fe6fe22689ba",
-      "e7116ea3-68f4-46ba-8e74-5aed273a1c54",
-      "8a7544f9-d6ed-43ba-b6d9-458f058a1d3c"
-    ],
-    "additionalInstruction": "Configuração de testes backend (porta 3001):\n- BASE_URL: http://localhost:3001\n- Autenticação JWT obrigatória antes de acessar endpoints protegidos.\n\nCredenciais seed:\n- Admin: admin@example.com / adminpassword\n- Usuário padrão: validuser@example.com / ValidPassword123!\n\nFluxos e validações:\n1) TC002 /admin/health\n   - Login como admin para obter token (POST /auth/login com email/senha).\n   - Enviar GET /admin/health com header Authorization: Bearer <token>.\n   - Validar status 200 e objeto com chaves: sucesso=true e health contendo: timestamp, status, bancoDados, memoria (ou memoryUsage), uptime (ou systemUptime), versao.\n   - Tipos: uptime/memoria numéricos ou strings parseáveis.\n\n2) TC007 /nfe/historico\n   - Login como usuário padrão para obter token.\n   - GET /nfe/historico com Authorization: Bearer <token>.\n   - Validar status 200 e JSON de paginação: itens (array), total (int), pagina (int), totalPaginas (int).\n   - Aceitar também chave \"nfes\" no payload (compatibilidade frontend), mas assert principal deve usar \"itens\".\n\n3) TC010 /admin/usuarios\n   - Login como admin para obter token.\n   - GET /admin/usuarios com Authorization: Bearer <token>.\n   - Validar status 200.\n   - Resposta pode ser: { sucesso: true, usuarios: [...] } ou lista direta de usuários. Se for objeto, validar \"sucesso\" e que \"usuarios\" é lista; se for lista, validar que é lista de objetos.\n\nObservações:\n- Timeout de 30s.\n- Usar JSON nas requisições e tratar erros com mensagens claras.\n- Salvar resultados em testsprite_tests/tmp/test_results.json e atualizar relatório HTML/MD.\n",
+    "testIds": [],
+    "additionalInstruction": "",
     "envs": {
       "API_KEY": "sk-user-u4LjBP9dEiyAeCpryfzRrnKG5ZiYaJz36V8uuFpFh3A3oeooeQivgtCq8a3yfGYDbfCFGOpuJPX_SYAvxeMQJYi7SI_z0WfkydWEtrfTRrH7-CGeuZU8t-81qKmolDY9V8w"
     }
   },
-  "proxy": "http://008aba8a-6903-4087-91ee-3624e2421d9b:zyPxKBmkvrBDX1ESU2FJJcKecI70AJR0@tun.testsprite.com:8080"
+  "proxy": "http://a1e3b9f5-a29b-4d94-ac90-3427f1c64003:s1nqOJsDCmSN95eiUEZjhWHmAeup0oTV@tun.testsprite.com:8080"
 }

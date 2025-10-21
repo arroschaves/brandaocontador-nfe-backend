@@ -9,6 +9,7 @@ Bem-vindo ao repositório do sistema NFe. Comece pelos guias abaixo:
 Workflows manuais (GitHub Actions):
 - Manual Deploy Backend: `.github/workflows/deploy-backend.yml`
 - Manual Deploy Frontend: `.github/workflows/deploy-frontend.yml`
+- Publicação automática (Vercel): push na branch conectada publica o frontend
 
 Ordem de publicação recomendada:
 - Primeiro: Backend (DigitalOcean)

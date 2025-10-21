@@ -152,6 +152,7 @@ Agora existem dois workflows independentes para deploy manual via GitHub Actions
 Observações:
 - O workflow anterior `Deploy NFe System` permanece, mas recomenda-se usar os novos workflows separados.
 - Pushes em `main` não disparam mais deploy automaticamente; apenas testes continuam rodando conforme configurado.
+- Atualização de dependências: usar `npm ci --omit=dev` em produção; evitar `npm config set jobs` (incompatível em npm moderno).
 
 ## 🔧 Monitoramento e Manutenção
 
@@ -282,9 +283,13 @@ Frontend:
 ```bash
 cd /var/www/brandaocontador-nfe-backend
 git pull origin main
-npm ci --production
+npm ci --omit=dev --no-audit --no-fund --prefer-offline --silent
 pm2 restart brandaocontador-nfe-backend
 ```
+
+Nota:
+- Preferir `npm ci --omit=dev` em produção para builds reprodutíveis e lean.
+- Evitar `npm config set jobs` (flag não suportada em versões modernas do npm).
 
 ### 2. Frontend
 O frontend é atualizado automaticamente via Vercel quando há push na branch `main`.

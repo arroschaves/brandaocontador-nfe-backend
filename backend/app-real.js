@@ -15,6 +15,7 @@ const multer = require('multer');
 const CertificateService = require('./services/certificate-service');
 const Cliente = require('./models/Cliente');
 const Produto = require('./models/Produto');
+const rateLimit = require('express-rate-limit');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -28,71 +29,76 @@ async function iniciarServidor() {
     await database.connect();
     console.log('✅ Banco de dados conectado');
 
-    // Seed automático de usuários padrão (admin e usuário) se não existirem
-    try {
-      const adminNome = process.env.SEED_ADMIN_NOME || 'Administrador';
-      const adminEmail = process.env.SEED_ADMIN_EMAIL || 'admin@example.com';
-      const adminSenha = process.env.SEED_ADMIN_SENHA || 'adminpassword';
-      const userEmail = process.env.SEED_USER_EMAIL || 'validuser@example.com';
-      const userSenha = process.env.SEED_USER_SENHA || 'ValidPassword123!';
+    // Seed automático de usuários padrão (admin e usuário) se não existirem — desabilitado em produção
+    const autoSeedEnabled = (process.env.ENABLE_AUTO_SEED === 'true') || (process.env.NODE_ENV !== 'production');
+    if (autoSeedEnabled) {
+      try {
+        const adminNome = process.env.SEED_ADMIN_NOME || 'Administrador';
+        const adminEmail = process.env.SEED_ADMIN_EMAIL || 'admin@example.com';
+        const adminSenha = process.env.SEED_ADMIN_SENHA || 'adminpassword';
+        const userEmail = process.env.SEED_USER_EMAIL || 'validuser@example.com';
+        const userSenha = process.env.SEED_USER_SENHA || 'ValidPassword123!';
 
-      const adminExiste = await Usuario.findOne({ email: adminEmail }).lean();
-      if (!adminExiste) {
-        await Usuario.create({
-          nome: adminNome,
-          email: adminEmail,
-          senha: adminSenha,
-          tipoCliente: 'cnpj',
-          documento: '12345678000199',
-          telefone: '(11) 4000-0000',
-          razaoSocial: 'Empresa Admin LTDA',
-          nomeFantasia: 'Admin LTDA',
-          endereco: {
-            cep: '01001-000',
-            logradouro: 'Rua Exemplo',
-            numero: '100',
-            complemento: '',
-            bairro: 'Centro',
-            cidade: 'São Paulo',
-            uf: 'SP'
-          },
-          permissoes: ['admin', 'admin_total', 'nfe_consultar', 'nfe_emitir'],
-          ativo: true,
-          status: 'ativo'
-        });
-        console.log(`🌱 Usuário admin criado: ${adminEmail}`);
-      } else {
-        console.log(`ℹ️ Usuário admin já existe: ${adminEmail}`);
-      }
+        const adminExiste = await Usuario.findOne({ email: adminEmail }).lean();
+        if (!adminExiste) {
+          await Usuario.create({
+            nome: adminNome,
+            email: adminEmail,
+            senha: adminSenha,
+            tipoCliente: 'cnpj',
+            documento: '12345678000199',
+            telefone: '(11) 4000-0000',
+            razaoSocial: 'Empresa Admin LTDA',
+            nomeFantasia: 'Admin LTDA',
+            endereco: {
+              cep: '01001-000',
+              logradouro: 'Rua Exemplo',
+              numero: '100',
+              complemento: '',
+              bairro: 'Centro',
+              cidade: 'São Paulo',
+              uf: 'SP'
+            },
+            permissoes: ['admin', 'admin_total', 'nfe_consultar', 'nfe_emitir'],
+            ativo: true,
+            status: 'ativo'
+          });
+          console.log(`🌱 Usuário admin criado: ${adminEmail}`);
+        } else {
+          console.log(`ℹ️ Usuário admin já existe: ${adminEmail}`);
+        }
 
-      const userExiste = await Usuario.findOne({ email: userEmail }).lean();
-      if (!userExiste) {
-        await Usuario.create({
-          nome: 'Usuário Válido',
-          email: userEmail,
-          senha: userSenha,
-          tipoCliente: 'cpf',
-          documento: '12345678901',
-          telefone: '(11) 5000-0000',
-          endereco: {
-            cep: '01002-000',
-            logradouro: 'Avenida Teste',
-            numero: '200',
-            complemento: '',
-            bairro: 'Jardins',
-            cidade: 'São Paulo',
-            uf: 'SP'
-          },
-          permissoes: ['nfe_consultar'],
-          ativo: true,
-          status: 'ativo'
-        });
-        console.log(`🌱 Usuário padrão criado: ${userEmail}`);
-      } else {
-        console.log(`ℹ️ Usuário padrão já existe: ${userEmail}`);
+        const userExiste = await Usuario.findOne({ email: userEmail }).lean();
+        if (!userExiste) {
+          await Usuario.create({
+            nome: 'Usuário Válido',
+            email: userEmail,
+            senha: userSenha,
+            tipoCliente: 'cpf',
+            documento: '12345678901',
+            telefone: '(11) 5000-0000',
+            endereco: {
+              cep: '01002-000',
+              logradouro: 'Avenida Teste',
+              numero: '200',
+              complemento: '',
+              bairro: 'Jardins',
+              cidade: 'São Paulo',
+              uf: 'SP'
+            },
+            permissoes: ['nfe_consultar'],
+            ativo: true,
+            status: 'ativo'
+          });
+          console.log(`🌱 Usuário padrão criado: ${userEmail}`);
+        } else {
+          console.log(`ℹ️ Usuário padrão já existe: ${userEmail}`);
+        }
+      } catch (seedError) {
+        console.warn('⚠️  Falha ao semear usuários padrão:', seedError.message);
       }
-    } catch (seedError) {
-      console.warn('⚠️  Falha ao semear usuários padrão:', seedError.message);
+    } else {
+      console.log('ℹ️ Auto-seed desabilitado. Nenhum usuário de teste será criado em produção.');
     }
   } catch (error) {
     console.warn('⚠️  Não foi possível conectar ao MongoDB:', error.message);
@@ -134,30 +140,38 @@ async function iniciarServidor() {
 // ==================== MIDDLEWARE ====================
 
 // CORS configurado para permitir requisições do frontend
-const corsOrigins = process.env.CORS_ORIGINS 
+const corsOriginsEnv = process.env.CORS_ORIGINS 
   ? process.env.CORS_ORIGINS.split(',').map(origin => origin.trim())
-  : [
-    'https://brandaocontador.com.br',
-    'https://app.brandaocontador.com.br',
-    'https://nfe.brandaocontador.com.br',
-    'http://localhost:3000',
-    'http://localhost:3001',
-    'http://localhost:3002',
-    'http://localhost:3003',
-    'http://localhost:5173' // Vite dev server
-  ];
+  : [];
+
+const defaultCorsOrigins = [
+  'https://brandaocontador.com.br',
+  'https://app.brandaocontador.com.br',
+  'https://nfe.brandaocontador.com.br',
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://localhost:3002',
+  'http://localhost:3003',
+  'http://localhost:5173' // Vite dev server
+];
+
+const isDevEnv = (process.env.NODE_ENV || 'development') !== 'production';
+const devOrigins = isDevEnv ? ['http://localhost:3000','http://localhost:3001','http://localhost:3002','http://localhost:3003','http://localhost:5173'] : [];
+
+const corsOrigins = Array.from(new Set([...defaultCorsOrigins, ...corsOriginsEnv, ...devOrigins]));
 
 // Middleware para lidar com requisições OPTIONS (preflight)
 app.use((req, res, next) => {
   if (req.method === 'OPTIONS') {
     const origin = req.headers.origin;
-    // Se a origem estiver na lista permitida, use-a, caso contrário, use localhost:3002
-    const allowedOrigin = corsOrigins.includes(origin) ? origin : 'http://localhost:3002';
+    // Se a origem estiver na lista permitida, use-a, caso contrário, use localhost:3000 (dev)
+    const allowedOrigin = corsOrigins.includes(origin) ? origin : 'http://localhost:3000';
     res.header('Access-Control-Allow-Origin', allowedOrigin);
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
     res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-Key');
     res.header('Access-Control-Allow-Credentials', 'true');
     res.header('Access-Control-Max-Age', '86400'); // 24 horas
+    res.header('Access-Control-Expose-Headers', 'Retry-After, RateLimit-Limit, RateLimit-Remaining, RateLimit-Reset');
     return res.status(200).end();
   }
   next();
@@ -167,8 +181,45 @@ app.use(cors({
   origin: corsOrigins,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Key']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Key'],
+  exposedHeaders: ['Retry-After', 'RateLimit-Limit', 'RateLimit-Remaining', 'RateLimit-Reset']
 }));
+
+// Rate limiting para endpoints de autenticação
+
+const AUTH_LIMIT_MAX = parseInt(process.env.AUTH_LIMIT_MAX || (isDevEnv ? '1' : '100'), 10);
+const AUTH_LIMIT_WINDOW_MS = parseInt(process.env.AUTH_LIMIT_WINDOW_MS || (isDevEnv ? String(60 * 1000) : String(15 * 60 * 1000)), 10);
+
+// Limitador simples em desenvolvimento para garantir 429 com Retry-After
+const devAuthLimiter = (() => {
+  if (!isDevEnv) return (req, res, next) => next();
+  const requests = new Map();
+  return (req, res, next) => {
+    const now = Date.now();
+    const window = Math.floor(now / AUTH_LIMIT_WINDOW_MS);
+    const key = `${req.ip}:${window}`;
+    const count = requests.get(key) || 0;
+    if (count >= AUTH_LIMIT_MAX) {
+      res.set('Retry-After', Math.ceil(AUTH_LIMIT_WINDOW_MS / 1000).toString());
+      return res.status(429).json({ sucesso: false, erro: 'Muitas tentativas. Aguarde alguns minutos e tente novamente.', codigo: 'RATE_LIMIT' });
+    }
+    requests.set(key, count + 1);
+    if (Math.random() < 0.001) requests.clear();
+    next();
+  };
+})();
+
+const authLimiter = rateLimit({
+  windowMs: AUTH_LIMIT_WINDOW_MS, // Janela de tempo (1 min em dev, 15 min em prod)
+  max: AUTH_LIMIT_MAX,            // Máximo de requisições por IP (1 em dev, 100 em prod)
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { sucesso: false, erro: 'Muitas tentativas. Aguarde alguns minutos e tente novamente.', codigo: 'RATE_LIMIT' }
+});
+app.use('/auth/login', devAuthLimiter);
+app.use('/auth/register', devAuthLimiter);
+app.use('/auth/login', authLimiter);
+app.use('/auth/register', authLimiter);
 
 // Middleware para parsing JSON com tratamento de erros
 app.use(express.json({ 
@@ -307,7 +358,7 @@ app.post('/nfe/validar',
   }
 );
 
-// Histórico de NFes (simulação com paginação)
+// Histórico de NFes (condicional: simulação apenas fora de produção)
 app.get('/nfe/historico', 
   authMiddleware.verificarAutenticacao(),
   async (req, res) => {
@@ -315,63 +366,98 @@ app.get('/nfe/historico',
       const pagina = parseInt(req.query.pagina) || 1;
       const limite = parseInt(req.query.limite) || 10;
 
-      // Simulação de dados (substituir por consulta ao banco em produção)
-      const todasNfes = [
-        {
-          id: '1',
-          numero: '000001234',
-          serie: '001',
-          chave: '35200714200166000187550010000000015123456789',
-          destinatario: 'Empresa ABC Ltda',
-          documento: '12.345.678/0001-90',
-          valor: 15000.00,
-          status: 'autorizada',
-          dataEmissao: '2024-01-15T10:30:00Z'
-        },
-        {
-          id: '2',
-          numero: '000001235',
-          serie: '001',
-          chave: '35200714200166000187550010000000025123456789',
-          destinatario: 'Comércio XYZ S/A',
-          documento: '98.765.432/0001-00',
-          valor: 8500.75,
-          status: 'autorizada',
-          dataEmissao: '2024-01-15T09:15:00Z'
-        },
-        {
-          id: '3',
-          numero: '000001236',
-          serie: '001',
-          chave: '35200714200166000187550010000000035123456789',
-          destinatario: 'Indústria DEF Ltda',
-          documento: '11.222.333/0001-44',
-          valor: 32000.00,
-          status: 'pendente',
-          dataEmissao: '2024-01-15T08:45:00Z'
-        }
-      ];
+      const isSimulacao = (process.env.SIMULATION_MODE === 'true') || (process.env.NODE_ENV !== 'production');
 
-      const total = todasNfes.length;
+      if (isSimulacao) {
+        // Dados mocados APENAS em simulação
+        const todasNfes = [
+          {
+            id: '1',
+            numero: '000001234',
+            serie: '001',
+            chave: '35200714200166000187550010000000015123456789',
+            destinatario: 'Empresa ABC Ltda',
+            documento: '12.345.678/0001-90',
+            valor: 15000.00,
+            status: 'autorizada',
+            dataEmissao: '2024-01-15T10:30:00Z'
+          },
+          {
+            id: '2',
+            numero: '000001235',
+            serie: '001',
+            chave: '35200714200166000187550010000000025123456789',
+            destinatario: 'Comércio XYZ S/A',
+            documento: '98.765.432/0001-00',
+            valor: 8500.75,
+            status: 'autorizada',
+            dataEmissao: '2024-01-15T09:15:00Z'
+          },
+          {
+            id: '3',
+            numero: '000001236',
+            serie: '001',
+            chave: '35200714200166000187550010000000035123456789',
+            destinatario: 'Indústria DEF Ltda',
+            documento: '11.222.333/0001-44',
+            valor: 32000.00,
+            status: 'pendente',
+            dataEmissao: '2024-01-15T08:45:00Z'
+          }
+        ];
+
+        const total = todasNfes.length;
+        const inicio = (pagina - 1) * limite;
+        const fim = inicio + limite;
+        const nfes = todasNfes.slice(inicio, fim);
+        const totalPaginas = Math.ceil(total / limite);
+
+        await logService.log('historico', 'SUCESSO', {
+          usuario: req.usuario?.id,
+          pagina,
+          limite,
+          retornadas: nfes.length
+        });
+
+        return res.json({
+          sucesso: true,
+          nfes,
+          limite,
+          itens: nfes,
+          total,
+          pagina,
+          totalPaginas
+        });
+      }
+
+      // Produção/Homologação: consultar banco; se indisponível, retornar vazio
+      let nfes = [];
+      try {
+        if (typeof database.listarNfes === 'function') {
+          nfes = await database.listarNfes({ usuarioId: req.usuario?.id });
+        }
+      } catch (e) {
+        console.warn('Não foi possível consultar NFes do banco:', e.message);
+      }
+
+      const total = nfes.length;
       const inicio = (pagina - 1) * limite;
       const fim = inicio + limite;
-      const nfes = todasNfes.slice(inicio, fim);
+      const nfesPaginadas = nfes.slice(inicio, fim);
       const totalPaginas = Math.ceil(total / limite);
 
       await logService.log('historico', 'SUCESSO', {
         usuario: req.usuario?.id,
         pagina,
         limite,
-        retornadas: nfes.length
+        retornadas: nfesPaginadas.length
       });
 
       res.json({
         sucesso: true,
-        // Formato antigo usado no frontend
-        nfes,
+        nfes: nfesPaginadas,
         limite,
-        // Formato esperado pelos testes automatizados
-        itens: nfes,
+        itens: nfesPaginadas,
         total,
         pagina,
         totalPaginas
@@ -1032,16 +1118,8 @@ app.use((error, req, res, next) => {
   res.status(500).json(payload);
 });
 
-// Middleware para rotas não encontradas
-app.use('*', (req, res) => {
-  res.status(404).json({
-    sucesso: false,
-    erro: 'Rota não encontrada',
-    codigo: 'ROUTE_NOT_FOUND',
-    rota: req.originalUrl,
-    metodo: req.method
-  });
-});
+// Middleware para rotas não encontradas (adiado; permitir que as rotas abaixo sejam registradas)
+app.use('*', (req, res, next) => next());
 
 // ==================== INICIAR SERVIDOR ====================
 
@@ -1121,6 +1199,69 @@ app.post('/configuracoes/certificado',
     } catch (error) {
       await logService.logErro('configuracoes_certificado_upload', error, { ip: req.ip });
       res.status(400).json({ sucesso: false, erro: error?.message || 'Falha ao validar certificado' });
+    }
+  }
+);
+
+// Remover certificado digital (apenas admin)
+app.delete('/configuracoes/certificado',
+  authMiddleware.verificarAutenticacao(),
+  authMiddleware.verificarPermissao('admin'),
+  async (req, res) => {
+    try {
+      const config = await Configuracao.findOne({ chave: 'padrao' }).lean();
+      const oldPath = config?.nfe?.certificadoDigital?.arquivo;
+
+      if (oldPath) {
+        try {
+          if (fs.existsSync(oldPath)) {
+            fs.unlinkSync(oldPath);
+          }
+        } catch (e) {
+          console.warn('Aviso ao remover arquivo de certificado:', e.message);
+        }
+      }
+
+      const configuracoes = await Configuracao.findOneAndUpdate(
+        { chave: 'padrao' },
+        {
+          $set: {
+            'nfe.certificadoDigital.arquivo': null,
+            'nfe.certificadoDigital.senha': null,
+            'nfe.certificadoDigital.validade': null,
+            'nfe.certificadoDigital.status': 'removido'
+          }
+        },
+        { new: true, upsert: true }
+      ).lean();
+
+      // Limpa variáveis de ambiente e recarrega serviço
+      process.env.CERT_PATH = '';
+      process.env.CERT_PASS = '';
+      try {
+        const certSvc = new CertificateService();
+        if (Array.isArray(certSvc.fallbackPaths)) {
+          certSvc.fallbackPaths = certSvc.fallbackPaths.filter(p => p && p !== oldPath);
+        }
+        if (typeof certSvc.clearCache === 'function') {
+          certSvc.clearCache();
+        }
+        if (typeof nfeService.carregarCertificadoSistema === 'function') {
+          await nfeService.carregarCertificadoSistema();
+        }
+      } catch (e) {
+        console.warn('Aviso ao recarregar NFe após remoção:', e.message);
+      }
+
+      await logService.log('configuracoes_certificado_delete', 'SUCESSO', {
+        usuario: req.usuario?.id,
+        pathRemovido: oldPath || null
+      });
+
+      res.json({ sucesso: true, configuracoes });
+    } catch (error) {
+      await logService.logErro('configuracoes_certificado_delete', error, { ip: req.ip });
+      res.status(400).json({ sucesso: false, erro: error?.message || 'Falha ao remover certificado' });
     }
   }
 );
@@ -1276,6 +1417,28 @@ app.post('/me/certificado',
         { new: true, upsert: true }
       ).lean();
 
+      // Atualizar env e recarregar certificado no serviço NFe
+      process.env.CERT_PATH = certPath;
+      process.env.CERT_PASS = senha;
+      try {
+        const certSvc = nfeService.certificateService;
+        if (Array.isArray(certSvc.fallbackPaths)) {
+          if (!certSvc.fallbackPaths.includes(certPath)) {
+            certSvc.fallbackPaths.unshift(certPath);
+          } else {
+            certSvc.fallbackPaths = [certPath, ...certSvc.fallbackPaths.filter(p => p !== certPath)];
+          }
+        }
+        if (typeof certSvc.clearCache === 'function') {
+          certSvc.clearCache();
+        }
+        if (typeof nfeService.carregarCertificadoSistema === 'function') {
+          await nfeService.carregarCertificadoSistema();
+        }
+      } catch (e) {
+        console.warn('Aviso ao recarregar NFe após upload:', e.message);
+      }
+
       await logService.log('me_certificado_upload', 'SUCESSO', {
         usuario: req.usuario?.id,
         path: certPath
@@ -1297,3 +1460,75 @@ app.post('/me/certificado',
     }
   }
 );
+
+// Remover certificado digital pelo cliente (acesso autenticado)
+app.delete('/me/certificado',
+  authMiddleware.verificarAutenticacao(),
+  async (req, res) => {
+    try {
+      const config = await Configuracao.findOne({ chave: 'padrao' }).lean();
+      const oldPath = config?.nfe?.certificadoDigital?.arquivo;
+
+      if (oldPath) {
+        try {
+          if (fs.existsSync(oldPath)) {
+            fs.unlinkSync(oldPath);
+          }
+        } catch (e) {
+          console.warn('Aviso ao remover arquivo de certificado:', e.message);
+        }
+      }
+
+      const configuracoes = await Configuracao.findOneAndUpdate(
+        { chave: 'padrao' },
+        {
+          $set: {
+            'nfe.certificadoDigital.arquivo': null,
+            'nfe.certificadoDigital.senha': null,
+            'nfe.certificadoDigital.validade': null,
+            'nfe.certificadoDigital.status': 'removido'
+          }
+        },
+        { new: true, upsert: true }
+      ).lean();
+
+      process.env.CERT_PATH = '';
+      process.env.CERT_PASS = '';
+      try {
+        const certSvc = new CertificateService();
+        if (Array.isArray(certSvc.fallbackPaths)) {
+          certSvc.fallbackPaths = certSvc.fallbackPaths.filter(p => p && p !== oldPath);
+        }
+        if (typeof certSvc.clearCache === 'function') {
+          certSvc.clearCache();
+        }
+        if (typeof nfeService.carregarCertificadoSistema === 'function') {
+          await nfeService.carregarCertificadoSistema();
+        }
+      } catch (e) {
+        console.warn('Aviso ao recarregar NFe após remoção:', e.message);
+      }
+
+      await logService.log('me_certificado_delete', 'SUCESSO', {
+        usuario: req.usuario?.id,
+        pathRemovido: oldPath || null
+      });
+
+      res.json({ sucesso: true, configuracoes });
+    } catch (error) {
+      await logService.logErro('me_certificado_delete', error, { ip: req.ip });
+      res.status(400).json({ sucesso: false, erro: error?.message || 'Falha ao remover certificado' });
+    }
+  }
+);
+
+// 404 no final: rotas não encontradas
+app.use('*', (req, res) => {
+  res.status(404).json({
+    sucesso: false,
+    erro: 'Rota não encontrada',
+    codigo: 'ROUTE_NOT_FOUND',
+    rota: req.originalUrl,
+    metodo: req.method
+  });
+});

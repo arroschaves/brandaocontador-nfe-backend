@@ -64,9 +64,9 @@ class CertificateService {
      * @param {string} certPath Caminho do certificado
      * @returns {Object} Certificado carregado
      */
-    async loadCertificateFromPath(certPath) {
+    async loadCertificateFromPath(certPath, passwordOverride = null) {
         const certBuffer = fs.readFileSync(certPath);
-        const password = process.env.CERT_PASS || '';
+        const password = (passwordOverride ?? process.env.CERT_PASS) || '';
 
         try {
             // Tenta carregar como PKCS#12 (PFX)

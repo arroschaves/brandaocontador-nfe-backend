@@ -8,7 +8,9 @@ class DatabaseService {
       usuarios: [],
       nfes: [],
       logs: [],
-      configuracoes: {}
+      configuracoes: {},
+      clientes: [],
+      produtos: []
     };
     this.loadData();
   }
@@ -18,6 +20,9 @@ class DatabaseService {
       if (fs.existsSync(this.dataPath)) {
         const rawData = fs.readFileSync(this.dataPath, 'utf8');
         this.data = JSON.parse(rawData);
+        // Garantir chaves novas
+        this.data.clientes = this.data.clientes || [];
+        this.data.produtos = this.data.produtos || [];
         console.log('📊 Dados carregados do arquivo');
       } else {
         console.log('📁 Criando novo banco de dados em arquivo');
@@ -25,7 +30,7 @@ class DatabaseService {
       }
     } catch (error) {
       console.error('❌ Erro ao carregar dados:', error.message);
-      this.data = { usuarios: [], nfes: [], logs: [], configuracoes: {} };
+      this.data = { usuarios: [], nfes: [], logs: [], configuracoes: {}, clientes: [], produtos: [] };
     }
   }
 
@@ -63,7 +68,7 @@ class DatabaseService {
   // Métodos de limpeza
   async limparBanco() {
     console.log('🧹 Limpando banco de dados...');
-    this.data = { usuarios: [], nfes: [], logs: [], configuracoes: {} };
+    this.data = { usuarios: [], nfes: [], logs: [], configuracoes: {}, clientes: [], produtos: [] };
     this.saveData();
     console.log('✅ Banco de dados limpo');
   }
@@ -171,6 +176,126 @@ class DatabaseService {
 
   async listarLogs(limit = 100) {
     return this.data.logs.slice(-limit);
+  }
+
+  // Clientes
+  async criarCliente(clienteData) {
+    const cliente = {
+      id: Date.now().toString(),
+      ...clienteData,
+      criadoEm: new Date().toISOString(),
+      atualizadoEm: new Date().toISOString(),
+      ativo: clienteData.ativo !== undefined ? clienteData.ativo : true
+    };
+    this.data.clientes.push(cliente);
+    this.saveData();
+    return cliente;
+  }
+
+  async listarClientes(filtros = {}) {
+    let clientes = [...this.data.clientes];
+    if (filtros.q) {
+      const q = String(filtros.q).toLowerCase();
+      const qNum = String(filtros.q).replace(/\D/g, '');
+      clientes = clientes.filter(c =>
+        (c.nome || '').toLowerCase().includes(q) ||
+        (c.razaoSocial || '').toLowerCase().includes(q) ||
+        (c.nomeFantasia || '').toLowerCase().includes(q) ||
+        (c.documento || '').includes(qNum) ||
+        (c.email || '').toLowerCase().includes(q)
+      );
+    }
+    if (filtros.ativo !== undefined) {
+      const ativo = filtros.ativo === true || filtros.ativo === 'true';
+      clientes = clientes.filter(c => c.ativo === ativo);
+    }
+    if (filtros.usuarioId) {
+      clientes = clientes.filter(c => c.usuarioId === filtros.usuarioId);
+    }
+    return clientes;
+  }
+
+  async buscarClientePorId(id) {
+    return this.data.clientes.find(c => c.id === id);
+  }
+
+  async atualizarCliente(id, dados) {
+    const index = this.data.clientes.findIndex(c => c.id === id);
+    if (index === -1) return null;
+    this.data.clientes[index] = {
+      ...this.data.clientes[index],
+      ...dados,
+      atualizadoEm: new Date().toISOString()
+    };
+    this.saveData();
+    return this.data.clientes[index];
+  }
+
+  async removerCliente(id) {
+    const index = this.data.clientes.findIndex(c => c.id === id);
+    if (index === -1) return false;
+    this.data.clientes.splice(index, 1);
+    this.saveData();
+    return true;
+  }
+
+  // Produtos
+  async criarProduto(produtoData) {
+    const produto = {
+      id: Date.now().toString(),
+      ...produtoData,
+      criadoEm: new Date().toISOString(),
+      atualizadoEm: new Date().toISOString(),
+      ativo: produtoData.ativo !== undefined ? produtoData.ativo : true
+    };
+    this.data.produtos.push(produto);
+    this.saveData();
+    return produto;
+  }
+
+  async listarProdutos(filtros = {}) {
+    let produtos = [...this.data.produtos];
+    if (filtros.q) {
+      const q = String(filtros.q).toLowerCase();
+      produtos = produtos.filter(p =>
+        (p.nome || '').toLowerCase().includes(q) ||
+        (p.codigo || '').toLowerCase().includes(q) ||
+        (p.ncm || '').toLowerCase().includes(q) ||
+        (p.descricao || '').toLowerCase().includes(q)
+      );
+    }
+    if (filtros.ativo !== undefined) {
+      const ativo = filtros.ativo === true || filtros.ativo === 'true';
+      produtos = produtos.filter(p => p.ativo === ativo);
+    }
+    if (filtros.usuarioId) {
+      produtos = produtos.filter(p => p.usuarioId === filtros.usuarioId);
+    }
+    return produtos;
+  }
+
+  async buscarProdutoPorId(id) {
+    return this.data.produtos.find(p => p.id === id);
+  }
+
+  async atualizarProduto(id, dados) {
+    const index = this.data.produtos.findIndex(p => p.id === id);
+    if (index === -1) return null;
+    this.data.produtos[index] = {
+      ...this.data.produtos[index],
+      ...dados,
+      atualizadoEm: new Date().toISOString()
+    };
+    this.saveData();
+    return this.data.produtos[index];
+  }
+
+  async removerProduto(id) {
+    const index = this.data.produtos.findIndex(p => p.id === id);
+    if (index === -1) return false;
+    this.data.produtos.splice(index, 1);
+    this.saveData();
+    return true;
   }
 
   // Estatísticas

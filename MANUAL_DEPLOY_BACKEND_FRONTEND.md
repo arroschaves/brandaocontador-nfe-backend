@@ -141,6 +141,7 @@ Use apenas se o servidor estiver configurado em `/var/www/brandaocontador-nfe-ba
 - Em produção, garanta `SIMULATION_MODE=false` e `JWT_SECRET` forte
 - Certifique que `CORS_ORIGINS` inclui o domínio público do frontend
 - Para ambientes de homologação, ajuste variáveis e subdomínios conforme necessário
+- Atualização de dependências: preferir `npm ci --omit=dev` em produção; evite `npm config set jobs` (não suportado em npm moderno)
 
 ---
 

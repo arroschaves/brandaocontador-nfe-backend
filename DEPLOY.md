@@ -36,6 +36,9 @@ O script automático irá:
 6. ✅ Deploy no Vercel
 7. ✅ Configurar DigitalOcean
 
+Observação:
+- Instalação de dependências: em produção, preferir `npm ci --omit=dev`; evitar `npm config set jobs` (incompatível em npm moderno).
+
 ### Opção 2: Deploy Manual
 
 Siga as seções abaixo para deploy manual passo a passo.

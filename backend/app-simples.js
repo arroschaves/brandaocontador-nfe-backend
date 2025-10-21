@@ -7,9 +7,34 @@ const logService = require('./services/log-service');
 const authMiddleware = require('./middleware/auth-simples');
 const nfeService = require('./services/nfe-service');
 const validationService = require('./services/validation-service');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
+const emailService = require('./services/email-service');
 
 const app = express();
 const PORT = process.env.PORT || 3002;
+
+// Configuração de upload de certificado (PFX/P12)
+const certsDir = path.join(__dirname, 'certs');
+if (!fs.existsSync(certsDir)) {
+  fs.mkdirSync(certsDir, { recursive: true });
+}
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, certsDir),
+  filename: (req, file, cb) => cb(null, 'certificado.pfx')
+});
+const upload = multer({
+  storage,
+  limits: { fileSize: 15 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (!['.pfx', '.p12'].includes(ext)) {
+      return cb(new Error('Formato de certificado inválido (use .pfx ou .p12)'));
+    }
+    cb(null, true);
+  }
+});
 
 // ==================== INICIALIZAÇÃO ====================
 
@@ -40,6 +65,16 @@ async function iniciarServidor() {
       console.log(`   - GET  http://localhost:${PORT}/nfe/download/:tipo/:chave`);
       console.log(`   - POST http://localhost:${PORT}/nfe/validar`);
   console.log(`   - GET  http://localhost:${PORT}/nfe/consultar/:chave`);
+  console.log(`   - GET  http://localhost:${PORT}/clientes`);
+  console.log(`   - GET  http://localhost:${PORT}/clientes/:id`);
+  console.log(`   - POST http://localhost:${PORT}/clientes`);
+  console.log(`   - PATCH http://localhost:${PORT}/clientes/:id`);
+  console.log(`   - DELETE http://localhost:${PORT}/clientes/:id`);
+  console.log(`   - GET  http://localhost:${PORT}/produtos`);
+  console.log(`   - GET  http://localhost:${PORT}/produtos/:id`);
+  console.log(`   - POST http://localhost:${PORT}/produtos`);
+  console.log(`   - PATCH http://localhost:${PORT}/produtos/:id`);
+  console.log(`   - DELETE http://localhost:${PORT}/produtos/:id`);
   console.log('');
   console.log('💡 Dica: Use o endpoint /auth/register para criar seu primeiro usuário!');
   console.log('💾 Banco de dados: Modo arquivo (data/database.json)');
@@ -114,6 +149,119 @@ app.get('/auth/validate',
   authMiddleware.validarToken.bind(authMiddleware)
 );
 
+// Endpoints do usuário autenticado (/me)
+app.get('/me',
+  authMiddleware.verificarAutenticacao(),
+  async (req, res) => {
+    try {
+      const usuario = await database.buscarUsuarioPorId(req.usuario.id);
+      if (!usuario) {
+        return res.status(404).json({ sucesso: false, erro: 'Usuário não encontrado' });
+      }
+      const { senha, ...semSenha } = usuario;
+      res.json({ sucesso: true, usuario: semSenha });
+    } catch (error) {
+      await logService.logErro('me_get', error, { ip: req.ip });
+      res.status(500).json({ sucesso: false, erro: 'Erro ao obter dados do usuário' });
+    }
+  }
+);
+
+app.patch('/me',
+  authMiddleware.verificarAutenticacao(),
+  async (req, res) => {
+    try {
+      const dados = req.body || {};
+      const permitidos = ['nome', 'telefone'];
+      const atualizacoes = {};
+      for (const campo of permitidos) {
+        if (dados[campo] !== undefined) atualizacoes[campo] = dados[campo];
+      }
+
+      const usuarioAtualizado = await database.atualizarUsuario(req.usuario.id, atualizacoes);
+      const { senha, ...semSenha } = usuarioAtualizado;
+      res.json({ sucesso: true, usuario: semSenha });
+    } catch (error) {
+      await logService.logErro('me_patch', error, { ip: req.ip });
+      res.status(500).json({ sucesso: false, erro: 'Erro ao atualizar usuário' });
+    }
+  }
+);
+
+app.post('/me/certificado',
+  authMiddleware.verificarAutenticacao(),
+  upload.single('certificado'),
+  async (req, res) => {
+    try {
+      const senha = (req.body?.senha || '').trim();
+      if (!req.file) {
+        return res.status(400).json({ sucesso: false, erro: 'Arquivo do certificado não enviado' });
+      }
+      if (!senha) {
+        return res.status(400).json({ sucesso: false, erro: 'Senha do certificado é obrigatória' });
+      }
+
+      const certPath = req.file.path;
+
+      // Validar e carregar certificado
+      const certSvc = nfeService.certificateService;
+      const cert = await certSvc.loadCertificateFromPath(certPath, senha);
+      const info = certSvc.getCertificateInfo(cert);
+      const validadeISO = new Date(info.validity.notAfter).toISOString().slice(0, 10);
+
+      // Persistir dados no usuário e nas configurações de NFe
+      await database.atualizarUsuario(req.usuario.id, {
+        certificadoDigital: {
+          arquivo: certPath,
+          validade: validadeISO,
+          status: 'ativo'
+        }
+      });
+
+      const configuracoesAtuais = await database.getConfiguracoes();
+      const configuracoesAtualizadas = await database.atualizarConfiguracoes({
+        ...configuracoesAtuais,
+        nfe: {
+          ...(configuracoesAtuais?.nfe || {}),
+          certificadoDigital: {
+            arquivo: certPath,
+            senha,
+            validade: validadeISO,
+            status: 'ativo'
+          }
+        }
+      });
+
+      // Atualizar env e recarregar certificado para o serviço NFe
+      process.env.CERT_PATH = certPath;
+      process.env.CERT_PASS = senha;
+      try {
+        if (Array.isArray(certSvc.fallbackPaths)) {
+          if (!certSvc.fallbackPaths.includes(certPath)) {
+            certSvc.fallbackPaths.unshift(certPath);
+          } else {
+            certSvc.fallbackPaths = [certPath, ...certSvc.fallbackPaths.filter(p => p !== certPath)];
+          }
+        }
+        if (typeof certSvc.clearCache === 'function') {
+          certSvc.clearCache();
+        }
+        if (typeof nfeService.carregarCertificadoSistema === 'function') {
+          await nfeService.carregarCertificadoSistema();
+        }
+      } catch (e) {
+        console.warn('Aviso ao recarregar certificado:', e.message);
+      }
+
+      await logService.log('me_certificado_upload', 'SUCESSO', { usuario: req.usuario?.id });
+      res.json({ sucesso: true, configuracoes: configuracoesAtualizadas });
+    } catch (error) {
+      await logService.logErro('me_certificado_upload', error, { ip: req.ip });
+      res.status(400).json({ sucesso: false, erro: error.message || 'Falha ao processar certificado' });
+    }
+  }
+);
+
 // Rota para limpar usuários (apenas para desenvolvimento)
 if (process.env.NODE_ENV !== 'production') {
   app.delete('/auth/limpar-usuarios', 
@@ -163,6 +311,136 @@ app.post('/configuracoes',
     } catch (error) {
       await logService.logErro('configuracoes_post', error, { ip: req.ip });
       res.status(500).json({ sucesso: false, erro: 'Erro ao salvar configurações' });
+    }
+  }
+);
+
+// NFe: obter e atualizar blocos específicos
+app.get('/configuracoes/nfe',
+  authMiddleware.verificarAutenticacao(),
+  async (req, res) => {
+    try {
+      const configuracoes = await database.getConfiguracoes();
+      res.json({ sucesso: true, nfe: configuracoes?.nfe || {} });
+    } catch (error) {
+      await logService.logErro('config_nfe_get', error, { ip: req.ip });
+      res.status(500).json({ sucesso: false, erro: 'Erro ao obter configurações NFe' });
+    }
+  }
+);
+
+app.patch('/configuracoes/nfe',
+  authMiddleware.verificarAutenticacao(),
+  authMiddleware.verificarPermissao('admin'),
+  async (req, res) => {
+    try {
+      const dados = req.body || {};
+      const configuracoesAtuais = await database.getConfiguracoes();
+      const configuracoesAtualizadas = await database.atualizarConfiguracoes({
+        ...configuracoesAtuais,
+        nfe: { ...(configuracoesAtuais?.nfe || {}), ...(dados?.nfe || dados) }
+      });
+      res.json({ sucesso: true, nfe: configuracoesAtualizadas.nfe });
+    } catch (error) {
+      await logService.logErro('config_nfe_patch', error, { ip: req.ip });
+      res.status(500).json({ sucesso: false, erro: 'Erro ao atualizar configurações NFe' });
+    }
+  }
+);
+
+// Notificações: obter e atualizar
+app.get('/configuracoes/notificacoes',
+  authMiddleware.verificarAutenticacao(),
+  async (req, res) => {
+    try {
+      const configuracoes = await database.getConfiguracoes();
+      res.json({ sucesso: true, notificacoes: configuracoes?.notificacoes || {} });
+    } catch (error) {
+      await logService.logErro('config_notificacoes_get', error, { ip: req.ip });
+      res.status(500).json({ sucesso: false, erro: 'Erro ao obter notificações' });
+    }
+  }
+);
+
+app.patch('/configuracoes/notificacoes',
+  authMiddleware.verificarAutenticacao(),
+  authMiddleware.verificarPermissao('admin'),
+  async (req, res) => {
+    try {
+      const dados = req.body || {};
+      const configuracoesAtuais = await database.getConfiguracoes();
+      const configuracoesAtualizadas = await database.atualizarConfiguracoes({
+        ...configuracoesAtuais,
+        notificacoes: { ...(configuracoesAtuais?.notificacoes || {}), ...(dados?.notificacoes || dados) }
+      });
+      res.json({ sucesso: true, notificacoes: configuracoesAtualizadas.notificacoes });
+    } catch (error) {
+      await logService.logErro('config_notificacoes_patch', error, { ip: req.ip });
+      res.status(500).json({ sucesso: false, erro: 'Erro ao atualizar notificações' });
+    }
+  }
+);
+
+// Upload de certificado (admin)
+app.post('/configuracoes/certificado',
+  authMiddleware.verificarAutenticacao(),
+  authMiddleware.verificarPermissao('admin'),
+  upload.single('certificado'),
+  async (req, res) => {
+    try {
+      const senha = (req.body?.senha || '').trim();
+      if (!req.file) {
+        return res.status(400).json({ sucesso: false, erro: 'Arquivo do certificado não enviado' });
+      }
+      if (!senha) {
+        return res.status(400).json({ sucesso: false, erro: 'Senha do certificado é obrigatória' });
+      }
+
+      const certPath = req.file.path;
+      const certSvc = nfeService.certificateService;
+      const cert = await certSvc.loadCertificateFromPath(certPath, senha);
+      const info = certSvc.getCertificateInfo(cert);
+      const validadeISO = new Date(info.validity.notAfter).toISOString().slice(0, 10);
+
+      const configuracoesAtuais = await database.getConfiguracoes();
+      const configuracoesAtualizadas = await database.atualizarConfiguracoes({
+        ...configuracoesAtuais,
+        nfe: {
+          ...(configuracoesAtuais?.nfe || {}),
+          certificadoDigital: {
+            arquivo: certPath,
+            senha,
+            validade: validadeISO,
+            status: 'ativo'
+          }
+        }
+      });
+
+      process.env.CERT_PATH = certPath;
+      process.env.CERT_PASS = senha;
+      try {
+        if (Array.isArray(certSvc.fallbackPaths)) {
+          if (!certSvc.fallbackPaths.includes(certPath)) {
+            certSvc.fallbackPaths.unshift(certPath);
+          } else {
+            certSvc.fallbackPaths = [certPath, ...certSvc.fallbackPaths.filter(p => p !== certPath)];
+          }
+        }
+        if (typeof certSvc.clearCache === 'function') {
+          certSvc.clearCache();
+        }
+        if (typeof nfeService.carregarCertificadoSistema === 'function') {
+          await nfeService.carregarCertificadoSistema();
+        }
+      } catch (e) {
+        console.warn('Aviso ao recarregar certificado:', e.message);
+      }
+
+      await logService.log('config_certificado_upload', 'SUCESSO', { usuario: req.usuario?.id });
+      res.json({ sucesso: true, configuracoes: configuracoesAtualizadas });
+    } catch (error) {
+      await logService.logErro('config_certificado_upload', error, { ip: req.ip });
+      res.status(400).json({ sucesso: false, erro: error.message || 'Falha ao processar certificado' });
     }
   }
 );
@@ -322,6 +600,61 @@ app.post('/nfe/cancelar',
   }
 );
 
+// Inutilizar numeração NFe (requer autenticação e permissão)
+app.post('/nfe/inutilizar', 
+  authMiddleware.verificarAutenticacao(),
+  authMiddleware.verificarPermissao('nfe_inutilizar'),
+  async (req, res) => {
+    try {
+      const { serie, numeroInicial, numeroFinal, justificativa, ano } = req.body;
+
+      if (serie === undefined || numeroInicial === undefined || numeroFinal === undefined || !justificativa) {
+        return res.status(400).json({
+          sucesso: false,
+          erro: 'Série, número inicial, número final e justificativa são obrigatórios',
+          codigo: 'DADOS_OBRIGATORIOS'
+        });
+      }
+
+      if (String(justificativa).trim().length < 15) {
+        return res.status(400).json({
+          sucesso: false,
+          erro: 'Justificativa deve ter pelo menos 15 caracteres',
+          codigo: 'JUSTIFICATIVA_CURTA'
+        });
+      }
+
+      const resultado = await nfeService.inutilizarNumeracao({ serie, numeroInicial, numeroFinal, justificativa, ano });
+
+      await logService.log('inutilizacao', resultado?.sucesso ? 'SUCESSO' : 'ERRO', {
+        usuario: req.usuario.id,
+        serie,
+        numeroInicial,
+        numeroFinal,
+        justificativa,
+        protocolo: resultado?.protocolo || null
+      });
+
+      if (resultado?.sucesso) {
+        res.json(resultado);
+      } else {
+        res.status(400).json(resultado);
+      }
+
+    } catch (error) {
+      await logService.logErro('inutilizacao', error, { 
+        usuario: req.usuario.id,
+        dados: req.body 
+      });
+      res.status(500).json({
+        sucesso: false,
+        erro: 'Erro interno na inutilização da numeração',
+        codigo: 'INUTILIZACAO_ERROR'
+      });
+    }
+  }
+);
+
 // Consultar NFe (requer autenticação)
 app.get('/nfe/consultar/:chave', 
   authMiddleware.verificarAutenticacao(),
@@ -394,6 +727,248 @@ app.get('/nfe/download/:tipo/:chave',
         sucesso: false,
         erro: 'Erro ao realizar download'
       });
+    }
+  }
+);
+
+// ==================== ROTAS CLIENTES ====================
+
+app.get('/clientes',
+  authMiddleware.verificarAutenticacao(),
+  authMiddleware.verificarPermissao('nfe_consultar'),
+  async (req, res) => {
+    try {
+      const pagina = parseInt(req.query.pagina) || 1;
+      const limite = parseInt(req.query.limite) || 10;
+      const { q, ativo } = req.query;
+      const permissoes = Array.isArray(req.usuario?.permissoes) ? req.usuario.permissoes : [];
+      const isAdmin = permissoes.includes('admin') || permissoes.includes('admin_total');
+
+      const filtros = { q, ativo };
+      if (!isAdmin) filtros.usuarioId = req.usuario?.id;
+
+      const clientes = await database.listarClientes(filtros);
+      const total = clientes.length;
+      const inicio = (pagina - 1) * limite;
+      const fim = inicio + limite;
+      const clientesPaginados = clientes.slice(inicio, fim);
+
+      await logService.log('clientes_list', 'SUCESSO', {
+        usuario: req.usuario?.id,
+        pagina,
+        limite,
+        retornadas: clientesPaginados.length,
+        total
+      });
+
+      res.json({
+        sucesso: true,
+        clientes: clientesPaginados,
+        total,
+        pagina,
+        limite
+      });
+    } catch (error) {
+      await logService.logErro('clientes_list', error, { ip: req.ip });
+      res.status(500).json({ sucesso: false, erro: 'Erro ao listar clientes' });
+    }
+  }
+);
+
+app.get('/clientes/:id',
+  authMiddleware.verificarAutenticacao(),
+  authMiddleware.verificarPermissao('nfe_consultar'),
+  async (req, res) => {
+    try {
+      const cliente = await database.buscarClientePorId(req.params.id);
+      if (!cliente) {
+        return res.status(404).json({ sucesso: false, erro: 'Cliente não encontrado' });
+      }
+      await logService.log('clientes_get', 'SUCESSO', { usuario: req.usuario?.id, id: req.params.id });
+      res.json({ sucesso: true, cliente });
+    } catch (error) {
+      await logService.logErro('clientes_get', error, { ip: req.ip });
+      res.status(500).json({ sucesso: false, erro: 'Erro ao obter cliente' });
+    }
+  }
+);
+
+app.post('/clientes',
+  authMiddleware.verificarAutenticacao(),
+  authMiddleware.verificarPermissao('nfe_emitir'),
+  async (req, res) => {
+    try {
+      const dados = req.body || {};
+      if (!dados.nome || typeof dados.nome !== 'string' || dados.nome.trim().length < 2) {
+        return res.status(400).json({ sucesso: false, erro: 'Nome do cliente é obrigatório' });
+      }
+      dados.usuarioId = req.usuario?.id;
+      const cliente = await database.criarCliente(dados);
+      await logService.log('cliente_create', 'SUCESSO', { usuario: req.usuario?.id, id: cliente.id });
+      res.status(201).json({ sucesso: true, cliente });
+    } catch (error) {
+      await logService.logErro('cliente_create', error, { ip: req.ip, dados: req.body });
+      res.status(500).json({ sucesso: false, erro: 'Erro ao criar cliente' });
+    }
+  }
+);
+
+app.patch('/clientes/:id',
+  authMiddleware.verificarAutenticacao(),
+  authMiddleware.verificarPermissao('nfe_emitir'),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const dados = req.body || {};
+      const clienteAtualizado = await database.atualizarCliente(id, dados);
+      if (!clienteAtualizado) {
+        return res.status(404).json({ sucesso: false, erro: 'Cliente não encontrado' });
+      }
+      await logService.log('cliente_update', 'SUCESSO', { usuario: req.usuario?.id, id });
+      res.json({ sucesso: true, cliente: clienteAtualizado });
+    } catch (error) {
+      await logService.logErro('cliente_update', error, { ip: req.ip, id: req.params.id });
+      res.status(500).json({ sucesso: false, erro: 'Erro ao atualizar cliente' });
+    }
+  }
+);
+
+app.delete('/clientes/:id',
+  authMiddleware.verificarAutenticacao(),
+  authMiddleware.verificarPermissao('nfe_emitir'),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const removido = await database.removerCliente(id);
+      if (!removido) {
+        return res.status(404).json({ sucesso: false, erro: 'Cliente não encontrado' });
+      }
+      await logService.log('cliente_delete', 'SUCESSO', { usuario: req.usuario?.id, id });
+      res.json({ sucesso: true });
+    } catch (error) {
+      await logService.logErro('cliente_delete', error, { ip: req.ip, id: req.params.id });
+      res.status(500).json({ sucesso: false, erro: 'Erro ao remover cliente' });
+    }
+  }
+);
+
+// ==================== ROTAS PRODUTOS ====================
+
+app.get('/produtos',
+  authMiddleware.verificarAutenticacao(),
+  authMiddleware.verificarPermissao('nfe_consultar'),
+  async (req, res) => {
+    try {
+      const pagina = parseInt(req.query.pagina) || 1;
+      const limite = parseInt(req.query.limite) || 10;
+      const { q, ativo } = req.query;
+      const permissoes = Array.isArray(req.usuario?.permissoes) ? req.usuario.permissoes : [];
+      const isAdmin = permissoes.includes('admin') || permissoes.includes('admin_total');
+
+      const filtros = { q, ativo };
+      if (!isAdmin) filtros.usuarioId = req.usuario?.id;
+
+      const produtos = await database.listarProdutos(filtros);
+      const total = produtos.length;
+      const inicio = (pagina - 1) * limite;
+      const fim = inicio + limite;
+      const produtosPaginados = produtos.slice(inicio, fim);
+
+      await logService.log('produtos_list', 'SUCESSO', {
+        usuario: req.usuario?.id,
+        pagina,
+        limite,
+        retornadas: produtosPaginados.length,
+        total
+      });
+
+      res.json({
+        sucesso: true,
+        produtos: produtosPaginados,
+        total,
+        pagina,
+        limite
+      });
+    } catch (error) {
+      await logService.logErro('produtos_list', error, { ip: req.ip });
+      res.status(500).json({ sucesso: false, erro: 'Erro ao listar produtos' });
+    }
+  }
+);
+
+app.get('/produtos/:id',
+  authMiddleware.verificarAutenticacao(),
+  authMiddleware.verificarPermissao('nfe_consultar'),
+  async (req, res) => {
+    try {
+      const produto = await database.buscarProdutoPorId(req.params.id);
+      if (!produto) {
+        return res.status(404).json({ sucesso: false, erro: 'Produto não encontrado' });
+      }
+      await logService.log('produtos_get', 'SUCESSO', { usuario: req.usuario?.id, id: req.params.id });
+      res.json({ sucesso: true, produto });
+    } catch (error) {
+      await logService.logErro('produtos_get', error, { ip: req.ip });
+      res.status(500).json({ sucesso: false, erro: 'Erro ao obter produto' });
+    }
+  }
+);
+
+app.post('/produtos',
+  authMiddleware.verificarAutenticacao(),
+  authMiddleware.verificarPermissao('nfe_emitir'),
+  async (req, res) => {
+    try {
+      const dados = req.body || {};
+      if (!dados.nome || typeof dados.nome !== 'string' || dados.nome.trim().length < 2) {
+        return res.status(400).json({ sucesso: false, erro: 'Nome do produto é obrigatório' });
+      }
+      dados.usuarioId = req.usuario?.id;
+      const produto = await database.criarProduto(dados);
+      await logService.log('produto_create', 'SUCESSO', { usuario: req.usuario?.id, id: produto.id });
+      res.status(201).json({ sucesso: true, produto });
+    } catch (error) {
+      await logService.logErro('produto_create', error, { ip: req.ip, dados: req.body });
+      res.status(500).json({ sucesso: false, erro: 'Erro ao criar produto' });
+    }
+  }
+);
+
+app.patch('/produtos/:id',
+  authMiddleware.verificarAutenticacao(),
+  authMiddleware.verificarPermissao('nfe_emitir'),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const dados = req.body || {};
+      const produtoAtualizado = await database.atualizarProduto(id, dados);
+      if (!produtoAtualizado) {
+        return res.status(404).json({ sucesso: false, erro: 'Produto não encontrado' });
+      }
+      await logService.log('produto_update', 'SUCESSO', { usuario: req.usuario?.id, id });
+      res.json({ sucesso: true, produto: produtoAtualizado });
+    } catch (error) {
+      await logService.logErro('produto_update', error, { ip: req.ip, id: req.params.id });
+      res.status(500).json({ sucesso: false, erro: 'Erro ao atualizar produto' });
+    }
+  }
+);
+
+app.delete('/produtos/:id',
+  authMiddleware.verificarAutenticacao(),
+  authMiddleware.verificarPermissao('nfe_emitir'),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const removido = await database.removerProduto(id);
+      if (!removido) {
+        return res.status(404).json({ sucesso: false, erro: 'Produto não encontrado' });
+      }
+      await logService.log('produto_delete', 'SUCESSO', { usuario: req.usuario?.id, id });
+      res.json({ sucesso: true });
+    } catch (error) {
+      await logService.logErro('produto_delete', error, { ip: req.ip, id: req.params.id });
+      res.status(500).json({ sucesso: false, erro: 'Erro ao remover produto' });
     }
   }
 );
@@ -614,6 +1189,23 @@ app.use((error, req, res, next) => {
     codigo: 'INTERNAL_ERROR'
   });
 });
+
+// Rota para enviar e-mail de teste (deve vir antes do catch-all)
+app.post('/configuracoes/email/teste',
+  authMiddleware.verificarAutenticacao(),
+  authMiddleware.verificarPermissao('configuracoes_ver'),
+  async (req, res) => {
+    try {
+      const { para } = req.body || {};
+      const config = await database.getConfiguracoes();
+      const resultado = await emailService.sendTestEmail({ config, to: para });
+      res.json({ sucesso: true, resultado });
+    } catch (error) {
+      await logService.logErro('config_email_teste', error, { ip: req.ip });
+      res.status(500).json({ sucesso: false, erro: error?.message || 'Erro ao enviar e-mail de teste' });
+    }
+  }
+);
 
 // Middleware para rotas não encontradas
 app.use('*', (req, res) => {

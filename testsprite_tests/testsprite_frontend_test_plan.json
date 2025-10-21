@@ -1,0 +1,502 @@
+[
+  {
+    "id": "TC001",
+    "title": "User Registration with Valid Data",
+    "description": "Verify that a new user can successfully register with valid name, email, and password.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to the registration page."
+      },
+      {
+        "type": "action",
+        "description": "Input valid name, email, and password."
+      },
+      {
+        "type": "action",
+        "description": "Submit the registration form."
+      },
+      {
+        "type": "assertion",
+        "description": "Check that registration is successful and confirmation message or redirect occurs."
+      }
+    ]
+  },
+  {
+    "id": "TC002",
+    "title": "User Registration with Invalid Data",
+    "description": "Verify registration fails with invalid email format and weak passwords.",
+    "category": "error handling",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to the registration page."
+      },
+      {
+        "type": "action",
+        "description": "Input name with invalid email and weak password."
+      },
+      {
+        "type": "action",
+        "description": "Attempt to submit the registration form."
+      },
+      {
+        "type": "assertion",
+        "description": "Check that registration is rejected with appropriate error messages."
+      }
+    ]
+  },
+  {
+    "id": "TC003",
+    "title": "User Login with Valid Credentials",
+    "description": "Verify login succeeds using valid email and password and JWT token is issued.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to login page."
+      },
+      {
+        "type": "action",
+        "description": "Enter valid registered email and password."
+      },
+      {
+        "type": "action",
+        "description": "Click the login button."
+      },
+      {
+        "type": "assertion",
+        "description": "Authentication succeeds, JWT token is received and user is redirected to the dashboard."
+      }
+    ]
+  },
+  {
+    "id": "TC004",
+    "title": "User Login with Invalid Credentials",
+    "description": "Verify login is rejected with invalid email or password and no token is issued.",
+    "category": "error handling",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to login page."
+      },
+      {
+        "type": "action",
+        "description": "Enter unregistered email or incorrect password."
+      },
+      {
+        "type": "action",
+        "description": "Click the login button."
+      },
+      {
+        "type": "assertion",
+        "description": "Authentication fails with error message and no JWT token is issued."
+      }
+    ]
+  },
+  {
+    "id": "TC005",
+    "title": "Frontend Access with Protected Routes",
+    "description": "Verify that protected routes are accessible only to authenticated users and redirect unauthorized users to login.",
+    "category": "security",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Attempt to access a protected route without logging in."
+      },
+      {
+        "type": "assertion",
+        "description": "User is redirected to login page."
+      },
+      {
+        "type": "action",
+        "description": "Login with valid credentials."
+      },
+      {
+        "type": "action",
+        "description": "Access the protected route again."
+      },
+      {
+        "type": "assertion",
+        "description": "User can access the protected route content."
+      }
+    ]
+  },
+  {
+    "id": "TC006",
+    "title": "Submit NFe Emission with Valid Certificate and Data",
+    "description": "Verify that a user can emit an NFe successfully when submitting valid data and a valid digital certificate.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Login to the system."
+      },
+      {
+        "type": "action",
+        "description": "Navigate to the NFe emission page."
+      },
+      {
+        "type": "action",
+        "description": "Upload a valid digital certificate."
+      },
+      {
+        "type": "action",
+        "description": "Fill all required NFe fields with valid data."
+      },
+      {
+        "type": "action",
+        "description": "Submit the NFe emission request."
+      },
+      {
+        "type": "assertion",
+        "description": "The system validates and emits the NFe successfully and returns confirmation."
+      }
+    ]
+  },
+  {
+    "id": "TC007",
+    "title": "Submit NFe Emission with Invalid or Expired Certificate",
+    "description": "Verify that NFe emission fails if the digital certificate is invalid, missing, or expired.",
+    "category": "error handling",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Login to the system."
+      },
+      {
+        "type": "action",
+        "description": "Navigate to the NFe emission page."
+      },
+      {
+        "type": "action",
+        "description": "Upload an invalid or expired digital certificate."
+      },
+      {
+        "type": "action",
+        "description": "Fill the NFe data fields."
+      },
+      {
+        "type": "action",
+        "description": "Attempt to submit the NFe emission."
+      },
+      {
+        "type": "assertion",
+        "description": "System rejects submission with appropriate error messages regarding the certificate."
+      }
+    ]
+  },
+  {
+    "id": "TC008",
+    "title": "Consult NFe Emission History for Authenticated User",
+    "description": "Verify that authenticated users can retrieve their complete history of emitted NFes with correct data displayed.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Login to the system."
+      },
+      {
+        "type": "action",
+        "description": "Navigate to the NFe history or consultation dashboard."
+      },
+      {
+        "type": "assertion",
+        "description": "Retrieve and verify that the list of NFes matches user data and contains accurate details."
+      }
+    ]
+  },
+  {
+    "id": "TC009",
+    "title": "Access Administrative User List Endpoint",
+    "description": "Verify that administrators can retrieve a list of active users with status code 200 and accurate data.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Login as an administrator."
+      },
+      {
+        "type": "action",
+        "description": "Invoke the users listing admin API endpoint."
+      },
+      {
+        "type": "assertion",
+        "description": "Response status is 200, and the payload contains the correct list of active users."
+      }
+    ]
+  },
+  {
+    "id": "TC010",
+    "title": "Database Cleanup via Admin Endpoint",
+    "description": "Verify that the admin can clean the database and relevant logs are generated and stored.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Login as administrator."
+      },
+      {
+        "type": "action",
+        "description": "Trigger the database cleanup via the admin API."
+      },
+      {
+        "type": "assertion",
+        "description": "Database is cleaned as expected and the operation is logged with accurate timestamps."
+      }
+    ]
+  },
+  {
+    "id": "TC011",
+    "title": "Retrieve System Statistics via Admin Endpoint",
+    "description": "Verify that admin endpoints provide correct system statistics and health data with status 200.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Login as administrator."
+      },
+      {
+        "type": "action",
+        "description": "Access the system statistics endpoint."
+      },
+      {
+        "type": "assertion",
+        "description": "Response contains accurate system metrics, memory usage, user counts, and is status HTTP 200."
+      }
+    ]
+  },
+  {
+    "id": "TC012",
+    "title": "Healthcheck API Valid Response",
+    "description": "Verify that healthcheck endpoints return HTTP 200 with valid JSON indicating system and dependency status.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Send request to basic and detailed healthcheck endpoints."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify response HTTP status is 200 and returned data contains valid system health and memory info."
+      }
+    ]
+  },
+  {
+    "id": "TC013",
+    "title": "Frontend Consumption of Backend API with Env Config",
+    "description": "Verify the frontend is accessible at the configured URL and successfully consumes backend APIs using environment variables.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Access the frontend application URL."
+      },
+      {
+        "type": "assertion",
+        "description": "Frontend loads correctly."
+      },
+      {
+        "type": "action",
+        "description": "Verify API calls are made to backend URLs configured via environment variables."
+      },
+      {
+        "type": "assertion",
+        "description": "Backend API responses are received correctly in the frontend."
+      }
+    ]
+  },
+  {
+    "id": "TC014",
+    "title": "Frontend Routing and Responsiveness",
+    "description": "Verify that the frontend uses React Router to navigate between pages and has responsive layouts on various screen sizes.",
+    "category": "ui",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate between Pages: Dashboard, Emitir NFe, Consultar NFe, Configurações, Clientes, Produtos."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify page content loads as expected and routes protected if user is not authenticated."
+      },
+      {
+        "type": "action",
+        "description": "Resize the browser to desktop, tablet, and mobile views."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify UI layout adapts and remains usable and visually consistent."
+      }
+    ]
+  },
+  {
+    "id": "TC015",
+    "title": "Backend Deployment and Startup Verification",
+    "description": "Verify backend deployment scripts execute correctly, process starts with PM2, and logs are generated.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Run backend deployment script on DigitalOcean server via SSH."
+      },
+      {
+        "type": "assertion",
+        "description": "Deployment completes without errors."
+      },
+      {
+        "type": "action",
+        "description": "Start backend with PM2 process manager."
+      },
+      {
+        "type": "assertion",
+        "description": "Process is running and logs are accessible."
+      }
+    ]
+  },
+  {
+    "id": "TC016",
+    "title": "Frontend Automatic Deploy via Vercel",
+    "description": "Verify frontend project deploys automatically on push to main branch via Vercel and is accessible after deployment.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Perform a commit and push to main branch for frontend code."
+      },
+      {
+        "type": "assertion",
+        "description": "Vercel triggers deployment and completes successfully."
+      },
+      {
+        "type": "action",
+        "description": "Access the deployed frontend URL."
+      },
+      {
+        "type": "assertion",
+        "description": "Frontend loads and functions as expected."
+      }
+    ]
+  },
+  {
+    "id": "TC017",
+    "title": "Invalid API Routes Return Proper Errors",
+    "description": "Verify backend returns appropriate error responses (e.g., 404) and logs errors for non-existent API routes.",
+    "category": "error handling",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Send HTTP request to invalid or non-existent API endpoints."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify response status is 404 with user-friendly error message."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify errors are properly logged in server logs."
+      }
+    ]
+  },
+  {
+    "id": "TC018",
+    "title": "Security Configuration: SSL, CORS, DNS and Cache",
+    "description": "Verify SSL certificates are valid and full strict mode is enabled; CORS policies block unauthorized domains; DNS and Cloudflare cache optimizations are active.",
+    "category": "security",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Use tools to check SSL certificate validity and strict mode."
+      },
+      {
+        "type": "assertion",
+        "description": "SSL is valid and full strict mode is enforced."
+      },
+      {
+        "type": "action",
+        "description": "Attempt cross-origin requests from unauthorized domains."
+      },
+      {
+        "type": "assertion",
+        "description": "CORS policies block unauthorized requests."
+      },
+      {
+        "type": "action",
+        "description": "Verify DNS entries and Cloudflare cache headers for performance."
+      },
+      {
+        "type": "assertion",
+        "description": "DNS is correctly configured and caching headers indicate optimization."
+      }
+    ]
+  },
+  {
+    "id": "TC019",
+    "title": "Token Refresh on Authenticated Sessions",
+    "description": "Verify that JWT tokens issued on login can be refreshed successfully and refreshed tokens allow continued access.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Login with valid credentials and obtain JWT token."
+      },
+      {
+        "type": "action",
+        "description": "Invoke the token refresh endpoint with valid refresh token."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a new JWT token is received."
+      },
+      {
+        "type": "action",
+        "description": "Access protected resource with refreshed JWT token."
+      },
+      {
+        "type": "assertion",
+        "description": "Access is granted and data is received successfully."
+      }
+    ]
+  },
+  {
+    "id": "TC020",
+    "title": "Password Security and Hashing Verification",
+    "description": "Verify that passwords stored in the backend database are hashed using bcryptjs and cannot be retrieved in plaintext.",
+    "category": "security",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Register a new user with a known password."
+      },
+      {
+        "type": "assertion",
+        "description": "Access the database and verify the password field is hashed and not stored in plaintext."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify that the hashing process uses bcryptjs."
+      }
+    ]
+  }
+]

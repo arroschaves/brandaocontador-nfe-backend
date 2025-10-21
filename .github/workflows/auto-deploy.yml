@@ -10,7 +10,7 @@ permissions:
   id-token: write
 
 env:
-  NODE_VERSION: '18'
+  NODE_VERSION: '20'
 
 jobs:
   test-backend:
@@ -24,6 +24,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
 
       - name: Install dependencies (backend)
         working-directory: backend
@@ -102,9 +104,11 @@ jobs:
             }
             JSON
 
-            # Install backend deps
+            # Install backend deps (prod-only, resilient)
             cd backend
-            npm ci || npm install
+            npm ci --omit=dev --no-audit --no-fund --prefer-offline --silent \
+              || npm ci --only=prod --no-audit --no-fund --prefer-offline --silent \
+              || npm install --omit=dev --no-audit --no-fund --prefer-offline --silent
 
             # Write .env from secrets/vars
             cat > .env <<'EOF'
@@ -117,15 +121,18 @@ jobs:
             CORS_ORIGINS=${{ secrets.CORS_ORIGINS || vars.CORS_ORIGINS || 'https://brandaocontador.com.br,https://app.brandaocontador.com.br' }}
             UF=${{ secrets.UF || vars.UF || 'MS' }}
             AMBIENTE=${{ secrets.AMBIENTE || vars.AMBIENTE || '2' }}
+            CNPJ_EMITENTE=${{ secrets.CNPJ_EMITENTE || vars.CNPJ_EMITENTE || '' }}
+            CERT_PATH=${{ secrets.CERT_PATH || vars.CERT_PATH || '' }}
+            CERT_PASS=${{ secrets.CERT_PASS || '' }}
             SIMULATION_MODE=${{ secrets.SIMULATION_MODE || vars.SIMULATION_MODE || 'false' }}
             SEED_ADMIN_NOME=${{ secrets.SEED_ADMIN_NOME || vars.SEED_ADMIN_NOME || 'Administrador' }}
             SEED_ADMIN_EMAIL=${{ secrets.SEED_ADMIN_EMAIL || vars.SEED_ADMIN_EMAIL || 'admin@brandaocontador.com.br' }}
             SEED_ADMIN_SENHA=${{ secrets.SEED_ADMIN_SENHA || vars.SEED_ADMIN_SENHA || 'admin123' }}
             EOF
 
-            # Start/Restart PM2
-            pm2 delete nfe-backend || true
-            pm2 start app-real.js --name nfe-backend --update-env
+            # Start/Restart PM2 using ecosystem file (consistent name)
+            pm2 delete brandaocontador-nfe-backend || true
+            pm2 start deploy/ecosystem.production.js --env production
             pm2 save
 
             # Configure Nginx reverse proxy
@@ -174,11 +181,13 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
 
       - name: Install dependencies (frontend)
         working-directory: frontend
         run: |
-          npm ci || npm install
+          npm ci --no-audit --no-fund --prefer-offline --silent || npm install --no-audit --no-fund --prefer-offline --silent
 
       - name: Build Frontend with Vite and env
         working-directory: frontend

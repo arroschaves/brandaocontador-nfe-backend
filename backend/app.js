@@ -30,13 +30,14 @@ const corsOrigins = process.env.CORS_ORIGINS
 app.use((req, res, next) => {
   if (req.method === 'OPTIONS') {
     const origin = req.headers.origin;
-    // Se a origem estiver na lista permitida, use-a, caso contrário, use localhost:3002
-    const allowedOrigin = corsOrigins.includes(origin) ? origin : 'http://localhost:3002';
+    // Se a origem estiver na lista permitida, use-a, caso contrário, use localhost:3000 (dev)
+    const allowedOrigin = corsOrigins.includes(origin) ? origin : 'http://localhost:3000';
     res.header('Access-Control-Allow-Origin', allowedOrigin);
-    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
     res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-Key');
     res.header('Access-Control-Allow-Credentials', 'true');
     res.header('Access-Control-Max-Age', '86400'); // 24 horas
+    res.header('Access-Control-Expose-Headers', 'Retry-After, RateLimit-Limit, RateLimit-Remaining, RateLimit-Reset');
     return res.status(200).end();
   }
   next();
@@ -45,8 +46,9 @@ app.use((req, res, next) => {
 app.use(cors({
   origin: corsOrigins,
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Key']
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Key'],
+  exposedHeaders: ['Retry-After', 'RateLimit-Limit', 'RateLimit-Remaining', 'RateLimit-Reset']
 }));
 
 // Middleware para parsing JSON com tratamento de erros
@@ -358,6 +360,61 @@ app.post('/nfe/cancelar',
         sucesso: false,
         erro: 'Erro interno no cancelamento da NFe',
         codigo: 'CANCELAMENTO_ERROR'
+      });
+    }
+  }
+);
+
+// Inutilizar numeração NFe (requer autenticação e permissão)
+app.post('/nfe/inutilizar', 
+  authMiddleware.verificarAutenticacao(),
+  authMiddleware.verificarPermissao('nfe_inutilizar'),
+  async (req, res) => {
+    try {
+      const { serie, numeroInicial, numeroFinal, justificativa, ano } = req.body;
+
+      if (serie === undefined || numeroInicial === undefined || numeroFinal === undefined || !justificativa) {
+        return res.status(400).json({
+          sucesso: false,
+          erro: 'Série, número inicial, número final e justificativa são obrigatórios',
+          codigo: 'DADOS_OBRIGATORIOS'
+        });
+      }
+
+      if (String(justificativa).trim().length < 15) {
+        return res.status(400).json({
+          sucesso: false,
+          erro: 'Justificativa deve ter pelo menos 15 caracteres',
+          codigo: 'JUSTIFICATIVA_CURTA'
+        });
+      }
+
+      const resultado = await nfeService.inutilizarNumeracao({ serie, numeroInicial, numeroFinal, justificativa, ano });
+
+      await logService.log('inutilizacao', resultado?.sucesso ? 'SUCESSO' : 'ERRO', {
+        usuario: req.usuario.id,
+        serie,
+        numeroInicial,
+        numeroFinal,
+        justificativa,
+        protocolo: resultado?.protocolo || null
+      });
+
+      if (resultado?.sucesso) {
+        res.json(resultado);
+      } else {
+        res.status(400).json(resultado);
+      }
+
+    } catch (error) {
+      await logService.logErro('inutilizacao', error, { 
+        usuario: req.usuario.id,
+        dados: req.body 
+      });
+      res.status(500).json({
+        sucesso: false,
+        erro: 'Erro interno na inutilização da numeração',
+        codigo: 'INUTILIZACAO_ERROR'
       });
     }
   }

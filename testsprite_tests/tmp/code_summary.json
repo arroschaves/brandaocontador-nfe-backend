@@ -1,134 +1,156 @@
 {
   "tech_stack": [
-    "JavaScript (Node.js)",
+    "TypeScript",
+    "React (Vite)",
+    "Tailwind CSS",
+    "Axios",
+    "React Router",
+    "Node.js",
     "Express",
-    "MongoDB (Mongoose, MongoMemoryServer)",
+    "MongoDB (Mongoose)",
+    "mongodb-memory-server",
     "JWT (jsonwebtoken)",
-    "CORS"
+    "bcryptjs",
+    "Multer",
+    "Nodemailer",
+    "xml2js",
+    "xml-crypto",
+    "node-forge"
   ],
   "features": [
     {
-      "name": "Autenticação",
-      "description": "Endpoints de login, registro e validação de token (JWT).",
+      "name": "Frontend App Entrypoint",
+      "description": "Boot do app, rotas protegidas, layout principal e banner de status do backend.",
+      "files": [
+        "frontend/src/main.tsx",
+        "frontend/src/App.tsx",
+        "frontend/src/components/Layout.tsx",
+        "frontend/src/components/ProtectedRoute.tsx"
+      ]
+    },
+    {
+      "name": "Auth Context & Hooks",
+      "description": "Gerencia autenticação, token em localStorage, refresh e permissões.",
+      "files": [
+        "frontend/src/contexts/AuthContext.tsx",
+        "frontend/src/hooks/useAuth.ts"
+      ]
+    },
+    {
+      "name": "API Client & Config",
+      "description": "Cliente HTTP com Axios, baseURL por ambiente e serviços para auth/NFe/config.",
+      "files": [
+        "frontend/src/services/api.ts",
+        "frontend/src/config/api.ts"
+      ]
+    },
+    {
+      "name": "UI & Layout Components",
+      "description": "Componentes de UI e layout (inclui Sidebar e utilitários visuais).",
+      "files": [
+        "frontend/src/components/layout/Sidebar.tsx",
+        "frontend/src/components/ui/*"
+      ]
+    },
+    {
+      "name": "Pages – Clientes",
+      "description": "Listagem, cadastro e edição de clientes com endereço e Inscrição Estadual.",
+      "files": [
+        "frontend/src/pages/Clientes.tsx"
+      ]
+    },
+    {
+      "name": "Pages – Produtos",
+      "description": "Cadastro/edição de produtos com campos fiscais (CST, Tipo de Tributação, Origem).",
+      "files": [
+        "frontend/src/pages/Produtos.tsx"
+      ]
+    },
+    {
+      "name": "Pages – Configurações",
+      "description": "Configurações de NFe e upload de certificado digital (label aponta para input).",
+      "files": [
+        "frontend/src/pages/Configuracoes.tsx"
+      ]
+    },
+    {
+      "name": "Pages – Emissão/Consulta NFe",
+      "description": "Fluxos de emissão, validação e consulta de NFe.",
+      "files": [
+        "frontend/src/pages/EmitirNFe.tsx",
+        "frontend/src/pages/ConsultarNFe.tsx",
+        "frontend/src/hooks/useNFe.ts"
+      ]
+    },
+    {
+      "name": "Pages – Dashboard & Cadastro",
+      "description": "Páginas auxiliares de overview e cadastro de empresa.",
+      "files": [
+        "frontend/src/pages/Dashboard.tsx",
+        "frontend/src/pages/Cadastro.tsx"
+      ]
+    },
+    {
+      "name": "Frontend Utils",
+      "description": "Helpers gerais e utilitários de ambiente.",
+      "files": [
+        "frontend/src/utils/index.ts",
+        "frontend/src/lib/utils.ts"
+      ]
+    },
+    {
+      "name": "Backend – Servidor Express (Real)",
+      "description": "Servidor completo com autenticação real, semeadura de usuários, endpoints NFe/Clientes/Produtos/Config.",
       "files": [
         "backend/app-real.js",
-        "backend/middleware/auth-real.js"
-      ],
-      "api_doc": {
-        "openapi": "3.0.0",
-        "info": { "title": "Autenticação", "version": "1.0.0" },
-        "servers": [{ "url": "http://localhost:3001" }],
-        "components": {
-          "securitySchemes": {
-            "bearerAuth": { "type": "http", "scheme": "bearer", "bearerFormat": "JWT" }
-          }
-        },
-        "paths": {
-          "/auth/login": {
-            "post": {
-              "summary": "Efetua login e retorna JWT",
-              "requestBody": {
-                "required": true,
-                "content": {
-                  "application/json": {
-                    "schema": {
-                      "type": "object",
-                      "properties": { "email": { "type": "string" }, "password": { "type": "string" } },
-                      "required": ["email", "password"]
-                    }
-                  }
-                }
-              },
-              "responses": {
-                "200": { "description": "Token gerado" },
-                "401": { "description": "Credenciais inválidas" }
-              }
-            }
-          },
-          "/auth/register": {
-            "post": {
-              "summary": "Registra novo usuário",
-              "requestBody": {
-                "required": true,
-                "content": { "application/json": { "schema": { "type": "object" } } }
-              },
-              "responses": { "201": { "description": "Usuário criado" }, "400": { "description": "Dados inválidos" } }
-            }
-          },
-          "/auth/validate": {
-            "get": {
-              "summary": "Valida JWT atual",
-              "security": [{ "bearerAuth": [] }],
-              "responses": { "200": { "description": "Token válido" }, "401": { "description": "Token inválido" } }
-            }
-          }
-        }
-      }
+        "backend/middleware/auth-real.js",
+        "backend/services/auth-service.js",
+        "backend/models/Usuario.js",
+        "backend/models/Cliente.js",
+        "backend/models/Produto.js",
+        "backend/models/Configuracao.js",
+        "backend/config/database.js"
+      ]
     },
     {
-      "name": "NFe",
-      "description": "Endpoints de emissão, cancelamento, histórico e utilidades simuladas em dev.",
+      "name": "Backend – Servidor Express (Simples)",
+      "description": "Servidor alternativo com banco JSON e autenticação simplificada.",
       "files": [
-        "backend/app-real.js"
-      ],
-      "api_doc": {
-        "openapi": "3.0.0",
-        "info": { "title": "NFe", "version": "1.0.0" },
-        "servers": [{ "url": "http://localhost:3001" }],
-        "components": {
-          "securitySchemes": {
-            "bearerAuth": { "type": "http", "scheme": "bearer", "bearerFormat": "JWT" }
-          }
-        },
-        "paths": {
-          "/nfe/status": { "get": { "summary": "Status do serviço", "responses": { "200": { "description": "OK" } } } },
-          "/nfe/historico": { "get": { "summary": "Lista histórico de NFe", "security": [{ "bearerAuth": [] }], "responses": { "200": { "description": "Lista retornada" } } } },
-          "/nfe/emitir": { "post": { "summary": "Emite NFe (simulado sem certificado)", "security": [{ "bearerAuth": [] }], "responses": { "200": { "description": "Emitida" }, "400": { "description": "Falha/Certificado ausente" } } } },
-          "/nfe/cancelar/{chave}": { "get": { "summary": "Cancela NFe pela chave", "security": [{ "bearerAuth": [] }], "parameters": [{ "name": "chave", "in": "path", "required": true, "schema": { "type": "string" } }], "responses": { "200": { "description": "Cancelada" } } } },
-          "/nfe/cart-correcao/{chave}": { "get": { "summary": "Carta de correção", "security": [{ "bearerAuth": [] }], "parameters": [{ "name": "chave", "in": "path", "required": true, "schema": { "type": "string" } }], "responses": { "200": { "description": "OK" } } } },
-          "/nfe/inutilizar": { "get": { "summary": "Inutilizar numeração", "security": [{ "bearerAuth": [] }], "responses": { "200": { "description": "OK" } } } },
-          "/nfe/download/{tipo}/{chave}": { "get": { "summary": "Download XML/DANFE", "security": [{ "bearerAuth": [] }], "parameters": [{ "name": "tipo", "in": "path", "required": true, "schema": { "type": "string", "enum": ["xml", "danfe"] } }, { "name": "chave", "in": "path", "required": true, "schema": { "type": "string" } }], "responses": { "200": { "description": "Arquivo retornado" } } } },
-          "/nfe/validar": { "post": { "summary": "Valida dados de NFe", "security": [{ "bearerAuth": [] }], "responses": { "200": { "description": "Validação OK" } } } },
-          "/nfe/consultar/{chave}": { "get": { "summary": "Consulta NFe por chave", "security": [{ "bearerAuth": [] }], "parameters": [{ "name": "chave", "in": "path", "required": true, "schema": { "type": "string" } }], "responses": { "200": { "description": "Consulta OK" } } } },
-          "/nfe/teste": { "get": { "summary": "Endpoint de teste", "responses": { "200": { "description": "OK" } } } }
-        }
-      }
+        "backend/app-simples.js",
+        "backend/middleware/auth-simples.js",
+        "backend/config/database-simples.js",
+        "backend/data/database.json"
+      ]
     },
     {
-      "name": "Admin",
-      "description": "Operações administrativas como listagem de usuários e health-check interno.",
+      "name": "Backend – NFe Services",
+      "description": "Serviços de NFe: validação, emissão, histórico, download e integração certificada.",
       "files": [
-        "backend/app-real.js"
-      ],
-      "api_doc": {
-        "openapi": "3.0.0",
-        "info": { "title": "Admin", "version": "1.0.0" },
-        "servers": [{ "url": "http://localhost:3001" }],
-        "components": {
-          "securitySchemes": {
-            "bearerAuth": { "type": "http", "scheme": "bearer", "bearerFormat": "JWT" }
-          }
-        },
-        "paths": {
-          "/admin/usuarios": { "get": { "summary": "Lista usuários", "security": [{ "bearerAuth": [] }], "responses": { "200": { "description": "Lista retornada" } } } },
-          "/admin/health": { "get": { "summary": "Métricas detalhadas de sistema", "security": [{ "bearerAuth": [] }], "responses": { "200": { "description": "OK" } } } }
-        }
-      }
+        "backend/services/nfe-service.js",
+        "backend/services/validation-service.js",
+        "backend/services/certificate-service.js"
+      ]
     },
     {
-      "name": "Sistema",
-      "description": "Status geral da aplicação.",
+      "name": "Backend – Admin & Health",
+      "description": "Endpoints administrativos, limpeza de banco, health check e versão.",
       "files": [
-        "backend/app-real.js"
-      ],
-      "api_doc": {
-        "openapi": "3.0.0",
-        "info": { "title": "Sistema", "version": "1.0.0" },
-        "servers": [{ "url": "http://localhost:3001" }],
-        "paths": {
-          "/health": { "get": { "summary": "Health geral", "responses": { "200": { "description": "OK" } } } }
-        }
-      }
+        "backend/app-real.js",
+        "backend/scripts/seed-users.js"
+      ]
+    },
+    {
+      "name": "Testsprite – Test Plan & Cases",
+      "description": "Plano de testes e casos (login, admin usuários, frontend acesso, rotas inválidas).",
+      "files": [
+        "testsprite_tests/testsprite_frontend_test_plan.json",
+        "testsprite_tests/TC004_auth_login_should_accept_valid_credentials_and_return_jwt_token.py",
+        "testsprite_tests/TC006_auth_register_should_reject_invalid_data_and_return_400.py",
+        "testsprite_tests/TC010_admin_usuarios_should_return_user_list_with_status_200.py",
+        "testsprite_tests/TC012_Admin_Get_System_Statistics_API_Success.py",
+        "testsprite_tests/TC013_Frontend_Access_and_API_Consumption.py",
+        "testsprite_tests/TC017_Error_Handling_on_Backend_with_Invalid_API_Routes.py"
+      ]
     }
   ]
 }

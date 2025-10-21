@@ -62,7 +62,9 @@ git log --oneline -5
 
 # Instalar/atualizar dependências
 echo_info "Instalando dependências..."
-npm ci --production --silent
+npm ci --omit=dev --no-audit --no-fund --prefer-offline --silent || \
+npm ci --production --silent || \
+npm install --omit=dev --no-audit --no-fund --prefer-offline --silent
 
 # Verificar se .env existe
 if [ ! -f ".env" ]; then

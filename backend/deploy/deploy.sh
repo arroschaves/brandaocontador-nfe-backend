@@ -78,7 +78,9 @@ fi
 
 # Instalar dependências
 echo "📦 Instalando dependências..."
-npm ci --production
+npm ci --omit=dev --no-audit --no-fund --prefer-offline --silent || \
+npm ci --production --silent || \
+npm install --omit=dev --no-audit --no-fund --prefer-offline --silent
 
 # Criar diretórios necessários
 mkdir -p logs

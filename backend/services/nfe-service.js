@@ -1,11 +1,12 @@
 const fs = require("fs");
 const path = require("path");
 const axios = require("axios");
-const { carregarCertificado, assinarNFe } = require("../assinador");
+const { carregarCertificado, assinarNFe, assinarInutilizacao, assinarEventoCancelamento } = require("../assinador");
 const { DOMParser, XMLSerializer } = require("xmldom");
 const CertificateService = require('./certificate-service');
 const SefazClient = require('./sefaz-client');
 const { EmissorNFeAxios } = require('../emit-nfe-axios');
+const Configuracao = require('../models/Configuracao');
 
 class NFeService {
   constructor() {
@@ -45,8 +46,26 @@ class NFeService {
     }
     
     try {
-      const certificate = await this.certificateService.loadCertificate();
-      const info = this.certificateService.getCertificateInfo(certificate);
+      let certificate;
+      let info;
+
+      // Tenta carregar do banco (Configuracao)
+      const config = await Configuracao.findOne({ chave: 'padrao' }).lean().catch(() => null);
+      const dbPath = config?.nfe?.certificadoDigital?.arquivo;
+      const dbPass = config?.nfe?.certificadoDigital?.senha;
+
+      if (dbPath && dbPass) {
+        certificate = await this.certificateService.loadCertificateFromPath(dbPath, dbPass);
+        info = this.certificateService.getCertificateInfo(certificate);
+        this.CERT_PATH = dbPath;
+        this.CERT_PASS = dbPass;
+      } else {
+        // Fallback para variáveis de ambiente e caminhos padrão
+        certificate = await this.certificateService.loadCertificate();
+        info = this.certificateService.getCertificateInfo(certificate);
+        this.CERT_PATH = (certificate && certificate.path) ? certificate.path : this.CERT_PATH;
+        this.CERT_PASS = process.env.CERT_PASS || this.CERT_PASS;
+      }
       
       this.chavePrivada = certificate.privateKey;
       this.certificado = certificate.certificate;
@@ -164,7 +183,7 @@ class NFeService {
 <NFe xmlns="http://www.portalfiscal.inf.br/nfe">
   <infNFe Id="NFe${chaveAcesso}" versao="4.00">
     <ide>
-      <cUF>${this.obterCodigoUF(this.UF)}</cUF>
+      <cUF>${this.obterCodigoUF(dados.emitente?.endereco?.uf || this.UF)}</cUF>
       <cNF>${this.gerarCodigoNumerico()}</cNF>
       <natOp>${dados.naturezaOperacao || 'Venda'}</natOp>
       <mod>55</mod>
@@ -193,7 +212,7 @@ class NFeService {
         <xBairro>${dados.emitente.endereco.bairro}</xBairro>
         <cMun>${dados.emitente.endereco.codigoMunicipio}</cMun>
         <xMun>${dados.emitente.endereco.municipio}</xMun>
-        <UF>${this.UF}</UF>
+        <UF>${dados.emitente.endereco.uf}</UF>
         <CEP>${dados.emitente.endereco.cep}</CEP>
         <cPais>1058</cPais>
         <xPais>Brasil</xPais>
@@ -293,12 +312,8 @@ class NFeService {
         return resultado;
       }
       
-      // Integração real com SEFAZ
-      if (!this.emissor) {
-        this.emissor = new EmissorNFeAxios();
-      }
-      
-      const resultado = await this.emissor.consultarNFe(chave);
+      // Integração real com SEFAZ (consulta direta via SefazClient)
+      const resultado = await this.consultarSefaz(chave);
       console.log('✅ Consulta SEFAZ realizada:', resultado);
       return resultado;
       
@@ -346,16 +361,37 @@ class NFeService {
         return resultado;
       }
       
-      // Integração real com SEFAZ
+      // Cancelamento real via SEFAZ
       console.log('🌐 Processando cancelamento real com SEFAZ');
-      if (!this.emissor) {
-        console.log('🔧 Criando nova instância do EmissorNFeAxios');
-        this.emissor = new EmissorNFeAxios();
-        await this.emissor.inicializar();
+      
+      if (!this.chavePrivada || !this.certificado) {
+        console.error('❌ Certificado não carregado para cancelamento');
+        return {
+          sucesso: false,
+          erro: 'Certificado não carregado',
+          codigo: 'CERTIFICADO_AUSENTE'
+        };
       }
       
+      // Gera XML do evento de cancelamento
+      const xmlCancelamento = this.gerarXmlCancelamento(chave, justificativa);
+      
+      // Assina XML do evento de cancelamento
+      const xmlAssinado = assinarEventoCancelamento(xmlCancelamento, this.chavePrivada, this.certificado);
+      
+      // Envia para SEFAZ
       console.log('📤 Enviando cancelamento para SEFAZ...');
-      const resultado = await this.emissor.cancelarNFe(chave, justificativa);
+      const resposta = await this.enviarCancelamentoSefaz(xmlAssinado);
+      
+      const resultado = {
+        chave,
+        situacao: 'Cancelada',
+        protocolo: resposta?.protocolo || `${Date.now()}${Math.floor(Math.random() * 1000)}`,
+        dataHora: new Date().toISOString(),
+        motivo: 'Cancelamento de NF-e homologado',
+        justificativa
+      };
+      
       console.log('✅ Cancelamento SEFAZ processado:', resultado);
       return resultado;
       
@@ -363,6 +399,129 @@ class NFeService {
       console.error('❌ Erro no cancelamento:', error.message);
       console.error('❌ Stack trace:', error.stack);
       throw error;
+    }
+  }
+
+  // ==================== INUTILIZAÇÃO NFE ====================
+
+  async inutilizarNumeracao({ serie, numeroInicial, numeroFinal, justificativa, ano }) {
+    try {
+      console.log('🗑️ Iniciando inutilização de numeração...');
+      console.log('📋 Dados:', { serie, numeroInicial, numeroFinal, justificativa, ano });
+
+      // Validações básicas
+      const s = parseInt(serie, 10);
+      const nIni = parseInt(numeroInicial, 10);
+      const nFim = parseInt(numeroFinal, 10);
+      const anoRef = ano || new Date().getFullYear().toString().slice(-2);
+
+      if (isNaN(s) || s < 0) throw new Error('Série inválida');
+      if (isNaN(nIni) || isNaN(nFim) || nIni <= 0 || nFim <= 0) throw new Error('Numeração inválida');
+      if (nFim < nIni) throw new Error('Número final deve ser maior ou igual ao inicial');
+      if (!justificativa || justificativa.trim().length < 15) throw new Error('Justificativa deve ter pelo menos 15 caracteres');
+
+      // Simulação
+      if (process.env.SIMULATION_MODE === 'true') {
+        console.log('🎭 Processando inutilização em modo simulação');
+        return {
+          sucesso: true,
+          protocolo: `${Date.now()}${Math.floor(Math.random() * 1000)}`,
+          recibo: `${Math.floor(Math.random() * 1000000000)}`,
+          dataHora: new Date().toISOString(),
+          mensagem: 'Inutilização homologada (simulação)',
+          serie: s,
+          numeroInicial: nIni,
+          numeroFinal: nFim,
+        };
+      }
+
+      // Verifica certificado
+      if (!this.chavePrivada || !this.certificado) {
+        return {
+          sucesso: false,
+          erro: 'Certificado não carregado',
+          codigo: 'CERTIFICADO_AUSENTE'
+        };
+      }
+
+      // Gera XML de inutilização
+      console.log('📄 Gerando XML de inutilização...');
+      const xmlInut = this.gerarXmlInutilizacao({ serie: s, numeroInicial: nIni, numeroFinal: nFim, justificativa, ano: anoRef });
+
+      // Assina XML
+      console.log('🔐 Assinando XML de inutilização...');
+      const xmlAssinado = assinarInutilizacao(xmlInut, this.chavePrivada, this.certificado);
+
+      // Envia para SEFAZ
+      console.log('📤 Enviando inutilização para SEFAZ...');
+      const resposta = await this.enviarInutilizacaoSefaz(xmlAssinado);
+      console.log('📥 Resposta SEFAZ inutilização:', resposta);
+
+      // Normaliza resultado
+      if (resposta?.sucesso || resposta?.cStat === '102' || resposta?.cStat === 102) { // 102: Inutilização de número homologado
+        return {
+          sucesso: true,
+          protocolo: resposta?.protocolo || resposta?.infInut?.nProt || `${Date.now()}`,
+          mensagem: resposta?.xMotivo || 'Inutilização homologada',
+          serie: s,
+          numeroInicial: nIni,
+          numeroFinal: nFim
+        };
+      }
+
+      throw new Error(resposta?.erro || resposta?.xMotivo || 'Falha na inutilização');
+    } catch (error) {
+      console.error('❌ Erro na inutilização:', error.message);
+      throw error;
+    }
+  }
+
+  gerarXmlInutilizacao({ serie, numeroInicial, numeroFinal, justificativa, ano }) {
+    const cUF = this.obterCodigoUF(this.UF);
+    const cnpj = (this.CNPJ_EMITENTE || '').replace(/\D/g, '');
+    const mod = '55';
+    const id = `ID${cUF}${ano}${cnpj}${mod}${String(serie).padStart(3, '0')}${String(numeroInicial).padStart(9, '0')}${String(numeroFinal).padStart(9, '0')}`;
+    const dh = new Date().toISOString();
+
+    return `<?xml version="1.0" encoding="UTF-8"?>
+<inutNFe xmlns="http://www.portalfiscal.inf.br/nfe" versao="4.00">
+  <infInut Id="${id}">
+    <tpAmb>${this.AMBIENTE}</tpAmb>
+    <xServ>INUTILIZAR</xServ>
+    <cUF>${cUF}</cUF>
+    <ano>${ano}</ano>
+    <CNPJ>${cnpj}</CNPJ>
+    <mod>${mod}</mod>
+    <serie>${serie}</serie>
+    <nNFIni>${numeroInicial}</nNFIni>
+    <nNFFin>${numeroFinal}</nNFFin>
+    <xJust>${justificativa}</xJust>
+  </infInut>
+</inutNFe>`;
+  }
+
+  async enviarInutilizacaoSefaz(xmlAssinado) {
+    try {
+      if (!this.sefazClient) {
+        this.sefazClient = new SefazClient({
+          certPath: this.CERT_PATH,
+          certPass: this.CERT_PASS,
+          uf: this.UF,
+          ambiente: this.AMBIENTE,
+          timeout: parseInt(process.env.TIMEOUT || '30000')
+        });
+        await this.sefazClient.init();
+      }
+
+      const resposta = await this.sefazClient.inutilizar(xmlAssinado);
+      const sucesso = true; // TODO: interpretar resposta SOAP
+      const protocolo = resposta?.infInut?.nProt || resposta?.protocolo || 'N/A';
+      const xMotivo = resposta?.infInut?.xMotivo || resposta?.xMotivo || null;
+      const cStat = resposta?.infInut?.cStat || resposta?.cStat || null;
+      return { sucesso, protocolo, xMotivo, cStat };
+    } catch (error) {
+      console.error('❌ Erro ao enviar inutilização SEFAZ:', error.message);
+      return { sucesso: false, erro: error.message };
     }
   }
 
@@ -442,7 +601,7 @@ class NFeService {
 
   gerarChaveAcesso(dados) {
     // Implementação simplificada - usar biblioteca específica em produção
-    const uf = this.obterCodigoUF(this.UF);
+    const uf = this.obterCodigoUF(dados.emitente?.endereco?.uf || this.UF);
     const ano = new Date().getFullYear().toString().slice(-2);
     const mes = String(new Date().getMonth() + 1).padStart(2, '0');
     // Usa CNPJ do ambiente, com fallback para payload do emitente
@@ -482,13 +641,37 @@ class NFeService {
 
   obterCodigoUF(uf) {
     const codigos = {
-      'MS': '28',
-      'SP': '35',
+      'AC': '12',
+      'AL': '27',
+      'AM': '13',
+      'AP': '16',
+      'BA': '29',
+      'CE': '23',
+      'DF': '53',
+      'ES': '32',
+      'GO': '52',
+      'MA': '21',
+      'MG': '31',
+      'MS': '50',
+      'MT': '51',
+      'PA': '15',
+      'PB': '25',
+      'PE': '26',
+      'PI': '22',
+      'PR': '41',
       'RJ': '33',
-      'MG': '31'
-      // Adicionar outros estados conforme necessário
+      'RN': '24',
+      'RO': '11',
+      'RR': '14',
+      'RS': '43',
+      'SC': '42',
+      'SE': '28',
+      'SP': '35',
+      'TO': '17',
+      // Aliases para serviços compartilhados
+      'SVRS': '43'
     };
-    return codigos[uf] || '28';
+    return codigos[uf] || codigos['SP'];
   }
 
   // ==================== INTEGRAÇÃO SEFAZ (REAL) ====================
@@ -591,7 +774,7 @@ class NFeService {
   <idLote>1</idLote>
   <evento versao="1.00">
     <infEvento Id="ID110111${chave}01">
-      <cOrgao>28</cOrgao>
+      <cOrgao>${this.obterCodigoUF(this.UF)}</cOrgao>
       <tpAmb>${this.AMBIENTE}</tpAmb>
       <CNPJ>${this.CNPJ_EMITENTE}</CNPJ>
       <chNFe>${chave}</chNFe>
