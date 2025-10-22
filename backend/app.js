@@ -110,42 +110,8 @@ app.get('/nfe/historico',
       const pagina = parseInt(req.query.pagina) || 1;
       const limite = parseInt(req.query.limite) || 10;
 
-      // Simulação de dados (substituir por consulta ao banco em produção)
-      const todasNfes = [
-        {
-          id: '1',
-          numero: '000001234',
-          serie: '001',
-          chave: '35200714200166000187550010000000015123456789',
-          destinatario: 'Empresa ABC Ltda',
-          documento: '12.345.678/0001-90',
-          valor: 15000.00,
-          status: 'autorizada',
-          dataEmissao: '2024-01-15T10:30:00Z'
-        },
-        {
-          id: '2',
-          numero: '000001235',
-          serie: '001',
-          chave: '35200714200166000187550010000000025123456789',
-          destinatario: 'Comércio XYZ S/A',
-          documento: '98.765.432/0001-00',
-          valor: 8500.75,
-          status: 'autorizada',
-          dataEmissao: '2024-01-15T09:15:00Z'
-        },
-        {
-          id: '3',
-          numero: '000001236',
-          serie: '001',
-          chave: '35200714200166000187550010000000035123456789',
-          destinatario: 'Indústria DEF Ltda',
-          documento: '11.222.333/0001-44',
-          valor: 32000.00,
-          status: 'pendente',
-          dataEmissao: '2024-01-15T08:45:00Z'
-        }
-      ];
+      // Dados vazios após limpeza do sistema
+      const todasNfes = [];
 
       const total = todasNfes.length;
       const inicio = (pagina - 1) * limite;

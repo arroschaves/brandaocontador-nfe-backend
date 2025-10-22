@@ -442,22 +442,24 @@ class ValidationService {
   // ==================== VALIDAÇÃO DE DADOS GERAIS ====================
 
   validarDadosGerais(dados, erros) {
-    // Número da NFe
-    if (!dados.numero || dados.numero <= 0) {
-      erros.push("Número da NFe é obrigatório e deve ser maior que zero");
+    // Número da NFe — agora opcional quando o backend controla a numeração
+    if (dados.numero !== undefined && dados.numero !== null) {
+      const numero = Number(dados.numero);
+      if (Number.isNaN(numero) || numero <= 0) {
+        erros.push("Número da NFe deve ser maior que zero");
+      } else if (numero > 999999999) {
+        erros.push("Número da NFe deve ter no máximo 9 dígitos");
+      }
     }
 
-    if (dados.numero && dados.numero > 999999999) {
-      erros.push("Número da NFe deve ter no máximo 9 dígitos");
-    }
-
-    // Série
-    if (!dados.serie || dados.serie <= 0) {
-      erros.push("Série da NFe é obrigatória e deve ser maior que zero");
-    }
-
-    if (dados.serie && dados.serie > 999) {
-      erros.push("Série da NFe deve ter no máximo 3 dígitos");
+    // Série — opcional, usa padrão de configuração quando ausente
+    if (dados.serie !== undefined && dados.serie !== null) {
+      const serie = Number(dados.serie);
+      if (Number.isNaN(serie) || serie <= 0) {
+        erros.push("Série da NFe deve ser maior que zero");
+      } else if (serie > 999) {
+        erros.push("Série da NFe deve ter no máximo 3 dígitos");
+      }
     }
 
     // Natureza da operação - Validação mais específica

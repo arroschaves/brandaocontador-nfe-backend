@@ -19,6 +19,7 @@ class NFeService {
     this.XMLS_DIR = path.join(__dirname, "../xmls");
     this.ENVIADAS_DIR = path.join(this.XMLS_DIR, "enviadas");
     this.FALHAS_DIR = path.join(this.XMLS_DIR, "falhas");
+    this.NUMERACAO_PATH = path.join(this.XMLS_DIR, "numeracao.json");
     
     this.certificateService = new CertificateService();
     
@@ -92,6 +93,16 @@ class NFeService {
     try {
       console.log('📄 Iniciando emissão de NFe...');
       console.log('📋 Dados recebidos:', JSON.stringify(dadosNfe, null, 2));
+
+      // Normaliza série e número quando ausentes/zerados (numeração no servidor)
+      if (!dadosNfe.serie || Number(dadosNfe.serie) <= 0) {
+        const seriePadrao = await this.obterSeriePadrao();
+        dadosNfe.serie = seriePadrao;
+      }
+      if (!dadosNfe.numero || Number(dadosNfe.numero) <= 0) {
+        const proximoNumero = await this.obterProximoNumero(dadosNfe.serie);
+        dadosNfe.numero = proximoNumero;
+      }
       
       // Se estiver em modo simulação
       if (process.env.SIMULATION_MODE === 'true') {
@@ -129,8 +140,15 @@ class NFeService {
       const xmlAssinado = await this.assinarXml(xmlNfe);
       console.log('✅ XML assinado com sucesso');
 
-      // Validação XML security (temporariamente desabilitada para debug)
-      // validarXmlSeguranca.call(this, xmlNfe);
+      // Validação de segurança do XML controlada por flag
+      if (process.env.XML_SECURITY_VALIDATE === 'true') {
+        try {
+          validarXmlSeguranca.call(this, xmlAssinado);
+        } catch (e) {
+          console.error('❌ Validação de segurança falhou:', e.message);
+          throw e;
+        }
+      }
       
       // Salva XML antes do envio
       console.log('💾 Salvando XML...');
@@ -598,6 +616,57 @@ class NFeService {
   }
 
   // ==================== MÉTODOS AUXILIARES ====================
+
+  async obterSeriePadrao() {
+    try {
+      const config = await Configuracao.findOne({ chave: 'padrao' }).lean().catch(() => null);
+      const serieCfg = config?.nfe?.serie ?? '1';
+      const serieNum = parseInt(serieCfg, 10);
+      return Number.isNaN(serieNum) ? 1 : serieNum;
+    } catch (e) {
+      console.warn('⚠️ Falha ao obter série padrão:', e.message);
+      return 1;
+    }
+  }
+
+  async obterProximoNumero(serie) {
+    // Primeiro tenta persistir via Configuração (Mongo)
+    try {
+      const config = await Configuracao.findOne({ chave: 'padrao' }).lean().catch(() => null);
+      let proximo = 1;
+      if (config?.nfe?.numeracaoInicial !== undefined && config?.nfe?.numeracaoInicial !== null) {
+        const atual = parseInt(config.nfe.numeracaoInicial, 10);
+        proximo = Number.isNaN(atual) ? 1 : atual;
+      }
+      // Atualiza para o próximo número
+      await Configuracao.updateOne(
+        { chave: 'padrao' },
+        { $set: { 'nfe.numeracaoInicial': proximo + 1 } },
+        { upsert: true }
+      ).catch(() => null);
+      return proximo;
+    } catch (e) {
+      console.warn('⚠️ Falha ao atualizar numeração no banco. Usando arquivo.', e.message);
+    }
+
+    // Fallback: usar arquivo numeracao.json
+    try {
+      let mapa = {};
+      if (fs.existsSync(this.NUMERACAO_PATH)) {
+        const raw = fs.readFileSync(this.NUMERACAO_PATH, 'utf-8');
+        mapa = JSON.parse(raw);
+      }
+      const chaveSerie = String(serie || 1);
+      const atual = parseInt(mapa[chaveSerie] || 1, 10);
+      const proximo = Number.isNaN(atual) ? 1 : atual;
+      mapa[chaveSerie] = proximo + 1;
+      fs.writeFileSync(this.NUMERACAO_PATH, JSON.stringify(mapa, null, 2), 'utf-8');
+      return proximo;
+    } catch (e) {
+      console.warn('⚠️ Falha na persistência de numeração em arquivo:', e.message);
+      return 1;
+    }
+  }
 
   gerarChaveAcesso(dados) {
     // Implementação simplificada - usar biblioteca específica em produção

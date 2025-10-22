@@ -5,22 +5,30 @@ module.exports = {
       script: "./app-real.js",
       env: {
         NODE_ENV: "production",
-        CERT_PATH: "",
-        CERT_PASS: "",
-        UF: "",
-        CNPJ_EMITENTE: "",
+        PORT: "3001",
+        UF: "MS",
         AMBIENTE: "1",
-        SECRET_JWT: "brandao-contador-nfe-production-secret-2024"
+        CNPJ_EMITENTE: "45669746000120",
+        JWT_SECRET: "prod-secret-key-brandao-contador-nfe-2024",
+        SIMULATION_MODE: "false",
+        XML_SECURITY_VALIDATE: "true"
       }
     },
     {
       name: "nfe-service-simple",
       script: "./app-simples.js",
       env: {
-        NODE_ENV: "development",
+        NODE_ENV: "production",
         MODE: "simple",
         PORT: "3002",
-        JWT_SECRET: "brandaocontador-nfe-secret-key-2024"
+        UF: "MS",
+        AMBIENTE: "1",
+        CNPJ_EMITENTE: "45669746000120",
+        JWT_SECRET: "prod-secret-key-brandao-contador-nfe-2024",
+        CERT_PATH: "e\\\\PROJETOS\\\\brandaocontador-nfe\\\\backend\\\\certs\\\\teste-a1.pfx",
+        CERT_PASS: "1234",
+        SIMULATION_MODE: "false",
+        XML_SECURITY_VALIDATE: "true"
       }
     }
   ]

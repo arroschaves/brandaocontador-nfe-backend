@@ -107,26 +107,27 @@ const corsOrigins = process.env.CORS_ORIGINS
 
 // Middleware para lidar com requisições OPTIONS (preflight)
 app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  const allowedOrigin = corsOrigins.includes(origin) ? origin : 'http://localhost:3000';
+  res.header('Access-Control-Allow-Origin', allowedOrigin);
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-Key');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+
   if (req.method === 'OPTIONS') {
-    const origin = req.headers.origin;
-    // Se a origem estiver na lista permitida, use-a, caso contrário, use localhost:3002
-    const allowedOrigin = corsOrigins.includes(origin) ? origin : 'http://localhost:3002';
-    res.header('Access-Control-Allow-Origin', allowedOrigin);
-    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-Key');
-    res.header('Access-Control-Allow-Credentials', 'true');
     res.header('Access-Control-Max-Age', '86400'); // 24 horas
     return res.status(200).end();
   }
   next();
 });
 
-app.use(cors({
-  origin: corsOrigins,
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Key']
-}));
+// Remover a configuração global do cors se necessário
+// app.use(cors({
+//   origin: corsOrigins,
+//   credentials: true,
+//   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+//   allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Key']
+// }));
 
 // Middleware para parsing JSON com tratamento de erros
 app.use(express.json({ 
@@ -1157,6 +1158,11 @@ app.get('/admin/health',
 
 // Health check público
 app.get('/health', async (req, res) => {
+  const origin = req.headers.origin;
+  const allowedOrigin = corsOrigins.includes(origin) ? origin : 'http://localhost:3000';
+  res.setHeader('Access-Control-Allow-Origin', allowedOrigin);
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+
   try {
     res.json({
       sucesso: true,
