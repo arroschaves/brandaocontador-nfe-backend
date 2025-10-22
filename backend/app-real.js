@@ -430,14 +430,49 @@ app.get('/nfe/historico',
         });
       }
 
-      // Produção/Homologação: consultar banco; se indisponível, retornar vazio
+      // Produção/Homologação: consultar banco; se indisponível, usar fallback via ENVIADAS_DIR
       let nfes = [];
+      let usouFallback = false;
       try {
         if (typeof database.listarNfes === 'function') {
           nfes = await database.listarNfes({ usuarioId: req.usuario?.id });
         }
       } catch (e) {
         console.warn('Não foi possível consultar NFes do banco:', e.message);
+      }
+
+      // Fallback: usar histórico via diretório ENVIADAS quando banco indisponível ou sem dados
+      if (!Array.isArray(nfes) || nfes.length === 0) {
+        try {
+          const filtros = {
+            dataInicio: req.query.dataInicio,
+            dataFim: req.query.dataFim,
+            pagina,
+            limite
+          };
+          const historico = await nfeService.obterHistorico(filtros);
+          usouFallback = true;
+
+          await logService.log('historico_fallback', 'SUCESSO', {
+            usuario: req.usuario?.id,
+            pagina,
+            limite,
+            retornadas: historico.itens.length
+          });
+
+          return res.json({
+            sucesso: true,
+            nfes: historico.itens,
+            limite,
+            itens: historico.itens,
+            total: historico.total,
+            pagina: historico.pagina,
+            totalPaginas: historico.totalPaginas,
+            origem: 'fallback'
+          });
+        } catch (e) {
+          console.warn('Falha no fallback de histórico via ENVIADAS_DIR:', e.message);
+        }
       }
 
       const total = nfes.length;
@@ -450,7 +485,8 @@ app.get('/nfe/historico',
         usuario: req.usuario?.id,
         pagina,
         limite,
-        retornadas: nfesPaginadas.length
+        retornadas: nfesPaginadas.length,
+        origem: usouFallback ? 'fallback' : 'banco'
       });
 
       res.json({
@@ -657,10 +693,7 @@ app.get('/clientes',
       if (ativo !== undefined) {
         filtro.ativo = ativo === 'true';
       }
-      if (!isAdmin) {
-        const usuarioId = req.usuario?._id || req.usuario?.id;
-        if (usuarioId) filtro.usuarioId = usuarioId;
-      }
+
       const clientes = await Cliente.find(filtro).sort({ nome: 1 }).lean();
       res.json({ sucesso: true, clientes });
     } catch (error) {
@@ -740,10 +773,7 @@ app.get('/produtos',
       if (ativo !== undefined) {
         filtro.ativo = ativo === 'true';
       }
-      if (!isAdmin) {
-        const usuarioId = req.usuario?._id || req.usuario?.id;
-        if (usuarioId) filtro.usuarioId = usuarioId;
-      }
+
       const produtos = await Produto.find(filtro).sort({ nome: 1 }).lean();
       res.json({ sucesso: true, produtos });
     } catch (error) {

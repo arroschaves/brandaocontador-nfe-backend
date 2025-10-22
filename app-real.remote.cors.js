@@ -1,4 +1,4 @@
-﻿require('dotenv').config();
+require('dotenv').config();
 
 const express = require('express');
 const cors = require('cors');
@@ -572,10 +572,7 @@ app.get('/clientes',
       if (ativo !== undefined) {
         filtro.ativo = ativo === 'true';
       }
-      if (!isAdmin) {
-        const usuarioId = req.usuario?._id || req.usuario?.id;
-        if (usuarioId) filtro.usuarioId = usuarioId;
-      }
+
       const clientes = await Cliente.find(filtro).sort({ nome: 1 }).lean();
       res.json({ sucesso: true, clientes });
     } catch (error) {
@@ -655,10 +652,7 @@ app.get('/produtos',
       if (ativo !== undefined) {
         filtro.ativo = ativo === 'true';
       }
-      if (!isAdmin) {
-        const usuarioId = req.usuario?._id || req.usuario?.id;
-        if (usuarioId) filtro.usuarioId = usuarioId;
-      }
+
       const produtos = await Produto.find(filtro).sort({ nome: 1 }).lean();
       res.json({ sucesso: true, produtos });
     } catch (error) {

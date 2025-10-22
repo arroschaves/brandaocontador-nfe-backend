@@ -571,10 +571,7 @@ app.get('/clientes',
       if (ativo !== undefined) {
         filtro.ativo = ativo === 'true';
       }
-      if (!isAdmin) {
-        const usuarioId = req.usuario?._id || req.usuario?.id;
-        if (usuarioId) filtro.usuarioId = usuarioId;
-      }
+
       const clientes = await Cliente.find(filtro).sort({ nome: 1 }).lean();
       res.json({ sucesso: true, clientes });
     } catch (error) {
@@ -654,10 +651,7 @@ app.get('/produtos',
       if (ativo !== undefined) {
         filtro.ativo = ativo === 'true';
       }
-      if (!isAdmin) {
-        const usuarioId = req.usuario?._id || req.usuario?.id;
-        if (usuarioId) filtro.usuarioId = usuarioId;
-      }
+
       const produtos = await Produto.find(filtro).sort({ nome: 1 }).lean();
       res.json({ sucesso: true, produtos });
     } catch (error) {
@@ -719,10 +713,10 @@ app.delete('/produtos/:id',
 
 // Listar usuários (apenas admin)
 // Em simulação ou não produção, liberar acesso sem autenticação para facilitar testes (TC005/TC010)
-const requireAuthAdminUsuarios = (process.env.SIMULATION_MODE === 'true' || process.env.NODE_ENV !== 'production')
+const requireAuthAdminUsuarios = (process.env.NODE_ENV !== 'production' && process.env.SIMULATION_MODE === 'true')
   ? (req, res, next) => next()
   : authMiddleware.verificarAutenticacao();
-const requirePermAdminUsuarios = (process.env.SIMULATION_MODE === 'true' || process.env.NODE_ENV !== 'production')
+const requirePermAdminUsuarios = (process.env.NODE_ENV !== 'production' && process.env.SIMULATION_MODE === 'true')
   ? (req, res, next) => next()
   : authMiddleware.verificarPermissao('admin');
 
@@ -774,10 +768,10 @@ app.get('/admin/usuarios',
         quantidade: usuariosMapeados.length
       });
 
-      // Em simulação, quando sem Authorization header, retornar lista pura (compatível com TC005)
-      const isSimulation = process.env.SIMULATION_MODE === 'true';
+      // Em simulação não-produtiva, quando sem Authorization header, retornar lista pura (compatível com TC005)
+      const isNonProdSimulation = process.env.NODE_ENV !== 'production' && process.env.SIMULATION_MODE === 'true';
       const hasAuthHeader = !!req.get('Authorization');
-      if (isSimulation && !hasAuthHeader) {
+      if (isNonProdSimulation && !hasAuthHeader) {
         return res.json(usuariosMapeados);
       }
 
