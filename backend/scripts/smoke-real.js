@@ -1,5 +1,7 @@
 /* Smoke test for real backend (app-real.js) */
 const BASE_URL = process.env.BASE_URL || 'http://localhost:3001';
+const ADMIN_EMAIL = process.env.SMOKE_ADMIN_EMAIL || process.env.SEED_ADMIN_EMAIL || process.env.ADMIN_EMAIL || 'admin@example.com';
+const ADMIN_SENHA = process.env.SMOKE_ADMIN_SENHA || process.env.SEED_ADMIN_SENHA || process.env.ADMIN_SENHA || 'adminpassword';
 
 async function req(path, options = {}) {
   const url = `${BASE_URL}${path}`;
@@ -19,6 +21,7 @@ async function req(path, options = {}) {
 (async () => {
   let failures = 0;
   console.log(`\n🚦 Smoke test base: ${BASE_URL}`);
+  console.log(`👤 Usando admin: ${ADMIN_EMAIL}`);
 
   // Health
   const health = await req('/health');
@@ -28,7 +31,7 @@ async function req(path, options = {}) {
   // Login admin (seeded)
   const login = await req('/auth/login', {
     method: 'POST',
-    body: JSON.stringify({ email: 'admin@example.com', senha: 'adminpassword' })
+    body: JSON.stringify({ email: ADMIN_EMAIL, senha: ADMIN_SENHA })
   });
   console.log('Login admin:', login.status, login.body);
   if (login.status !== 200 || !login.body?.token) failures++;

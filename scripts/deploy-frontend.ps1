@@ -56,7 +56,7 @@ if ([string]::IsNullOrWhiteSpace($deployHook) -eq $false) {
 
 # Health-check simples do frontend (aguardar alguns segundos e tentar acessar)
 $frontendUrl = "https://nfe.brandaocontador.com.br"
-Write-Host "Verificando disponibilidade do frontend em $frontendUrl (aguarde 2–4 minutos para o deploy concluir)..." -ForegroundColor Yellow
+Write-Host ("Verificando disponibilidade do frontend em {0} (aguarde 2-4 minutos para o deploy concluir)..." -f $frontendUrl) -ForegroundColor Yellow
 
 # Tentar 3 vezes com intervalos
 for ($i = 1; $i -le 3; $i++) {
@@ -66,7 +66,7 @@ for ($i = 1; $i -le 3; $i++) {
         Write-Host "Frontend respondeu com status: $($resp.StatusCode)" -ForegroundColor Green
         break
     } catch {
-        Write-Host "Tentativa $i: ainda não disponível. Motivo: $($_.Exception.Message)" -ForegroundColor Yellow
+        Write-Host ("Tentativa {0}: ainda não disponível. Motivo: {1}" -f $i, $_.Exception.Message) -ForegroundColor Yellow
     }
 }
 

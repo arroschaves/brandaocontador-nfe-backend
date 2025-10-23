@@ -30,15 +30,16 @@ if (Test-Path $envPath) {
   $lines = Get-Content $envPath
 
   # Remove quaisquer linhas pré-existentes das chaves alvo
-  $filterPattern = '^(SEED_ADMIN_NOME|SEED_ADMIN_EMAIL|SEED_ADMIN_SENHA|SIMULATION_MODE)='
+  $filterPattern = '^(SEED_ADMIN_NOME|SEED_ADMIN_EMAIL|SEED_ADMIN_SENHA|SIMULATION_MODE|ENABLE_AUTO_SEED)='
   $lines = $lines | Where-Object { $_ -notmatch $filterPattern }
 
   # Acrescenta valores canônicos
   $append = @(
     'SEED_ADMIN_NOME=Administrador',
     'SEED_ADMIN_EMAIL=admin@brandaocontador.com.br',
-    'SEED_ADMIN_SENHA=admin123',
-    'SIMULATION_MODE=false'
+    'SEED_ADMIN_SENHA=admin:123',
+    'SIMULATION_MODE=false',
+    'ENABLE_AUTO_SEED=true'
   )
   foreach ($line in $append) {
     $lines += $line

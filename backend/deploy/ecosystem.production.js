@@ -14,7 +14,8 @@ module.exports = {
       NODE_ENV: 'production',
       PORT: 3001,
       SIMULATION_MODE: 'false',
-      AMBIENTE: 1
+      AMBIENTE: 1,
+      ENABLE_AUTO_SEED: 'true'
     },
     error_file: './logs/err.log',
     out_file: './logs/out.log',

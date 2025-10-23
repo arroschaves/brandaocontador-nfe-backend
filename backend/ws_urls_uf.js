@@ -45,8 +45,8 @@ module.exports = {
         '2': 'https://hom.nfe.sefaz.mt.gov.br/ws/NFeAutorizacao4.asmx?wsdl'
     },
     'MS': {
-        '1': 'https://nfe.sefaz.ms.gov.br/ws/NFeAutorizacao4.asmx?wsdl',
-        '2': 'https://hom.nfe.sefaz.ms.gov.br/ws/NFeAutorizacao4.asmx?wsdl'
+        '1': 'https://nfe.fazenda.ms.gov.br/ws/NFeAutorizacao4?wsdl',
+        '2': 'https://homologacao.nfe.ms.gov.br/ws/NFeAutorizacao4?wsdl'
     },
     'MG': {
         '1': 'https://nfe.fazenda.mg.gov.br/nfe2/services/NFeAutorizacao4',

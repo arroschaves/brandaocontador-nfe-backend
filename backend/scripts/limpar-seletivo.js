@@ -45,9 +45,41 @@ async function limparSeletivo() {
     if (!database.isConnected()) throw new Error('Conexão com MongoDB não estabelecida');
 
     // USUÁRIOS: preservar apenas o admin
-    const admin = await Usuario.findOne({ email: ADMIN_EMAIL });
+    const adminSenha = process.env.SEED_ADMIN_SENHA || process.env.ADMIN_SENHA || 'admin:123';
+    let admin = await Usuario.findOne({ email: ADMIN_EMAIL });
     if (!admin) {
-      console.warn('⚠️ Admin não encontrado! Nenhum usuário será preservado além de critério de email.');
+      console.warn('⚠️ Admin não encontrado! Criando admin padrão para preservação.');
+      admin = await Usuario.create({
+        nome: process.env.SEED_ADMIN_NOME || 'Administrador',
+        email: ADMIN_EMAIL,
+        senha: adminSenha,
+        tipoCliente: 'cnpj',
+        documento: '12345678000199',
+        telefone: '(11) 4000-0000',
+        razaoSocial: 'Empresa Admin LTDA',
+        nomeFantasia: 'Admin LTDA',
+        endereco: {
+          cep: '01001-000',
+          logradouro: 'Rua Exemplo',
+          numero: '100',
+          complemento: '',
+          bairro: 'Centro',
+          cidade: 'São Paulo',
+          uf: 'SP'
+        },
+        permissoes: ['admin', 'admin_total', 'nfe_consultar', 'nfe_emitir'],
+        ativo: true,
+        status: 'ativo'
+      });
+      console.log(`🌱 Usuário admin criado: ${ADMIN_EMAIL}`);
+    } else {
+      // Reforçar senha e permissões do admin existente
+      admin.senha = adminSenha;
+      admin.permissoes = Array.from(new Set([...(admin.permissoes || []), 'admin', 'admin_total', 'nfe_consultar', 'nfe_emitir']));
+      admin.ativo = true;
+      admin.status = 'ativo';
+      await admin.save();
+      console.log('🔒 Admin atualizado (senha e permissões reforçadas)');
     }
 
     const usuarios = await Usuario.find();
