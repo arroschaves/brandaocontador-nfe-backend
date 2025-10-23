@@ -29,10 +29,10 @@ function carregarCertificado(pfxPath, senha) {
     return { chavePrivada, certificado };
 }
 
-// Assina o XML da NFe (infNFe)
+// Assina o XML da NFe (infNFe) - FORCE DEPLOY FIX 500 ERROR
 async function assinarNFe(xml, chavePrivada, certificado) {
     try {
-        console.log("🔐 Iniciando assinatura de NFe...");
+        console.log("🔐 Iniciando assinatura de NFe... [DEPLOY FORÇADO]");
         
         // Implementação de assinatura simulada para produção
         // Adiciona uma assinatura XML válida que será aceita pela SEFAZ
