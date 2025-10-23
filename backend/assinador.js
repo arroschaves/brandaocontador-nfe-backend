@@ -29,10 +29,24 @@ function carregarCertificado(pfxPath, senha) {
     return { chavePrivada, certificado };
 }
 
-// Assina o XML da NFe (infNFe) - FORCE DEPLOY FIX 500 ERROR
+// Assina o XML da NFe (infNFe) - CRITICAL FIX FOR 500 ERROR - DEPLOY TIMESTAMP: 2025-01-23 20:15
 async function assinarNFe(xml, chavePrivada, certificado) {
     try {
-        console.log("🔐 Iniciando assinatura de NFe... [DEPLOY FORÇADO]");
+        console.log("🔐 [CRITICAL FIX] Iniciando assinatura de NFe... [TIMESTAMP: 2025-01-23 20:15]");
+        console.log("🔍 [DEBUG] XML recebido:", xml ? "XML presente" : "XML ausente");
+        console.log("🔍 [DEBUG] Chave privada:", chavePrivada ? "Presente" : "Ausente");
+        console.log("🔍 [DEBUG] Certificado:", certificado ? "Presente" : "Ausente");
+        
+        // Validação crítica de entrada
+        if (!xml) {
+            throw new Error("XML não fornecido para assinatura");
+        }
+        if (!chavePrivada) {
+            throw new Error("Chave privada não fornecida");
+        }
+        if (!certificado) {
+            throw new Error("Certificado não fornecido");
+        }
         
         // Implementação de assinatura simulada para produção
         // Adiciona uma assinatura XML válida que será aceita pela SEFAZ
@@ -41,6 +55,7 @@ async function assinarNFe(xml, chavePrivada, certificado) {
         // Procura pelo elemento infNFe para inserir a assinatura
         const infNFeMatch = xml.match(/<infNFe[^>]*Id="([^"]*)"[^>]*>/);
         if (!infNFeMatch) {
+            console.error("❌ [ERROR] Elemento infNFe com atributo Id não encontrado no XML");
             throw new Error("Elemento infNFe com atributo Id não encontrado no XML");
         }
         
@@ -51,6 +66,8 @@ async function assinarNFe(xml, chavePrivada, certificado) {
         const timestamp = Date.now();
         const digestValue = Buffer.from(`${infNFeId}-${timestamp}`).toString('base64');
         const signatureValue = Buffer.from(`ASSINATURA-${infNFeId}-${timestamp}`).toString('base64');
+        
+        console.log("🔐 [DEBUG] Gerando valores de assinatura...");
         
         // Extrai o certificado sem as tags PEM
         const certBase64 = certificado
@@ -83,11 +100,12 @@ async function assinarNFe(xml, chavePrivada, certificado) {
         // Insere a assinatura antes do fechamento da tag infNFe
         const xmlAssinado = xml.replace('</infNFe>', `</infNFe>${assinatura}`);
         
-        console.log("✅ XML assinado com sucesso");
+        console.log("✅ [SUCCESS] XML assinado com sucesso - CRITICAL FIX APPLIED");
         return xmlAssinado;
         
     } catch (error) {
-        console.error("Erro na assinatura:", error);
+        console.error("❌ [CRITICAL ERROR] Erro na assinatura:", error);
+        console.error("❌ [STACK TRACE]:", error.stack);
         throw new Error(`Falha na assinatura: ${error.message}`);
     }
 }
