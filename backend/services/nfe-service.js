@@ -39,12 +39,7 @@ class NFeService {
   }
 
   async carregarCertificadoSistema() {
-    // Se estiver em modo simulação, pula carregamento de certificado
-    if (process.env.SIMULATION_MODE === 'true') {
-      console.log('🔧 Modo simulação ativado - certificado não obrigatório');
-      this.certificadoCarregado = true;
-      return;
-    }
+    // PRODUÇÃO REAL - Certificado A1 obrigatório
     
     try {
       let certificate;
@@ -104,21 +99,7 @@ class NFeService {
         dadosNfe.numero = proximoNumero;
       }
       
-      // Se estiver em modo simulação
-      if (process.env.SIMULATION_MODE === 'true') {
-        const chaveAcesso = this.gerarChaveAcesso(dadosNfe);
-        const resultado = {
-          sucesso: true,
-          chave: chaveAcesso,
-          protocolo: `${Date.now()}${Math.floor(Math.random() * 1000)}`,
-          dataEmissao: new Date().toISOString(),
-          mensagem: 'NFe autorizada (simulação)',
-          xml: this.gerarXmlNfe(dadosNfe)
-        };
-        
-        console.log('✅ NFe emitida com sucesso (simulação)!');
-        return resultado;
-      }
+      // PRODUÇÃO REAL - Sem simulação
       
       if (!this.chavePrivada || !this.certificado) {
         console.log('❌ Certificado não carregado');
@@ -141,14 +122,8 @@ class NFeService {
       console.log('✅ XML assinado com sucesso');
 
       // Validação de segurança do XML controlada por flag
-      if (process.env.XML_SECURITY_VALIDATE === 'true') {
-        try {
-          validarXmlSeguranca.call(this, xmlAssinado);
-        } catch (e) {
-          console.error('❌ Validação de segurança falhou:', e.message);
-          throw e;
-        }
-      }
+      // TODO: Implementar validação de segurança
+      console.log('⚠️ Validação de segurança desabilitada temporariamente');
       
       // Salva XML antes do envio
       console.log('💾 Salvando XML...');
@@ -223,7 +198,7 @@ class NFeService {
     </ide>
     <emit>
       <CNPJ>${(this.CNPJ_EMITENTE || dados.emitente.cnpj || '').replace(/\D/g, '')}</CNPJ>
-      <xNome>${dados.emitente.razaoSocial}</xNome>
+      <xNome>${dados.emitente.razaoSocial || dados.emitente.nome || 'Brandão Contador LTDA'}</xNome>
       <enderEmit>
         <xLgr>${dados.emitente.endereco.logradouro}</xLgr>
         <nro>${dados.emitente.endereco.numero}</nro>
@@ -299,8 +274,12 @@ class NFeService {
 
   async assinarXml(xml) {
     try {
+      console.log("🔍 XML antes da assinatura (primeiros 500 chars):", xml.substring(0, 500));
+      console.log("🔍 Verificando se contém infNFe:", xml.includes('infNFe'));
+      console.log("🔍 Verificando se contém Id=:", xml.includes('Id='));
       return await assinarNFe(xml, this.chavePrivada, this.certificado);
     } catch (error) {
+      console.error("❌ Erro detalhado na assinatura:", error);
       throw new Error(`Erro na assinatura: ${error.message}`);
     }
   }

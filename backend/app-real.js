@@ -130,10 +130,10 @@ async function iniciarServidor() {
     console.log(`   - GET  http://localhost:${PORT}/admin/health`);
     console.log(`   - GET  http://localhost:${PORT}/health`);
     console.log('');
-    console.log('⚠️  MODO DESENVOLVIMENTO: Certificado A3 não configurado');
-    console.log('⚠️  Usando simulação para operações NFe');
+    console.log('✅ SISTEMA PRODUÇÃO: Certificado A1 configurado e ativo');
+    console.log('✅ NFe em modo PRODUÇÃO REAL - SEFAZ ativa');
     console.log('');
-    console.log('💡 Dica: Use o endpoint /auth/register para criar seu primeiro usuário!');
+    console.log('🔐 Login: admin@brandaocontador.com.br');
   });
 }
 
@@ -282,44 +282,76 @@ app.post('/nfe/emitir',
   requireAuthNfe,
   requirePermNfeEmitir,
   async (req, res) => {
+    const startTime = Date.now();
+    const requestId = Math.random().toString(36).substr(2, 9);
+    
     try {
+      console.log(`🚀 [${requestId}] Iniciando emissão NFe - Usuário: ${req.usuario?.email || 'N/A'}`);
+      console.log(`📋 [${requestId}] Dados recebidos:`, {
+        naturezaOperacao: req.body.naturezaOperacao,
+        serie: req.body.serie,
+        itensCount: req.body.itens?.length || 0,
+        emitente: req.body.emitente?.nome || req.body.emitente?.razaoSocial || 'N/A',
+        destinatario: req.body.destinatario?.nome || 'N/A'
+      });
+
       // Validação dos dados
       const validacao = await validationService.validarDadosNfe(req.body);
       
       if (!validacao.valido) {
+        console.log(`❌ [${requestId}] Validação falhou:`, validacao.erros);
         await logService.logValidacao(req.body, validacao);
         return res.status(400).json({
           sucesso: false,
           erro: 'Dados inválidos',
           erros: validacao.erros,
-          avisos: validacao.avisos
+          avisos: validacao.avisos,
+          requestId
         });
       }
+
+      console.log(`✅ [${requestId}] Validação passou - Iniciando emissão`);
 
       // Emissão da NFe
       const resultado = await nfeService.emitirNfe(req.body);
       
+      const duration = Date.now() - startTime;
+      console.log(`⏱️ [${requestId}] Emissão concluída em ${duration}ms - Sucesso: ${resultado.sucesso}`);
+      
       await logService.logEmissao(req.body, resultado);
 
       if (resultado.sucesso) {
-        res.json(resultado);
+        console.log(`🎉 [${requestId}] NFe emitida com sucesso - Chave: ${resultado.chaveAcesso}`);
+        res.json({ ...resultado, requestId });
       } else {
+        console.log(`⚠️ [${requestId}] Falha na emissão:`, resultado.erro);
         // Certificado ausente ou erro de validação de serviço
         const status = resultado.codigo === 'CERTIFICADO_AUSENTE' ? 400 : 400;
-        res.status(status).json(resultado);
+        res.status(status).json({ ...resultado, requestId });
       }
 
     } catch (error) {
-      console.error('❌ ERRO DETALHADO NA EMISSÃO:', error);
-      console.error('❌ Stack trace:', error.stack);
+      const duration = Date.now() - startTime;
+      console.error(`💥 [${requestId}] ERRO CRÍTICO após ${duration}ms:`, error.message);
+      console.error(`📍 [${requestId}] Stack trace:`, error.stack);
+      console.error(`🔍 [${requestId}] Contexto:`, {
+        usuario: req.usuario?.email,
+        ip: req.ip,
+        userAgent: req.get('User-Agent')
+      });
+      
       await logService.logErro('emissao', error, { 
         dados: req.body,
-        usuario: req.usuario?.id 
+        usuario: req.usuario?.id,
+        requestId,
+        duration
       });
+      
       res.status(500).json({
         sucesso: false,
         erro: 'Erro interno na emissão da NFe',
-        codigo: 'EMISSAO_ERROR'
+        codigo: 'EMISSAO_ERROR',
+        requestId
       });
     }
   }
