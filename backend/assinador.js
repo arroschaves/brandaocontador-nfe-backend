@@ -60,7 +60,32 @@ function assinarNFe(xmlNFe, chavePrivada, certificado) {
         
         // Extrair o certificado X.509 do buffer
         console.log(`[${timestamp}] ASSINADOR: Extraindo certificado X.509...`);
-        const certBase64 = certificado.toString('base64');
+        console.log(`[${timestamp}] ASSINADOR: Tipo do certificado:`, typeof certificado);
+        console.log(`[${timestamp}] ASSINADOR: É Buffer?`, Buffer.isBuffer(certificado));
+        console.log(`[${timestamp}] ASSINADOR: É string?`, typeof certificado === 'string');
+        
+        // CORREÇÃO CRÍTICA: Verificar se certificado é string ou Buffer
+        let certBase64;
+        if (typeof certificado === 'string') {
+            // Se já é string PEM, extrair apenas o conteúdo base64
+            console.log(`[${timestamp}] ASSINADOR: Certificado é string PEM, extraindo base64...`);
+            certBase64 = certificado
+                .replace(/-----BEGIN CERTIFICATE-----/g, '')
+                .replace(/-----END CERTIFICATE-----/g, '')
+                .replace(/\s/g, '');
+        } else if (Buffer.isBuffer(certificado)) {
+            // Se é Buffer, converter para base64
+            console.log(`[${timestamp}] ASSINADOR: Certificado é Buffer, convertendo para base64...`);
+            certBase64 = certificado.toString('base64');
+        } else {
+            // Fallback: tentar converter para string e depois extrair
+            console.log(`[${timestamp}] ASSINADOR: Certificado tipo desconhecido, tentando conversão...`);
+            const certString = String(certificado);
+            certBase64 = certString
+                .replace(/-----BEGIN CERTIFICATE-----/g, '')
+                .replace(/-----END CERTIFICATE-----/g, '')
+                .replace(/\s/g, '');
+        }
         
         // Criar os valores de hash (simulados para teste)
         console.log(`[${timestamp}] ASSINADOR: Criando valores de hash...`);
