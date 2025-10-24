@@ -2,7 +2,27 @@
   "usuarios": [],
   "nfes": [],
   "logs": [],
-  "configuracoes": {},
+  "configuracoes": {
+    "emitente": {
+      "nome": "Brand�o Contador LTDA",
+      "cnpj": "12345678000199",
+      "inscricaoEstadual": "123456789",
+      "inscricaoMunicipal": "",
+      "regimeTributario": 1,
+      "endereco": {
+        "cep": "01234567",
+        "logradouro": "Rua das Flores",
+        "numero": "123",
+        "complemento": "",
+        "bairro": "Centro",
+        "municipio": "S�o Paulo",
+        "uf": "SP",
+        "codigoMunicipio": ""
+      },
+      "dataAtualizacao": "2025-10-24T19:26:37.177Z",
+      "atualizadoEm": "2025-10-24T19:26:37.177Z"
+    }
+  },
   "clientes": [],
   "produtos": []
 }
