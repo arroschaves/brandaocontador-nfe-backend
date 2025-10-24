@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste de Login - Frontend</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .status {
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        .warning {
+            background-color: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .form-group {
+            margin: 15px 0;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            box-sizing: border-box;
+        }
+        .json-display {
+            background-color: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 10px 0;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔐 Teste de Login - Frontend</h1>
+        
+        <div class="form-group">
+            <label for="email">Email:</label>
+            <input type="email" id="email" value="admin@brandaocontador.com.br">
+        </div>
+        
+        <div class="form-group">
+            <label for="senha">Senha:</label>
+            <input type="password" id="senha" value="admin123">
+        </div>
+        
+        <div class="form-group">
+            <label for="backend-url">URL do Backend:</label>
+            <input type="text" id="backend-url" value="http://localhost:3001">
+        </div>
+        
+        <button onclick="testarLogin()">🚀 Testar Login</button>
+        <button onclick="verificarToken()">🔍 Verificar Token Atual</button>
+        <button onclick="limparToken()">🗑️ Limpar Token</button>
+        <button onclick="testarDashboard()">📊 Testar Dashboard</button>
+        
+        <div id="resultado"></div>
+    </div>
+
+    <script>
+        async function testarLogin() {
+            const resultado = document.getElementById('resultado');
+            const email = document.getElementById('email').value;
+            const senha = document.getElementById('senha').value;
+            const backendUrl = document.getElementById('backend-url').value;
+            
+            resultado.innerHTML = '<div class="info">🔄 Testando login...</div>';
+            
+            try {
+                const response = await fetch(`${backendUrl}/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        email: email,
+                        senha: senha
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    // Salvar token no localStorage
+                    localStorage.setItem('token', data.token);
+                    localStorage.setItem('usuario', JSON.stringify(data.usuario));
+                    
+                    resultado.innerHTML = `
+                        <div class="success">
+                            ✅ <strong>Login realizado com sucesso!</strong><br>
+                            Token salvo no localStorage.
+                        </div>
+                        <div class="json-display">${JSON.stringify(data, null, 2)}</div>
+                    `;
+                } else {
+                    resultado.innerHTML = `
+                        <div class="error">
+                            ❌ <strong>Erro no login:</strong> ${data.message || 'Erro desconhecido'}
+                        </div>
+                        <div class="json-display">${JSON.stringify(data, null, 2)}</div>
+                    `;
+                }
+            } catch (error) {
+                resultado.innerHTML = `
+                    <div class="error">
+                        ❌ <strong>Erro de conexão:</strong> ${error.message}
+                    </div>
+                `;
+            }
+        }
+        
+        function verificarToken() {
+            const resultado = document.getElementById('resultado');
+            const token = localStorage.getItem('token');
+            const usuario = localStorage.getItem('usuario');
+            
+            if (token) {
+                resultado.innerHTML = `
+                    <div class="success">
+                        ✅ <strong>Token encontrado no localStorage</strong>
+                    </div>
+                    <div class="json-display">Token: ${token}</div>
+                    <div class="json-display">Usuário: ${usuario}</div>
+                `;
+            } else {
+                resultado.innerHTML = `
+                    <div class="warning">
+                        ⚠️ <strong>Nenhum token encontrado no localStorage</strong>
+                    </div>
+                `;
+            }
+        }
+        
+        function limparToken() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('usuario');
+            
+            const resultado = document.getElementById('resultado');
+            resultado.innerHTML = `
+                <div class="success">
+                    ✅ <strong>Token removido do localStorage</strong>
+                </div>
+            `;
+        }
+        
+        async function testarDashboard() {
+            const resultado = document.getElementById('resultado');
+            const token = localStorage.getItem('token');
+            const backendUrl = document.getElementById('backend-url').value;
+            
+            if (!token) {
+                resultado.innerHTML = `
+                    <div class="error">
+                        ❌ <strong>Erro:</strong> Nenhum token encontrado. Faça login primeiro.
+                    </div>
+                `;
+                return;
+            }
+            
+            resultado.innerHTML = '<div class="info">🔄 Testando acesso ao dashboard...</div>';
+            
+            try {
+                // Testar múltiplos endpoints
+                const endpoints = [
+                    { name: 'Usuários', url: `${backendUrl}/usuarios` },
+                    { name: 'Clientes', url: `${backendUrl}/clientes` },
+                    { name: 'Produtos', url: `${backendUrl}/produtos` },
+                    { name: 'NFes', url: `${backendUrl}/nfe/historico` }
+                ];
+                
+                let resultadoHtml = '<div class="info"><h3>📊 Resultados dos Testes:</h3></div>';
+                
+                for (const endpoint of endpoints) {
+                    try {
+                        const response = await fetch(endpoint.url, {
+                            headers: {
+                                'Authorization': `Bearer ${token}`,
+                                'Content-Type': 'application/json'
+                            }
+                        });
+                        
+                        const data = await response.json();
+                        
+                        if (response.ok) {
+                            const count = Array.isArray(data) ? data.length : (data.total || 'N/A');
+                            resultadoHtml += `
+                                <div class="success">
+                                    ✅ <strong>${endpoint.name}:</strong> ${count} registros
+                                </div>
+                            `;
+                        } else {
+                            resultadoHtml += `
+                                <div class="error">
+                                    ❌ <strong>${endpoint.name}:</strong> ${data.message || 'Erro'}
+                                </div>
+                            `;
+                        }
+                    } catch (error) {
+                        resultadoHtml += `
+                            <div class="error">
+                                ❌ <strong>${endpoint.name}:</strong> Erro de conexão - ${error.message}
+                            </div>
+                        `;
+                    }
+                }
+                
+                resultado.innerHTML = resultadoHtml;
+                
+            } catch (error) {
+                resultado.innerHTML = `
+                    <div class="error">
+                        ❌ <strong>Erro geral:</strong> ${error.message}
+                    </div>
+                `;
+            }
+        }
+        
+        // Verificar token automaticamente ao carregar a página
+        window.onload = function() {
+            verificarToken();
+        };
+    </script>
+</body>
+</html>

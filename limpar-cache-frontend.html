@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Limpar Cache do Frontend</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .status {
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .danger {
+            background-color: #dc3545;
+        }
+        .danger:hover {
+            background-color: #c82333;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧹 Limpeza de Cache do Frontend</h1>
+        
+        <div id="status"></div>
+        
+        <button onclick="verificarCache()">🔍 Verificar Cache Atual</button>
+        <button onclick="limparCache()" class="danger">🗑️ Limpar Todo o Cache</button>
+        <button onclick="recarregarPagina()">🔄 Recarregar Página</button>
+        
+        <div id="resultado"></div>
+    </div>
+
+    <script>
+        function verificarCache() {
+            const status = document.getElementById('status');
+            const resultado = document.getElementById('resultado');
+            
+            let info = '<div class="info"><h3>📊 Estado Atual do Cache:</h3>';
+            
+            // Verificar localStorage
+            const localStorageKeys = Object.keys(localStorage);
+            info += `<p><strong>localStorage:</strong> ${localStorageKeys.length} itens</p>`;
+            if (localStorageKeys.length > 0) {
+                info += '<ul>';
+                localStorageKeys.forEach(key => {
+                    const value = localStorage.getItem(key);
+                    const preview = value.length > 50 ? value.substring(0, 50) + '...' : value;
+                    info += `<li><strong>${key}:</strong> ${preview}</li>`;
+                });
+                info += '</ul>';
+            }
+            
+            // Verificar sessionStorage
+            const sessionStorageKeys = Object.keys(sessionStorage);
+            info += `<p><strong>sessionStorage:</strong> ${sessionStorageKeys.length} itens</p>`;
+            if (sessionStorageKeys.length > 0) {
+                info += '<ul>';
+                sessionStorageKeys.forEach(key => {
+                    const value = sessionStorage.getItem(key);
+                    const preview = value.length > 50 ? value.substring(0, 50) + '...' : value;
+                    info += `<li><strong>${key}:</strong> ${preview}</li>`;
+                });
+                info += '</ul>';
+            }
+            
+            info += '</div>';
+            resultado.innerHTML = info;
+        }
+        
+        function limparCache() {
+            const status = document.getElementById('status');
+            const resultado = document.getElementById('resultado');
+            
+            try {
+                // Contar itens antes da limpeza
+                const localCount = Object.keys(localStorage).length;
+                const sessionCount = Object.keys(sessionStorage).length;
+                
+                // Limpar localStorage
+                localStorage.clear();
+                
+                // Limpar sessionStorage
+                sessionStorage.clear();
+                
+                // Limpar cookies (se possível)
+                document.cookie.split(";").forEach(function(c) { 
+                    document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/"); 
+                });
+                
+                status.innerHTML = `
+                    <div class="success">
+                        ✅ <strong>Cache Limpo com Sucesso!</strong><br>
+                        • localStorage: ${localCount} itens removidos<br>
+                        • sessionStorage: ${sessionCount} itens removidos<br>
+                        • Cookies: Limpos<br>
+                        <br>
+                        <em>Recomendado: Recarregue a página para garantir que todas as mudanças sejam aplicadas.</em>
+                    </div>
+                `;
+                
+                resultado.innerHTML = '';
+                
+            } catch (error) {
+                status.innerHTML = `
+                    <div class="status" style="background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb;">
+                        ❌ <strong>Erro ao limpar cache:</strong> ${error.message}
+                    </div>
+                `;
+            }
+        }
+        
+        function recarregarPagina() {
+            window.location.reload(true);
+        }
+        
+        // Verificar cache automaticamente ao carregar a página
+        window.onload = function() {
+            verificarCache();
+        };
+    </script>
+</body>
+</html>
