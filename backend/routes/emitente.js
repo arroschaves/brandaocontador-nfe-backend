@@ -30,33 +30,10 @@ router.get('/config', authMiddleware.verificarAutenticacao(), async (req, res) =
   }
 });
 
-// Endpoint de teste para debug do body parsing
-router.post('/test-body', authMiddleware.verificarAutenticacao(), async (req, res) => {
-  try {
-    console.log('TEST - req.body:', JSON.stringify(req.body, null, 2));
-    console.log('TEST - req.headers:', JSON.stringify(req.headers, null, 2));
-    
-    res.json({
-      sucesso: true,
-      body: req.body,
-      headers: req.headers,
-      contentType: req.get('Content-Type')
-    });
-  } catch (error) {
-    console.error('Erro no teste:', error);
-    res.status(500).json({
-      sucesso: false,
-      erro: 'Erro interno do servidor'
-    });
-  }
-});
-
 // Salvar configuração do emitente
 router.post('/config', authMiddleware.verificarAutenticacao(), async (req, res) => {
   try {
-    console.log('DEBUG - req.body:', JSON.stringify(req.body, null, 2));
     const { emitente } = req.body;
-    console.log('DEBUG - emitente:', JSON.stringify(emitente, null, 2));
     
     // Validações básicas
     if (!emitente) {
