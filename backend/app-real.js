@@ -1,4 +1,5 @@
-require('dotenv').config();
+// Carregar configurações de desenvolvimento
+require('dotenv').config({ path: '.env.desenvolvimento' });
 
 const express = require('express');
 const cors = require('cors');
@@ -117,6 +118,7 @@ async function iniciarServidor() {
     console.log(`   - GET  http://localhost:${PORT}/auth/validate`);
     console.log(`   - GET  http://localhost:${PORT}/nfe/teste`);
     console.log(`   - GET  http://localhost:${PORT}/nfe/status`);
+    console.log(`   - GET  http://localhost:${PORT}/nfe/status-publico (sem auth)`);
     console.log(`   - GET  http://localhost:${PORT}/nfe/historico`);
     console.log(`   - POST http://localhost:${PORT}/nfe/emitir`);
     console.log(`   - GET  http://localhost:${PORT}/nfe/cancelar/:chave`);
@@ -130,8 +132,10 @@ async function iniciarServidor() {
     console.log(`   - GET  http://localhost:${PORT}/admin/health`);
     console.log(`   - GET  http://localhost:${PORT}/health`);
     console.log('');
-    console.log('✅ SISTEMA PRODUÇÃO: Certificado A1 configurado e ativo');
-    console.log('✅ NFe em modo PRODUÇÃO REAL - SEFAZ ativa');
+    const ambiente = process.env.AMBIENTE === "1" ? "PRODUÇÃO" : "HOMOLOGAÇÃO";
+    const simulacao = process.env.SIMULATION_MODE === 'true' ? " (SIMULAÇÃO)" : "";
+    console.log(`✅ SISTEMA ${ambiente}: Certificado A1 configurado e ativo`);
+    console.log(`✅ NFe em modo ${ambiente}${simulacao} - SEFAZ ativa`);
     console.log('');
     console.log('🔐 Login: admin@brandaocontador.com.br');
   });
@@ -160,20 +164,10 @@ const devOrigins = isDevEnv ? ['http://localhost:3000','http://localhost:3001','
 
 const corsOrigins = Array.from(new Set([...defaultCorsOrigins, ...corsOriginsEnv, ...devOrigins]));
 
-// Middleware para lidar com requisições OPTIONS (preflight)
+// Log de requisições CORS para debug
 app.use((req, res, next) => {
-  if (req.method === 'OPTIONS') {
-    const origin = req.headers.origin;
-    // Se a origem estiver na lista permitida, use-a, caso contrário, use localhost:3000 (dev)
-    const allowedOrigin = corsOrigins.includes(origin) ? origin : 'http://localhost:3000';
-    res.header('Access-Control-Allow-Origin', allowedOrigin);
-    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-Key');
-    res.header('Access-Control-Allow-Credentials', 'true');
-    res.header('Access-Control-Max-Age', '86400'); // 24 horas
-    res.header('Access-Control-Expose-Headers', 'Retry-After, RateLimit-Limit, RateLimit-Remaining, RateLimit-Reset');
-    return res.status(200).end();
-  }
+  const origin = req.headers.origin;
+  console.log(`🌐 CORS Request: ${req.method} ${req.url} from origin: ${origin}`);
   next();
 });
 
@@ -265,6 +259,55 @@ app.get('/nfe/status',
     } catch (error) {
       await logService.logErro('status', error, { ip: req.ip });
       res.status(500).json({ sucesso: false, erro: 'Erro ao obter status do sistema' });
+    }
+  }
+);
+
+// DEBUG: Status sem autenticação (temporário)
+app.get('/debug/status',
+  async (req, res) => {
+    try {
+      const status = await nfeService.verificarStatusSistema();
+      res.json({ sucesso: true, status });
+    } catch (error) {
+      res.status(500).json({ sucesso: false, erro: 'Erro ao obter status do sistema' });
+    }
+  }
+);
+
+// Status público da SEFAZ (sem autenticação) - para Dashboard
+app.get('/nfe/status-publico',
+  async (req, res) => {
+    try {
+      const status = await nfeService.verificarStatusSistema();
+      
+      // Retornar apenas informações básicas e não sensíveis
+      const statusPublico = {
+        sucesso: true,
+        status: {
+          sefaz: {
+            disponivel: status.sefaz?.disponivel || false,
+            ambiente: status.sefaz?.ambiente || 'Desconhecido',
+            simulacao: status.sefaz?.simulacao || false
+          },
+          certificado: {
+            carregado: status.certificado?.carregado || false,
+            valido: status.certificado?.valido || false
+          }
+        }
+      };
+      
+      res.json(statusPublico);
+    } catch (error) {
+      console.error('Erro ao obter status público:', error);
+      res.status(500).json({ 
+        sucesso: false, 
+        erro: 'Erro ao obter status do sistema',
+        status: {
+          sefaz: { disponivel: false, ambiente: 'Erro', simulacao: false },
+          certificado: { carregado: false, valido: false }
+        }
+      });
     }
   }
 );

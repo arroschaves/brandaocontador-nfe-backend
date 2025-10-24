@@ -799,6 +799,13 @@ class NFeService {
 
   async verificarStatusSefaz() {
     try {
+      // Em modo simulação, sempre retorna disponível
+      const simulacao = process.env.SIMULATION_MODE === 'true';
+      if (simulacao) {
+        console.log('🎭 Modo simulação ativo - SEFAZ considerada disponível');
+        return true;
+      }
+
       // Tentativa simples de inicializar cliente e checar WSDL
       const client = new SefazClient({
         certPath: this.CERT_PATH,

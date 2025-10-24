@@ -12,6 +12,32 @@ class SefazClient {
     this.timeout = timeout;
     this.pfxData = null;
     this.client = null;
+    this.caCerts = this.loadBrazilianCACerts();
+  }
+
+  // Carregar certificados da cadeia brasileira
+  loadBrazilianCACerts() {
+    const certs = [];
+    const certPaths = [
+      path.join(__dirname, '..', 'certs', 'Autoridade Certificadora Raiz Brasileira v10.cer'),
+      path.join(__dirname, '..', 'certs', 'cadeias_certificados_2024', 'AC SOLUTI SSL EV.cer'),
+      path.join(__dirname, '..', 'certs', 'cadeias_certificados_2024', 'AC_VALID_SSL_EV.cer'),
+      path.join(__dirname, '..', 'certs', 'cadeias_certificados_2024', 'Autoridade Certificadora Raiz Brasileira v10.cer')
+    ];
+
+    for (const certPath of certPaths) {
+      if (fs.existsSync(certPath)) {
+        try {
+          const cert = fs.readFileSync(certPath);
+          certs.push(cert);
+          console.log(`✓ Certificado CA brasileiro carregado: ${path.basename(certPath)}`);
+        } catch (error) {
+          console.log(`✗ Erro ao carregar certificado ${path.basename(certPath)}: ${error.message}`);
+        }
+      }
+    }
+
+    return certs;
   }
 
   getWsdlUrl() {
@@ -39,10 +65,12 @@ class SefazClient {
 
     const wsdlUrl = this.getWsdlUrl();
 
-    const wsdlOptions = {
+    // Tentar primeiro com SSL adequado usando certificados brasileiros
+    let wsdlOptions = {
       timeout: this.timeout,
-      strictSSL: false,
-      rejectUnauthorized: false,
+      strictSSL: true,
+      rejectUnauthorized: true,
+      ca: this.caCerts.length > 0 ? this.caCerts : undefined,
       secureProtocol: 'TLSv1_2_method',
       pfx: this.pfxData,
       passphrase: this.certPass,
@@ -53,14 +81,46 @@ class SefazClient {
       }
     };
 
-    this.client = await soap.createClientAsync(wsdlUrl, wsdlOptions);
+    try {
+      console.log(`🔐 Tentando conexão SSL segura com certificados brasileiros...`);
+      this.client = await soap.createClientAsync(wsdlUrl, wsdlOptions);
+      console.log(`✅ Conexão SSL segura estabelecida!`);
+    } catch (sslError) {
+      console.log(`⚠️ Falha SSL segura: ${sslError.message}`);
+      console.log(`🔄 Tentando fallback com SSL relaxado...`);
+      
+      // Fallback para SSL relaxado
+      wsdlOptions = {
+        timeout: this.timeout,
+        strictSSL: false,
+        rejectUnauthorized: false,
+        secureProtocol: 'TLSv1_2_method',
+        pfx: this.pfxData,
+        passphrase: this.certPass,
+        agent: false,
+        headers: {
+          Connection: 'close',
+          'User-Agent': 'NFe-Node-Client/1.0'
+        }
+      };
 
-    // SSL Security
-    const security = new soap.ClientSSLSecurity(this.pfxData, this.certPass, {
+      this.client = await soap.createClientAsync(wsdlUrl, wsdlOptions);
+      console.log(`⚠️ Conexão estabelecida com SSL relaxado (não recomendado para produção)`);
+    }
+
+    // SSL Security - usar configuração adequada se certificados brasileiros estão disponíveis
+    const securityOptions = this.caCerts.length > 0 ? {
+      strictSSL: true,
+      rejectUnauthorized: true,
+      ca: this.caCerts,
+      secureProtocol: 'TLSv1_2_method'
+    } : {
       strictSSL: false,
       rejectUnauthorized: false,
       secureProtocol: 'TLSv1_2_method'
-    });
+    };
+
+    const security = new soap.ClientSSLSecurity(this.pfxData, this.certPass, securityOptions);
     this.client.setSecurity(security);
 
     // Endpoint explícito

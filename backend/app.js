@@ -102,6 +102,18 @@ app.get('/nfe/status',
   }
 );
 
+// DEBUG: Status sem autenticação (temporário)
+app.get('/debug/status',
+  async (req, res) => {
+    try {
+      const status = await nfeService.verificarStatusSistema();
+      res.json({ sucesso: true, status });
+    } catch (error) {
+      res.status(500).json({ sucesso: false, erro: 'Erro ao obter status do sistema' });
+    }
+  }
+);
+
 // Histórico de NFes (simulação com paginação)
 app.get('/nfe/historico', 
   authMiddleware.verificarAutenticacao(),
