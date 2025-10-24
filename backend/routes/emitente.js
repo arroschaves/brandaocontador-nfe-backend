@@ -33,7 +33,9 @@ router.get('/config', authMiddleware.verificarAutenticacao(), async (req, res) =
 // Salvar configuração do emitente
 router.post('/config', authMiddleware.verificarAutenticacao(), async (req, res) => {
   try {
+    console.log('DEBUG - req.body:', JSON.stringify(req.body, null, 2));
     const { emitente } = req.body;
+    console.log('DEBUG - emitente:', JSON.stringify(emitente, null, 2));
     
     // Validações básicas
     if (!emitente) {
