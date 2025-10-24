@@ -1,13 +1,12 @@
 const express = require('express');
 const router = express.Router();
 const { authenticateToken } = require('../middleware/auth');
-const { DatabaseService } = require('../services/database-service');
+const DatabaseService = require('../config/database-simples');
 
 // Obter configuração do emitente
 router.get('/config', authenticateToken, async (req, res) => {
   try {
-    const db = new DatabaseService();
-    const config = await db.getConfiguration('emitente');
+    const config = await DatabaseService.getConfiguration('emitente');
     
     if (!config) {
       return res.json({
@@ -90,8 +89,7 @@ router.post('/config', authenticateToken, async (req, res) => {
       dataAtualizacao: new Date().toISOString()
     };
     
-    const db = new DatabaseService();
-    await db.setConfiguration('emitente', dadosEmitente);
+    await DatabaseService.setConfiguration('emitente', dadosEmitente);
     
     res.json({
       sucesso: true,
