@@ -37,6 +37,17 @@ class SefazClient {
       }
     }
 
+    // Adicionar certificados do sistema se disponíveis
+    try {
+      const systemCerts = require('tls').rootCertificates;
+      if (systemCerts && systemCerts.length > 0) {
+        systemCerts.forEach(cert => certs.push(Buffer.from(cert)));
+        console.log(`✓ ${systemCerts.length} certificados do sistema adicionados`);
+      }
+    } catch (error) {
+      console.log('⚠️ Não foi possível carregar certificados do sistema');
+    }
+
     return certs;
   }
 
@@ -65,8 +76,8 @@ class SefazClient {
 
     const wsdlUrl = this.getWsdlUrl();
 
-    // Tentar primeiro com SSL adequado usando certificados brasileiros
-    let wsdlOptions = {
+    // Configuração SSL robusta para produção
+    const wsdlOptions = {
       timeout: this.timeout,
       strictSSL: true,
       rejectUnauthorized: true,
@@ -78,47 +89,77 @@ class SefazClient {
       headers: {
         Connection: 'close',
         'User-Agent': 'NFe-Node-Client/1.0'
-      }
+      },
+      // Configurações adicionais para resolver problemas SSL
+      ciphers: 'ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-SHA256:ECDHE-RSA-AES256-SHA384',
+      honorCipherOrder: true,
+      secureOptions: require('constants').SSL_OP_NO_SSLv2 | require('constants').SSL_OP_NO_SSLv3
     };
 
+    let sslSuccess = false;
+    let lastError = null;
+
+    // Estratégia 1: SSL seguro com certificados brasileiros
     try {
       console.log(`🔐 Tentando conexão SSL segura com certificados brasileiros...`);
       this.client = await soap.createClientAsync(wsdlUrl, wsdlOptions);
       console.log(`✅ Conexão SSL segura estabelecida!`);
+      sslSuccess = true;
     } catch (sslError) {
       console.log(`⚠️ Falha SSL segura: ${sslError.message}`);
-      console.log(`🔄 Tentando fallback com SSL relaxado...`);
+      lastError = sslError;
       
-      // Fallback para SSL relaxado
-      wsdlOptions = {
-        timeout: this.timeout,
-        strictSSL: false,
-        rejectUnauthorized: false,
-        secureProtocol: 'TLSv1_2_method',
-        pfx: this.pfxData,
-        passphrase: this.certPass,
-        agent: false,
-        headers: {
-          Connection: 'close',
-          'User-Agent': 'NFe-Node-Client/1.0'
+      // Estratégia 2: SSL com certificados do sistema apenas
+      try {
+        console.log(`🔄 Tentando com certificados do sistema...`);
+        wsdlOptions.ca = undefined; // Usar certificados padrão do sistema
+        this.client = await soap.createClientAsync(wsdlUrl, wsdlOptions);
+        console.log(`✅ Conexão estabelecida com certificados do sistema!`);
+        sslSuccess = true;
+      } catch (systemError) {
+        console.log(`⚠️ Falha com certificados do sistema: ${systemError.message}`);
+        lastError = systemError;
+        
+        // Estratégia 3: SSL relaxado para produção (último recurso)
+        try {
+          console.log(`🔄 Tentando configuração SSL relaxada para produção...`);
+          wsdlOptions.strictSSL = false;
+          wsdlOptions.rejectUnauthorized = false;
+          delete wsdlOptions.ca; // Remover CA personalizado
+          
+          this.client = await soap.createClientAsync(wsdlUrl, wsdlOptions);
+          console.log(`⚠️ Conexão estabelecida com SSL relaxado (modo produção)`);
+          sslSuccess = true;
+        } catch (fallbackError) {
+          console.error(`❌ Falha total na conexão SSL: ${fallbackError.message}`);
+          lastError = fallbackError;
         }
-      };
-
-      this.client = await soap.createClientAsync(wsdlUrl, wsdlOptions);
-      console.log(`⚠️ Conexão estabelecida com SSL relaxado (não recomendado para produção)`);
+      }
     }
 
-    // SSL Security - usar configuração adequada se certificados brasileiros estão disponíveis
-    const securityOptions = this.caCerts.length > 0 ? {
-      strictSSL: true,
-      rejectUnauthorized: true,
-      ca: this.caCerts,
-      secureProtocol: 'TLSv1_2_method'
-    } : {
-      strictSSL: false,
-      rejectUnauthorized: false,
-      secureProtocol: 'TLSv1_2_method'
-    };
+    if (!sslSuccess) {
+      throw new Error(`Não foi possível estabelecer conexão SSL com SEFAZ: ${lastError.message}`);
+    }
+
+    // SSL Security - configurar baseado no sucesso da conexão
+    let securityOptions;
+    if (sslSuccess && wsdlOptions.strictSSL !== false) {
+      // Usar configuração segura se SSL funcionou
+      securityOptions = {
+        strictSSL: true,
+        rejectUnauthorized: true,
+        ca: this.caCerts.length > 0 ? this.caCerts : undefined,
+        secureProtocol: 'TLSv1_2_method',
+        ciphers: 'ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-SHA256:ECDHE-RSA-AES256-SHA384'
+      };
+    } else {
+      // Usar configuração relaxada se necessário
+      securityOptions = {
+        strictSSL: false,
+        rejectUnauthorized: false,
+        secureProtocol: 'TLSv1_2_method'
+      };
+    }
 
     const security = new soap.ClientSSLSecurity(this.pfxData, this.certPass, securityOptions);
     this.client.setSecurity(security);

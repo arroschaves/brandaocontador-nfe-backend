@@ -198,7 +198,7 @@ class NFeService {
     </ide>
     <emit>
       <CNPJ>${(this.CNPJ_EMITENTE || dados.emitente.cnpj || '').replace(/\D/g, '')}</CNPJ>
-      <xNome>${dados.emitente.razaoSocial || dados.emitente.nome || 'Brandão Contador LTDA'}</xNome>
+      <xNome>${dados.emitente.nome || dados.emitente.razaoSocial || 'Empresa Não Configurada'}</xNome>
       <enderEmit>
         <xLgr>${dados.emitente.endereco.logradouro}</xLgr>
         <nro>${dados.emitente.endereco.numero}</nro>

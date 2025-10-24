@@ -1,8 +1,8 @@
 {
   "emitente": {
-    "razaoSocial": "MAP LTDA",
-    "cnpj": "45.669.746/0001-20",
-    "inscricaoEstadual": "284691070",
+    "razaoSocial": "Empresa Teste LTDA",
+    "cnpj": "11.222.333/0001-81",
+    "inscricaoEstadual": "123456789012",
     "endereco": {
       "logradouro": "SANTA CATARINA",
       "numero": "1010",

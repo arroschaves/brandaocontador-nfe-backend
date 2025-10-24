@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste Login e Status SEFAZ</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .log { background: #f5f5f5; padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .success { color: green; }
+        .error { color: red; }
+        .info { color: blue; }
+        button { padding: 10px 20px; margin: 5px; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Teste Login e Status SEFAZ</h1>
+    
+    <div>
+        <button onclick="testLogin()">🔐 Testar Login</button>
+        <button onclick="testSefazStatus()">📊 Testar Status SEFAZ</button>
+        <button onclick="testFullFlow()">🚀 Teste Completo</button>
+        <button onclick="clearLogs()">🧹 Limpar Logs</button>
+    </div>
+    
+    <div id="logs"></div>
+
+    <script>
+        const API_BASE_URL = 'http://localhost:3001';
+        let authToken = null;
+        
+        function log(message, type = 'info') {
+            const logsDiv = document.getElementById('logs');
+            const logEntry = document.createElement('div');
+            logEntry.className = `log ${type}`;
+            logEntry.innerHTML = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logsDiv.appendChild(logEntry);
+            logsDiv.scrollTop = logsDiv.scrollHeight;
+            console.log(message);
+        }
+        
+        function clearLogs() {
+            document.getElementById('logs').innerHTML = '';
+        }
+        
+        async function testLogin() {
+            try {
+                log('🔐 Tentando fazer login...', 'info');
+                
+                const response = await fetch(`${API_BASE_URL}/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email: 'admin@brandaocontador.com.br',
+                        senha: 'adminpassword'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.sucesso) {
+                    authToken = data.token;
+                    log(`✅ Login realizado com sucesso! Token: ${authToken.substring(0, 20)}...`, 'success');
+                    log(`👤 Usuário: ${data.usuario.email}`, 'success');
+                    return authToken;
+                } else {
+                    log(`❌ Erro no login: ${data.erro} (${data.codigo})`, 'error');
+                    return null;
+                }
+            } catch (error) {
+                log(`💥 Exceção no login: ${error.message}`, 'error');
+                return null;
+            }
+        }
+        
+        async function testSefazStatus() {
+            if (!authToken) {
+                log('⚠️ Token não encontrado. Fazendo login primeiro...', 'info');
+                const token = await testLogin();
+                if (!token) {
+                    log('❌ Não foi possível fazer login. Abortando teste de status.', 'error');
+                    return;
+                }
+            }
+            
+            try {
+                log('📊 Verificando status da SEFAZ...', 'info');
+                
+                const response = await fetch(`${API_BASE_URL}/nfe/status`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.sucesso) {
+                    log('✅ Status obtido com sucesso!', 'success');
+                    log(`📄 Resposta completa: ${JSON.stringify(data, null, 2)}`, 'info');
+                    
+                    const status = data.status;
+                    if (status) {
+                        log('🔍 Analisando status...', 'info');
+                        
+                        // Certificado
+                        if (status.certificado) {
+                            log(`📜 Certificado - Carregado: ${status.certificado.carregado ? '✅' : '❌'}, Válido: ${status.certificado.valido ? '✅' : '❌'}`, 'info');
+                        }
+                        
+                        // SEFAZ
+                        if (status.sefaz) {
+                            const sefazStatus = status.sefaz.disponivel ? '🟢 ONLINE' : '🔴 OFFLINE';
+                            log(`🏛️ SEFAZ: ${sefazStatus}`, status.sefaz.disponivel ? 'success' : 'error');
+                            log(`🌍 Ambiente: ${status.sefaz.ambiente}`, 'info');
+                            log(`📍 UF: ${status.sefaz.uf}`, 'info');
+                            log(`🧪 Simulação: ${status.sefaz.simulacao ? '✅' : '❌'}`, 'info');
+                            
+                            if (status.sefaz.disponivel) {
+                                log('🎉 SEFAZ está funcionando corretamente!', 'success');
+                            } else {
+                                log('⚠️ SEFAZ está offline ou com problemas!', 'error');
+                            }
+                        }
+                        
+                        // Diretórios
+                        if (status.diretorios) {
+                            log(`📁 Diretórios - XMLs: ${status.diretorios.xmls ? '✅' : '❌'}, Enviadas: ${status.diretorios.enviadas ? '✅' : '❌'}, Falhas: ${status.diretorios.falhas ? '✅' : '❌'}`, 'info');
+                        }
+                    }
+                } else {
+                    log(`❌ Erro ao obter status: ${data.erro}`, 'error');
+                }
+            } catch (error) {
+                log(`💥 Exceção ao verificar status: ${error.message}`, 'error');
+            }
+        }
+        
+        async function testFullFlow() {
+            log('🚀 Iniciando teste completo...', 'info');
+            log('=' .repeat(50), 'info');
+            
+            // 1. Login
+            const token = await testLogin();
+            if (!token) {
+                log('❌ Teste completo falhou no login.', 'error');
+                return;
+            }
+            
+            // 2. Status
+            await testSefazStatus();
+            
+            log('=' .repeat(50), 'info');
+            log('✅ Teste completo finalizado!', 'success');
+        }
+        
+        // Auto-executar teste completo ao carregar a página
+        window.onload = function() {
+            log('🌐 Página carregada. Aguardando ação do usuário...', 'info');
+        };
+    </script>
+</body>
+</html>
