@@ -1,10 +1,10 @@
 const express = require('express');
 const router = express.Router();
-const { authenticateToken } = require('../middleware/auth');
+const authMiddleware = require('../middleware/auth');
 const DatabaseService = require('../config/database-simples');
 
 // Obter configuração do emitente
-router.get('/config', authenticateToken, async (req, res) => {
+router.get('/config', authMiddleware.verificarAutenticacao(), async (req, res) => {
   try {
     const config = await DatabaseService.getConfiguration('emitente');
     
@@ -31,7 +31,7 @@ router.get('/config', authenticateToken, async (req, res) => {
 });
 
 // Salvar configuração do emitente
-router.post('/config', authenticateToken, async (req, res) => {
+router.post('/config', authMiddleware.verificarAutenticacao(), async (req, res) => {
   try {
     const { emitente } = req.body;
     
