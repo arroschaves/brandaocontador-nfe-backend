@@ -322,6 +322,20 @@ class DatabaseService {
     this.saveData();
     return this.data.configuracoes;
   }
+
+  // Métodos específicos para configurações por chave
+  async getConfiguration(chave) {
+    return this.data.configuracoes[chave] || null;
+  }
+
+  async setConfiguration(chave, valor) {
+    this.data.configuracoes[chave] = {
+      ...valor,
+      atualizadoEm: new Date().toISOString()
+    };
+    this.saveData();
+    return this.data.configuracoes[chave];
+  }
 }
 
 // Exportar instância única
