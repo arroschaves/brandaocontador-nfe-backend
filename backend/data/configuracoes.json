@@ -1,0 +1,13 @@
+{
+  "sistema": {
+    "versao": "1.0.0",
+    "ambiente": "production",
+    "inicializado": "2025-01-20T00:00:00.000Z"
+  },
+  "nfe": {
+    "ambiente": "producao",
+    "uf": "SP",
+    "serie": 1,
+    "numeroInicial": 1
+  }
+}

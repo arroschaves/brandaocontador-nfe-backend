@@ -3,7 +3,7 @@
     "id": 1,
     "nome": "Administrador",
     "email": "admin@brandaocontador.com.br",
-    "senha": "$2b$10$0l1AkMt11PpexMlTWitfzOoLcOJAGCREnh7WzdaAaYK0zeOcY0cra",
+    "senha": "$2b$10$dBV3nL6T/NOz.I9wsK066uBvlSYqTaBY63idFUDsJ7fouNIx4NeFK",
     "tipoCliente": "cnpj",
     "documento": "12345678000199",
     "telefone": "(11) 4000-0000",
@@ -25,7 +25,7 @@
       "nfe_consultar"
     ],
     "ativo": true,
-    "dataCriacao": "2025-10-26T03:13:08.764Z",
-    "dataAtualizacao": "2025-10-26T03:13:08.764Z"
+    "dataCriacao": "2025-10-26T03:18:42.993Z",
+    "dataAtualizacao": "2025-10-26T03:18:42.993Z"
   }
 ]

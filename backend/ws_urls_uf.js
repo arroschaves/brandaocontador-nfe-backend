@@ -1,115 +1,210 @@
-// ws_urls_uf.js
-module.exports = {
+/**
+ * URLs dos WebServices SEFAZ NFe 4.0 - Produção e Homologação
+ * Atualizado conforme legislação vigente 2024/2025
+ * Ambiente: 1=Produção, 2=Homologação
+ */
+
+const WEBSERVICES_NFE_4_0 = {
+    // Acre
     'AC': {
-        '1': 'https://nfe.sefaz.ac.gov.br/ws/NFeAutorizacao4.asmx?wsdl',
-        '2': 'https://hom.nfe.sefaz.ac.gov.br/ws/NFeAutorizacao4.asmx?wsdl'
+        autorizacao: {
+            '1': 'https://nfe.sefaz.ac.gov.br/ws/NFeAutorizacao4',
+            '2': 'https://hom.nfe.sefaz.ac.gov.br/ws/NFeAutorizacao4'
+        },
+        retAutorizacao: {
+            '1': 'https://nfe.sefaz.ac.gov.br/ws/NFeRetAutorizacao4',
+            '2': 'https://hom.nfe.sefaz.ac.gov.br/ws/NFeRetAutorizacao4'
+        },
+        consultaProtocolo: {
+            '1': 'https://nfe.sefaz.ac.gov.br/ws/NFeConsultaProtocolo4',
+            '2': 'https://hom.nfe.sefaz.ac.gov.br/ws/NFeConsultaProtocolo4'
+        },
+        statusServico: {
+            '1': 'https://nfe.sefaz.ac.gov.br/ws/NFeStatusServico4',
+            '2': 'https://hom.nfe.sefaz.ac.gov.br/ws/NFeStatusServico4'
+        },
+        recepcaoEvento: {
+            '1': 'https://nfe.sefaz.ac.gov.br/ws/NFeRecepcaoEvento4',
+            '2': 'https://hom.nfe.sefaz.ac.gov.br/ws/NFeRecepcaoEvento4'
+        },
+        inutilizacao: {
+            '1': 'https://nfe.sefaz.ac.gov.br/ws/NFeInutilizacao4',
+            '2': 'https://hom.nfe.sefaz.ac.gov.br/ws/NFeInutilizacao4'
+        },
+        consultaCadastro: {
+            '1': 'https://nfe.sefaz.ac.gov.br/ws/CadConsultaCadastro4',
+            '2': 'https://hom.nfe.sefaz.ac.gov.br/ws/CadConsultaCadastro4'
+        }
     },
-    'AL': {
-        '1': 'https://nfe.sefaz.al.gov.br/ws/NFeAutorizacao4.asmx?wsdl',
-        '2': 'https://hom.nfe.sefaz.al.gov.br/ws/NFeAutorizacao4.asmx?wsdl'
-    },
-    'AP': {
-        '1': 'https://nfe.sefaz.ap.gov.br/ws/NFeAutorizacao4.asmx?wsdl',
-        '2': 'https://hom.nfe.sefaz.ap.gov.br/ws/NFeAutorizacao4.asmx?wsdl'
-    },
-    'AM': {
-        '1': 'https://nfe.sefaz.am.gov.br/ws/NFeAutorizacao4.asmx?wsdl',
-        '2': 'https://hom.nfe.sefaz.am.gov.br/ws/NFeAutorizacao4.asmx?wsdl'
-    },
-    'BA': {
-        '1': 'https://nfe.sefaz.ba.gov.br/ws/NFeAutorizacao4.asmx?wsdl',
-        '2': 'https://hom.nfe.sefaz.ba.gov.br/ws/NFeAutorizacao4.asmx?wsdl'
-    },
-    'CE': {
-        '1': 'https://nfe.sefaz.ce.gov.br/ws/NFeAutorizacao4.asmx?wsdl',
-        '2': 'https://hom.nfe.sefaz.ce.gov.br/ws/NFeAutorizacao4.asmx?wsdl'
-    },
-    'DF': {
-        '1': 'https://nfe.sefaz.df.gov.br/ws/NFeAutorizacao4.asmx?wsdl',
-        '2': 'https://hom.nfe.sefaz.df.gov.br/ws/NFeAutorizacao4.asmx?wsdl'
-    },
-    'ES': {
-        '1': 'https://nfe.sefaz.es.gov.br/ws/NFeAutorizacao4.asmx?wsdl',
-        '2': 'https://hom.nfe.sefaz.es.gov.br/ws/NFeAutorizacao4.asmx?wsdl'
-    },
-    'GO': {
-        '1': 'https://nfe.sefaz.go.gov.br/ws/NFeAutorizacao4.asmx?wsdl',
-        '2': 'https://hom.nfe.sefaz.go.gov.br/ws/NFeAutorizacao4.asmx?wsdl'
-    },
-    'MA': {
-        '1': 'https://nfe.sefaz.ma.gov.br/ws/NFeAutorizacao4.asmx?wsdl',
-        '2': 'https://hom.nfe.sefaz.ma.gov.br/ws/NFeAutorizacao4.asmx?wsdl'
-    },
-    'MT': {
-        '1': 'https://nfe.sefaz.mt.gov.br/ws/NFeAutorizacao4.asmx?wsdl',
-        '2': 'https://hom.nfe.sefaz.mt.gov.br/ws/NFeAutorizacao4.asmx?wsdl'
-    },
+
+    // Mato Grosso do Sul - URLs oficiais conforme SEFAZ/MS
     'MS': {
-        '1': 'https://nfe.fazenda.ms.gov.br/ws/NFeAutorizacao4?wsdl',
-        '2': 'https://homologacao.nfe.ms.gov.br/ws/NFeAutorizacao4?wsdl'
+        autorizacao: {
+            '1': 'https://nfe.sefaz.ms.gov.br/ws/NFeAutorizacao4',
+            '2': 'https://hom.nfe.sefaz.ms.gov.br/ws/NFeAutorizacao4'
+        },
+        retAutorizacao: {
+            '1': 'https://nfe.sefaz.ms.gov.br/ws/NFeRetAutorizacao4',
+            '2': 'https://hom.nfe.sefaz.ms.gov.br/ws/NFeRetAutorizacao4'
+        },
+        consultaProtocolo: {
+            '1': 'https://nfe.sefaz.ms.gov.br/ws/NFeConsultaProtocolo4',
+            '2': 'https://hom.nfe.sefaz.ms.gov.br/ws/NFeConsultaProtocolo4'
+        },
+        statusServico: {
+            '1': 'https://nfe.sefaz.ms.gov.br/ws/NFeStatusServico4',
+            '2': 'https://hom.nfe.sefaz.ms.gov.br/ws/NFeStatusServico4'
+        },
+        recepcaoEvento: {
+            '1': 'https://nfe.sefaz.ms.gov.br/ws/NFeRecepcaoEvento4',
+            '2': 'https://hom.nfe.sefaz.ms.gov.br/ws/NFeRecepcaoEvento4'
+        },
+        inutilizacao: {
+            '1': 'https://nfe.sefaz.ms.gov.br/ws/NFeInutilizacao4',
+            '2': 'https://hom.nfe.sefaz.ms.gov.br/ws/NFeInutilizacao4'
+        },
+        consultaCadastro: {
+            '1': 'https://nfe.sefaz.ms.gov.br/ws/CadConsultaCadastro4',
+            '2': 'https://hom.nfe.sefaz.ms.gov.br/ws/CadConsultaCadastro4'
+        }
     },
-    'MG': {
-        '1': 'https://nfe.fazenda.mg.gov.br/nfe2/services/NFeAutorizacao4',
-        '2': 'https://hom.nfe.fazenda.mg.gov.br/nfe2/services/NFeAutorizacao4'
-    },
-    'PA': {
-        '1': 'https://nfe.sefaz.pa.gov.br/ws/NFeAutorizacao4.asmx?wsdl',
-        '2': 'https://hom.nfe.sefaz.pa.gov.br/ws/NFeAutorizacao4.asmx?wsdl'
-    },
-    'PB': {
-        '1': 'https://nfe.sefaz.pb.gov.br/ws/NFeAutorizacao4.asmx?wsdl',
-        '2': 'https://hom.nfe.sefaz.pb.gov.br/ws/NFeAutorizacao4.asmx?wsdl'
-    },
-    'PR': {
-        '1': 'https://nfe.fazenda.pr.gov.br/nfe/NFeAutorizacao4.asmx?wsdl',
-        '2': 'https://hom.nfe.fazenda.pr.gov.br/nfe/NFeAutorizacao4.asmx?wsdl'
-    },
+
+    // Pernambuco - URLs oficiais conforme SEFAZ/PE
     'PE': {
-        '1': 'https://nfe.sefaz.pe.gov.br/ws/NFeAutorizacao4.asmx?wsdl',
-        '2': 'https://hom.nfe.sefaz.pe.gov.br/ws/NFeAutorizacao4.asmx?wsdl'
+        autorizacao: {
+            '1': 'https://nfe.sefaz.pe.gov.br/nfe-service/services/NFeAutorizacao4',
+            '2': 'https://nfehomolog.sefaz.pe.gov.br/nfe-service/services/NFeAutorizacao4'
+        },
+        retAutorizacao: {
+            '1': 'https://nfe.sefaz.pe.gov.br/nfe-service/services/NFeRetAutorizacao4',
+            '2': 'https://nfehomolog.sefaz.pe.gov.br/nfe-service/services/NFeRetAutorizacao4'
+        },
+        consultaProtocolo: {
+            '1': 'https://nfe.sefaz.pe.gov.br/nfe-service/services/NFeConsultaProtocolo4',
+            '2': 'https://nfehomolog.sefaz.pe.gov.br/nfe-service/services/NFeConsultaProtocolo4'
+        },
+        statusServico: {
+            '1': 'https://nfe.sefaz.pe.gov.br/nfe-service/services/NFeStatusServico4',
+            '2': 'https://nfehomolog.sefaz.pe.gov.br/nfe-service/services/NFeStatusServico4'
+        },
+        recepcaoEvento: {
+            '1': 'https://nfe.sefaz.pe.gov.br/nfe-service/services/NFeRecepcaoEvento4',
+            '2': 'https://nfehomolog.sefaz.pe.gov.br/nfe-service/services/NFeRecepcaoEvento4'
+        },
+        inutilizacao: {
+            '1': 'https://nfe.sefaz.pe.gov.br/nfe-service/services/NFeInutilizacao4',
+            '2': 'https://nfehomolog.sefaz.pe.gov.br/nfe-service/services/NFeInutilizacao4'
+        },
+        consultaCadastro: {
+            '1': 'https://nfe.sefaz.pe.gov.br/nfe-service/services/CadConsultaCadastro4',
+            '2': 'https://nfehomolog.sefaz.pe.gov.br/nfe-service/services/CadConsultaCadastro4'
+        }
     },
-    'PI': {
-        '1': 'https://nfe.sefaz.pi.gov.br/ws/NFeAutorizacao4.asmx?wsdl',
-        '2': 'https://hom.nfe.sefaz.pi.gov.br/ws/NFeAutorizacao4.asmx?wsdl'
-    },
-    'RJ': {
-        '1': 'https://nfe.fazenda.rj.gov.br/NFE/NFeAutorizacao4.asmx',
-        '2': 'https://hom.nfe.fazenda.rj.gov.br/NFE/NFeAutorizacao4.asmx'
-    },
-    'RN': {
-        '1': 'https://nfe.sefaz.rn.gov.br/ws/NFeAutorizacao4.asmx?wsdl',
-        '2': 'https://hom.nfe.sefaz.rn.gov.br/ws/NFeAutorizacao4.asmx?wsdl'
-    },
-    'RS': {
-        '1': 'https://nfe.sefaz.rs.gov.br/ws/NFeAutorizacao4.asmx?wsdl',
-        '2': 'https://hom.nfe.sefaz.rs.gov.br/ws/NFeAutorizacao4.asmx?wsdl'
-    },
-    'RO': {
-        '1': 'https://nfe.sefaz.ro.gov.br/ws/NFeAutorizacao4.asmx?wsdl',
-        '2': 'https://hom.nfe.sefaz.ro.gov.br/ws/NFeAutorizacao4.asmx?wsdl'
-    },
-    'RR': {
-        '1': 'https://nfe.sefaz.rr.gov.br/ws/NFeAutorizacao4.asmx?wsdl',
-        '2': 'https://hom.nfe.sefaz.rr.gov.br/ws/NFeAutorizacao4.asmx?wsdl'
-    },
-    'SC': {
-        '1': 'https://nfe.sef.sc.gov.br/ws/NFeAutorizacao4.asmx?wsdl',
-        '2': 'https://hom.nfe.sef.sc.gov.br/ws/NFeAutorizacao4.asmx?wsdl'
-    },
+
+    // São Paulo
     'SP': {
-        '1': 'https://nfe.fazenda.sp.gov.br/ws/nfeautorizacao4.asmx?wsdl',
-        '2': 'https://homologacao.nfe.fazenda.sp.gov.br/ws/nfeautorizacao4.asmx?wsdl'
+        autorizacao: {
+            '1': 'https://nfe.fazenda.sp.gov.br/ws/nfeautorizacao4.asmx',
+            '2': 'https://homologacao.nfe.fazenda.sp.gov.br/ws/nfeautorizacao4.asmx'
+        },
+        retAutorizacao: {
+            '1': 'https://nfe.fazenda.sp.gov.br/ws/nferetautorizacao4.asmx',
+            '2': 'https://homologacao.nfe.fazenda.sp.gov.br/ws/nferetautorizacao4.asmx'
+        },
+        consultaProtocolo: {
+            '1': 'https://nfe.fazenda.sp.gov.br/ws/nfeconsultaprotocolo4.asmx',
+            '2': 'https://homologacao.nfe.fazenda.sp.gov.br/ws/nfeconsultaprotocolo4.asmx'
+        },
+        statusServico: {
+            '1': 'https://nfe.fazenda.sp.gov.br/ws/nfestatusservico4.asmx',
+            '2': 'https://homologacao.nfe.fazenda.sp.gov.br/ws/nfestatusservico4.asmx'
+        },
+        recepcaoEvento: {
+            '1': 'https://nfe.fazenda.sp.gov.br/ws/nferecepcaoevento4.asmx',
+            '2': 'https://homologacao.nfe.fazenda.sp.gov.br/ws/nferecepcaoevento4.asmx'
+        },
+        inutilizacao: {
+            '1': 'https://nfe.fazenda.sp.gov.br/ws/nfeinutilizacao4.asmx',
+            '2': 'https://homologacao.nfe.fazenda.sp.gov.br/ws/nfeinutilizacao4.asmx'
+        },
+        consultaCadastro: {
+            '1': 'https://nfe.fazenda.sp.gov.br/ws/cadconsultacadastro4.asmx',
+            '2': 'https://homologacao.nfe.fazenda.sp.gov.br/ws/cadconsultacadastro4.asmx'
+        }
     },
-    'SE': {
-        '1': 'https://nfe.sefaz.se.gov.br/ws/NFeAutorizacao4.asmx?wsdl',
-        '2': 'https://hom.nfe.sefaz.se.gov.br/ws/NFeAutorizacao4.asmx?wsdl'
-    },
-    'TO': {
-        '1': 'https://nfe.sefaz.to.gov.br/ws/NFeAutorizacao4.asmx?wsdl',
-        '2': 'https://hom.nfe.sefaz.to.gov.br/ws/NFeAutorizacao4.asmx?wsdl'
-    },
+
+    // SVRS - Sistema Virtual da Receita Estadual (para estados que usam o sistema compartilhado)
     'SVRS': {
-        '1': 'https://nfe.svrs.rs.gov.br/ws/NfeAutorizacao/NFeAutorizacao4.asmx?wsdl',
-        '2': 'https://nfe-homologacao.svrs.rs.gov.br/ws/NfeAutorizacao/NFeAutorizacao4.asmx?wsdl'
+        autorizacao: {
+            '1': 'https://nfe.svrs.rs.gov.br/ws/NfeAutorizacao/NFeAutorizacao4.asmx',
+            '2': 'https://nfe-homologacao.svrs.rs.gov.br/ws/NfeAutorizacao/NFeAutorizacao4.asmx'
+        },
+        retAutorizacao: {
+            '1': 'https://nfe.svrs.rs.gov.br/ws/NfeRetAutorizacao/NFeRetAutorizacao4.asmx',
+            '2': 'https://nfe-homologacao.svrs.rs.gov.br/ws/NfeRetAutorizacao/NFeRetAutorizacao4.asmx'
+        },
+        consultaProtocolo: {
+            '1': 'https://nfe.svrs.rs.gov.br/ws/NfeConsulta/NfeConsulta4.asmx',
+            '2': 'https://nfe-homologacao.svrs.rs.gov.br/ws/NfeConsulta/NfeConsulta4.asmx'
+        },
+        statusServico: {
+            '1': 'https://nfe.svrs.rs.gov.br/ws/NfeStatusServico/NfeStatusServico4.asmx',
+            '2': 'https://nfe-homologacao.svrs.rs.gov.br/ws/NfeStatusServico/NfeStatusServico4.asmx'
+        },
+        recepcaoEvento: {
+            '1': 'https://nfe.svrs.rs.gov.br/ws/recepcaoevento/recepcaoevento4.asmx',
+            '2': 'https://nfe-homologacao.svrs.rs.gov.br/ws/recepcaoevento/recepcaoevento4.asmx'
+        },
+        inutilizacao: {
+            '1': 'https://nfe.svrs.rs.gov.br/ws/nfeinutilizacao/nfeinutilizacao4.asmx',
+            '2': 'https://nfe-homologacao.svrs.rs.gov.br/ws/nfeinutilizacao/nfeinutilizacao4.asmx'
+        },
+        consultaCadastro: {
+            '1': 'https://nfe.svrs.rs.gov.br/ws/cadconsultacadastro/cadconsultacadastro4.asmx',
+            '2': 'https://nfe-homologacao.svrs.rs.gov.br/ws/cadconsultacadastro/cadconsultacadastro4.asmx'
+        }
     }
+};
+
+/**
+ * Função para obter URL do webservice por UF, ambiente e serviço
+ * @param {string} uf - Sigla da UF
+ * @param {string} ambiente - '1' para produção, '2' para homologação
+ * @param {string} servico - Tipo de serviço (autorizacao, retAutorizacao, etc.)
+ * @returns {string} URL do webservice
+ */
+function getWebServiceUrl(uf, ambiente, servico = 'autorizacao') {
+    // Estados que usam SVRS
+    const estadosSVRS = ['AL', 'AP', 'DF', 'ES', 'PB', 'RJ', 'RN', 'RO', 'RR', 'SC', 'SE', 'TO'];
+    
+    if (estadosSVRS.includes(uf)) {
+        return WEBSERVICES_NFE_4_0.SVRS[servico]?.[ambiente];
+    }
+    
+    return WEBSERVICES_NFE_4_0[uf]?.[servico]?.[ambiente];
+}
+
+/**
+ * Função para verificar se a UF está online (status do serviço)
+ * @param {string} uf - Sigla da UF
+ * @param {string} ambiente - '1' para produção, '2' para homologação
+ * @returns {string} URL do serviço de status
+ */
+function getStatusServiceUrl(uf, ambiente) {
+    return getWebServiceUrl(uf, ambiente, 'statusServico');
+}
+
+module.exports = {
+    WEBSERVICES_NFE_4_0,
+    getWebServiceUrl,
+    getStatusServiceUrl,
+    
+    // Compatibilidade com versão anterior
+    ...Object.keys(WEBSERVICES_NFE_4_0).reduce((acc, uf) => {
+        acc[uf] = {
+            '1': WEBSERVICES_NFE_4_0[uf].autorizacao?.['1'],
+            '2': WEBSERVICES_NFE_4_0[uf].autorizacao?.['2']
+        };
+        return acc;
+    }, {})
 };

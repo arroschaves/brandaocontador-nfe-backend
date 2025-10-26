@@ -59,13 +59,13 @@ async function limparSeletivo() {
         razaoSocial: 'Empresa Admin LTDA',
         nomeFantasia: 'Admin LTDA',
         endereco: {
-          cep: '01001-000',
-          logradouro: 'Rua Exemplo',
-          numero: '100',
-          complemento: '',
-          bairro: 'Centro',
-          cidade: 'São Paulo',
-          uf: 'SP'
+          cep: process.env.SEED_ADMIN_CEP || '01001-000',
+          logradouro: process.env.SEED_ADMIN_LOGRADOURO || 'Rua Principal',
+          numero: process.env.SEED_ADMIN_NUMERO || '100',
+          complemento: process.env.SEED_ADMIN_COMPLEMENTO || '',
+          bairro: process.env.SEED_ADMIN_BAIRRO || 'Centro',
+          cidade: process.env.SEED_ADMIN_CIDADE || 'São Paulo',
+          uf: process.env.SEED_ADMIN_UF || 'SP'
         },
         permissoes: ['admin', 'admin_total', 'nfe_consultar', 'nfe_emitir'],
         ativo: true,

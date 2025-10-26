@@ -1,0 +1,16 @@
+node_modules/
+dist/
+build/
+coverage/
+*.min.js
+*.bundle.js
+public/
+uploads/
+logs/
+temp/
+.env*
+.git/
+.nyc_output/
+package-lock.json
+yarn.lock
+CHANGELOG.md

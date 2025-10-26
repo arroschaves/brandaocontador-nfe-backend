@@ -1,7 +1,7 @@
 const fs = require("fs");
 const forge = require("node-forge");
 const { SignedXml } = require("xml-crypto");
-const { DOMParser } = require("xmldom");
+const { DOMParser } = require("@xmldom/xmldom");
 
 // Carrega PFX e extrai chave privada e certificado
 function carregarCertificado(pfxPath, senha) {

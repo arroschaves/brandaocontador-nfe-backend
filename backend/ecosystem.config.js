@@ -1,34 +1,18 @@
 module.exports = {
   apps: [
     {
-      name: "nfe-service",
+      name: "brandaocontador-nfe-backend",
       script: "./app-real.js",
+      cwd: "/var/www/brandaocontador-nfe-backend",
+      instances: 1,
+      exec_mode: "fork",
+      watch: false,
+      env_file: ".env",
       env: {
-        NODE_ENV: "production",
-        PORT: "3001",
-        UF: "MS",
-        AMBIENTE: "1",
-        CNPJ_EMITENTE: "45669746000120",
-        JWT_SECRET: "prod-secret-key-brandao-contador-nfe-2024",
-        SIMULATION_MODE: "false",
-        XML_SECURITY_VALIDATE: "true"
-      }
-    },
-    {
-      name: "nfe-service-simple",
-      script: "./app-simples.js",
-      env: {
-        NODE_ENV: "production",
-        MODE: "simple",
-        PORT: "3002",
-        UF: "MS",
-        AMBIENTE: "1",
-        CNPJ_EMITENTE: "45669746000120",
-        JWT_SECRET: "prod-secret-key-brandao-contador-nfe-2024",
-        CERT_PATH: "e\\\\PROJETOS\\\\brandaocontador-nfe\\\\backend\\\\certs\\\\teste-a1.pfx",
-        CERT_PASS: "1234",
-        SIMULATION_MODE: "false",
-        XML_SECURITY_VALIDATE: "true"
+        NODE_ENV: "development",
+        SIMULATION_MODE: "true",
+        PORT: 3001,
+        CERT_PASSWORD: "1234"
       }
     }
   ]

@@ -199,6 +199,10 @@ if (process.env.NODE_ENV !== 'production') {
   );
 }
 
+// ==================== ROTAS DO EMITENTE ====================
+const emitenteRoutes = require('./backend/routes/emitente');
+app.use('/emitente', emitenteRoutes);
+
 // ==================== ENDPOINTS NFE ====================
 
 
