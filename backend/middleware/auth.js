@@ -1,672 +1,680 @@
-const jwt = require('jsonwebtoken');
-const logService = require('../services/log-service');
+// ==================== MIDDLEWARE DE AUTENTICAÇÃO CONSOLIDADO ====================
+// Combina funcionalidades de auth.js, auth-real.js e auth-simples.js
+// Auto-detecção de ambiente: MongoDB (produção) ou Arquivo JSON (desenvolvimento)
 
+const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
+const rateLimit = require('express-rate-limit');
+
+// Auto-detecção de ambiente
+const NODE_ENV = process.env.NODE_ENV || 'development';
+const USE_MONGODB = process.env.USE_MONGODB !== 'false' && NODE_ENV !== 'test';
+
+// Imports consolidados
+let Usuario;
+const database = require('../config/database');
+
+// Carregar modelo apenas se usando MongoDB
+if (USE_MONGODB) {
+  Usuario = require('../models/Usuario');
+}
+
+// Configurações JWT
+const JWT_SECRET = process.env.JWT_SECRET || 'nfe-secret-key-brandao-contador-2024';
+const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
+
+// Rate limiting para autenticação
+const authRateLimit = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutos
+  max: 5, // máximo 5 tentativas por IP
+  message: {
+    sucesso: false,
+    erro: 'Muitas tentativas de login. Tente novamente em 15 minutos.',
+    codigo: 'RATE_LIMIT_EXCEEDED'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) => {
+    // Pular rate limiting em desenvolvimento se especificado
+    return process.env.SKIP_AUTH_RATE_LIMIT === 'true';
+  }
+});
+
+// ==================== CLASSE PRINCIPAL ====================
 class AuthMiddleware {
   constructor() {
-    this.JWT_SECRET = process.env.JWT_SECRET || 'nfe-secret-key-change-in-production';
-    this.JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
-    this.API_KEYS = this.carregarApiKeys();
-    this.usuariosCriados = new Map(); // Armazenamento em memória para usuários criados
+    this.apiKeys = new Set();
+    this.blacklistedTokens = new Set();
+    
+    // Gerar API keys padrão em desenvolvimento
+    if (NODE_ENV === 'development') {
+      this.apiKeys.add('nfe-dev-key-2024');
+      this.apiKeys.add('nfe-admin-key-2024');
+    }
   }
 
-  carregarApiKeys() {
-    // API Keys para autenticação simples (ambiente de desenvolvimento)
-    const apiKeys = process.env.API_KEYS ? process.env.API_KEYS.split(',') : [];
-    
-    // Adiciona uma chave padrão para desenvolvimento se não houver nenhuma
-    if (apiKeys.length === 0) {
-      apiKeys.push('nfe-dev-key-123456');
+  // ==================== MÉTODOS DE AUTENTICAÇÃO ====================
+
+  /**
+   * Login de usuário
+   */
+  async login(req, res) {
+    try {
+      const { email, senha, apiKey } = req.body;
+
+      // Autenticação por API Key
+      if (apiKey) {
+        return this.loginComApiKey(req, res, apiKey);
+      }
+
+      // Validação de entrada
+      if (!email || !senha) {
+        return res.status(400).json({
+          sucesso: false,
+          erro: 'Email e senha são obrigatórios',
+          codigo: 'DADOS_OBRIGATORIOS'
+        });
+      }
+
+      // Buscar usuário
+      let usuario;
+      if (USE_MONGODB) {
+        usuario = await Usuario.findOne({ email: email.toLowerCase() });
+      } else {
+        usuario = await database.buscarUsuarioPorEmail(email.toLowerCase());
+      }
+
+      if (!usuario) {
+        return res.status(401).json({
+          sucesso: false,
+          erro: 'Credenciais inválidas',
+          codigo: 'CREDENCIAIS_INVALIDAS'
+        });
+      }
+
+      // Verificar senha
+      const senhaValida = await bcrypt.compare(senha, usuario.senha);
+      if (!senhaValida) {
+        return res.status(401).json({
+          sucesso: false,
+          erro: 'Credenciais inválidas',
+          codigo: 'CREDENCIAIS_INVALIDAS'
+        });
+      }
+
+      // Verificar se usuário está ativo
+      if (usuario.ativo === false || usuario.status === 'inativo') {
+        return res.status(401).json({
+          sucesso: false,
+          erro: 'Usuário inativo',
+          codigo: 'USUARIO_INATIVO'
+        });
+      }
+
+      // Gerar token JWT
+      const token = this.gerarToken(usuario);
+
+      // Atualizar último login
+      const agora = new Date().toISOString();
+      if (USE_MONGODB) {
+        await Usuario.findByIdAndUpdate(usuario._id, { 
+          ultimoLogin: agora,
+          $inc: { totalLogins: 1 }
+        });
+      } else {
+        await database.atualizarUsuario(usuario.id, { 
+          ultimoLogin: agora,
+          totalLogins: (usuario.totalLogins || 0) + 1
+        });
+      }
+
+      // Resposta de sucesso
+      const { senha: _, ...usuarioSemSenha } = usuario;
+      res.json({
+        sucesso: true,
+        token,
+        usuario: usuarioSemSenha,
+        tipoAuth: 'jwt',
+        expiresIn: JWT_EXPIRES_IN
+      });
+
+    } catch (error) {
+      console.error('❌ Erro no login:', error);
+      res.status(500).json({
+        sucesso: false,
+        erro: 'Erro interno no servidor',
+        codigo: 'ERRO_INTERNO'
+      });
+    }
+  }
+
+  /**
+   * Login com API Key
+   */
+  async loginComApiKey(req, res, apiKey) {
+    try {
+      if (!this.validarApiKey(apiKey)) {
+        return res.status(401).json({
+          sucesso: false,
+          erro: 'API Key inválida',
+          codigo: 'API_KEY_INVALIDA'
+        });
+      }
+
+      // Usuário virtual para API Key
+      const usuarioApiKey = {
+        id: 'api-key-user',
+        nome: 'API Key User',
+        email: 'api@brandaocontador.com.br',
+        tipo: 'api',
+        permissoes: ['nfe_consultar', 'nfe_emitir', 'nfe_cancelar'],
+        ativo: true
+      };
+
+      res.json({
+        sucesso: true,
+        usuario: usuarioApiKey,
+        tipoAuth: 'api-key',
+        apiKey: apiKey
+      });
+
+    } catch (error) {
+      console.error('❌ Erro no login com API Key:', error);
+      res.status(500).json({
+        sucesso: false,
+        erro: 'Erro interno no servidor',
+        codigo: 'ERRO_INTERNO'
+      });
+    }
+  }
+
+  /**
+   * Registro de usuário
+   */
+  async register(req, res) {
+    try {
+      const {
+        nome,
+        email,
+        senha,
+        tipoCliente,
+        documento,
+        telefone,
+        razaoSocial,
+        nomeFantasia,
+        endereco
+      } = req.body;
+
+      // Validações básicas
+      if (!nome || !email || !senha || !tipoCliente || !documento) {
+        return res.status(400).json({
+          sucesso: false,
+          erro: 'Campos obrigatórios: nome, email, senha, tipoCliente, documento',
+          codigo: 'DADOS_OBRIGATORIOS'
+        });
+      }
+
+      // Validar formato do email
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        return res.status(400).json({
+          sucesso: false,
+          erro: 'Formato de email inválido',
+          codigo: 'EMAIL_INVALIDO'
+        });
+      }
+
+      // Validar força da senha
+      if (senha.length < 6) {
+        return res.status(400).json({
+          sucesso: false,
+          erro: 'Senha deve ter pelo menos 6 caracteres',
+          codigo: 'SENHA_FRACA'
+        });
+      }
+
+      // Verificar se usuário já existe
+      let usuarioExistente;
+      if (USE_MONGODB) {
+        usuarioExistente = await Usuario.findOne({ 
+          $or: [
+            { email: email.toLowerCase() },
+            { documento: documento.replace(/\D/g, '') }
+          ]
+        });
+      } else {
+        usuarioExistente = await database.buscarUsuarioPorEmail(email.toLowerCase()) ||
+                          await database.buscarUsuarioPorDocumento(documento.replace(/\D/g, ''));
+      }
+
+      if (usuarioExistente) {
+        return res.status(409).json({
+          sucesso: false,
+          erro: 'Usuário já existe com este email ou documento',
+          codigo: 'USUARIO_EXISTENTE'
+        });
+      }
+
+      // Hash da senha
+      const senhaHash = await bcrypt.hash(senha, 12);
+
+      // Criar usuário
+      const dadosUsuario = {
+        nome: nome.trim(),
+        email: email.toLowerCase().trim(),
+        senha: senhaHash,
+        tipoCliente,
+        documento: documento.replace(/\D/g, ''),
+        telefone: telefone?.trim(),
+        razaoSocial: razaoSocial?.trim(),
+        nomeFantasia: nomeFantasia?.trim(),
+        endereco: endereco || {},
+        permissoes: ['nfe_consultar', 'nfe_emitir'], // Permissões básicas
+        ativo: true,
+        status: 'ativo',
+        criadoEm: new Date().toISOString(),
+        ultimoLogin: null,
+        totalLogins: 0
+      };
+
+      let novoUsuario;
+      if (USE_MONGODB) {
+        novoUsuario = await Usuario.create(dadosUsuario);
+        novoUsuario = novoUsuario.toObject();
+      } else {
+        novoUsuario = await database.criarUsuario(dadosUsuario);
+      }
+
+      // Gerar token para o novo usuário
+      const token = this.gerarToken(novoUsuario);
+
+      // Resposta de sucesso
+      const { senha: _, ...usuarioSemSenha } = novoUsuario;
+      res.status(201).json({
+        sucesso: true,
+        token,
+        usuario: usuarioSemSenha,
+        tipoAuth: 'jwt',
+        expiresIn: JWT_EXPIRES_IN,
+        mensagem: 'Usuário criado com sucesso'
+      });
+
+    } catch (error) {
+      console.error('❌ Erro no registro:', error);
+      res.status(500).json({
+        sucesso: false,
+        erro: 'Erro interno no servidor',
+        codigo: 'ERRO_INTERNO'
+      });
+    }
+  }
+
+  /**
+   * Login social (apenas para MongoDB)
+   */
+  async social(req, res) {
+    if (!USE_MONGODB) {
+      return res.status(501).json({
+        sucesso: false,
+        erro: 'Login social não disponível neste ambiente',
+        codigo: 'FUNCIONALIDADE_INDISPONIVEL'
+      });
     }
 
-    return apiKeys;
+    try {
+      const { provider, providerId, email, nome, avatar } = req.body;
+
+      if (!provider || !providerId || !email) {
+        return res.status(400).json({
+          sucesso: false,
+          erro: 'Provider, providerId e email são obrigatórios',
+          codigo: 'DADOS_OBRIGATORIOS'
+        });
+      }
+
+      // Buscar usuário existente
+      let usuario = await Usuario.findOne({
+        $or: [
+          { email: email.toLowerCase() },
+          { [`social.${provider}.id`]: providerId }
+        ]
+      });
+
+      if (usuario) {
+        // Atualizar dados sociais se necessário
+        if (!usuario.social || !usuario.social[provider]) {
+          usuario.social = usuario.social || {};
+          usuario.social[provider] = { id: providerId, email, nome, avatar };
+          await usuario.save();
+        }
+      } else {
+        // Criar novo usuário
+        usuario = await Usuario.create({
+          nome: nome || email.split('@')[0],
+          email: email.toLowerCase(),
+          senha: await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 12),
+          tipoCliente: 'pf',
+          documento: '',
+          social: {
+            [provider]: { id: providerId, email, nome, avatar }
+          },
+          permissoes: ['nfe_consultar'],
+          ativo: true,
+          status: 'ativo',
+          criadoEm: new Date().toISOString()
+        });
+      }
+
+      // Gerar token
+      const token = this.gerarToken(usuario);
+
+      // Resposta
+      const { senha: _, ...usuarioSemSenha } = usuario.toObject();
+      res.json({
+        sucesso: true,
+        token,
+        usuario: usuarioSemSenha,
+        tipoAuth: 'social',
+        provider,
+        expiresIn: JWT_EXPIRES_IN
+      });
+
+    } catch (error) {
+      console.error('❌ Erro no login social:', error);
+      res.status(500).json({
+        sucesso: false,
+        erro: 'Erro interno no servidor',
+        codigo: 'ERRO_INTERNO'
+      });
+    }
   }
 
-  // ==================== MIDDLEWARE PRINCIPAL ====================
+  // ==================== MIDDLEWARES DE VERIFICAÇÃO ====================
 
+  /**
+   * Verificar autenticação (obrigatória)
+   */
   verificarAutenticacao() {
     return async (req, res, next) => {
       try {
-        const token = this.extrairToken(req);
-        const apiKey = this.extrairApiKey(req);
+        const authHeader = req.headers.authorization;
+        const apiKey = req.headers['x-api-key'] || req.query.apiKey;
 
-        // Verifica se há pelo menos um método de autenticação
-        if (!token && !apiKey) {
-          await logService.logAcesso(req.path, req.method, req.ip, req.get('User-Agent'));
-          await logService.logErro('autenticacao', new Error('Token ou API Key não fornecido'), {
-            endpoint: req.path,
-            ip: req.ip
-          });
+        // Verificar API Key primeiro
+        if (apiKey) {
+          if (this.validarApiKey(apiKey)) {
+            req.usuario = {
+              id: 'api-key-user',
+              nome: 'API Key User',
+              email: 'api@brandaocontador.com.br',
+              tipo: 'api',
+              permissoes: ['nfe_consultar', 'nfe_emitir', 'nfe_cancelar'],
+              ativo: true
+            };
+            req.tipoAuth = 'api-key';
+            return next();
+          } else {
+            return res.status(401).json({
+              sucesso: false,
+              erro: 'API Key inválida',
+              codigo: 'API_KEY_INVALIDA'
+            });
+          }
+        }
 
+        // Verificar JWT Token
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
           return res.status(401).json({
             sucesso: false,
-            erro: 'Acesso negado. Token JWT ou API Key necessário.',
-            codigo: 'AUTH_REQUIRED'
+            erro: 'Token de acesso não fornecido',
+            codigo: 'TOKEN_NAO_FORNECIDO'
           });
         }
 
-        // Tenta autenticação por JWT primeiro
-        if (token) {
-          const usuarioJWT = await this.verificarJWT(token);
-          if (usuarioJWT) {
-            req.usuario = usuarioJWT;
-            req.tipoAuth = 'JWT';
-            await logService.logAcesso(req.path, req.method, req.ip, req.get('User-Agent'));
-            return next();
+        const token = authHeader.substring(7);
+
+        // Verificar se token está na blacklist
+        if (this.blacklistedTokens.has(token)) {
+          return res.status(401).json({
+            sucesso: false,
+            erro: 'Token inválido',
+            codigo: 'TOKEN_INVALIDO'
+          });
+        }
+
+        // Verificar e decodificar token
+        const decoded = jwt.verify(token, JWT_SECRET);
+
+        // Buscar usuário
+        let usuario;
+        if (USE_MONGODB) {
+          usuario = await Usuario.findById(decoded.id).select('-senha');
+        } else {
+          usuario = await database.buscarUsuarioPorId(decoded.id);
+          if (usuario) {
+            const { senha, ...semSenha } = usuario;
+            usuario = semSenha;
           }
         }
 
-        // Tenta autenticação por API Key
-        if (apiKey) {
-          const usuarioApiKey = await this.verificarApiKey(apiKey);
-          if (usuarioApiKey) {
-            req.usuario = usuarioApiKey;
-            req.tipoAuth = 'API_KEY';
-            await logService.logAcesso(req.path, req.method, req.ip, req.get('User-Agent'));
-            return next();
-          }
+        if (!usuario) {
+          return res.status(401).json({
+            sucesso: false,
+            erro: 'Usuário não encontrado',
+            codigo: 'USUARIO_NAO_ENCONTRADO'
+          });
         }
 
-        // Se chegou aqui, nenhum método funcionou
-        await logService.logErro('autenticacao', new Error('Token/API Key inválido'), {
-          endpoint: req.path,
-          ip: req.ip,
-          token: token ? 'presente' : 'ausente',
-          apiKey: apiKey ? 'presente' : 'ausente'
-        });
+        // Verificar se usuário está ativo
+        if (usuario.ativo === false || usuario.status === 'inativo') {
+          return res.status(401).json({
+            sucesso: false,
+            erro: 'Usuário inativo',
+            codigo: 'USUARIO_INATIVO'
+          });
+        }
 
-        return res.status(401).json({
-          sucesso: false,
-          erro: 'Token JWT ou API Key inválido.',
-          codigo: 'AUTH_INVALID'
-        });
+        req.usuario = usuario;
+        req.tipoAuth = 'jwt';
+        next();
 
       } catch (error) {
-        await logService.logErro('autenticacao', error, {
-          endpoint: req.path,
-          ip: req.ip
-        });
-
-        return res.status(500).json({
-          sucesso: false,
-          erro: 'Erro interno de autenticação.',
-          codigo: 'AUTH_ERROR'
-        });
+        if (error.name === 'JsonWebTokenError') {
+          return res.status(401).json({
+            sucesso: false,
+            erro: 'Token inválido',
+            codigo: 'TOKEN_INVALIDO'
+          });
+        } else if (error.name === 'TokenExpiredError') {
+          return res.status(401).json({
+            sucesso: false,
+            erro: 'Token expirado',
+            codigo: 'TOKEN_EXPIRADO'
+          });
+        } else {
+          console.error('❌ Erro na verificação de autenticação:', error);
+          return res.status(500).json({
+            sucesso: false,
+            erro: 'Erro interno no servidor',
+            codigo: 'ERRO_INTERNO'
+          });
+        }
       }
     };
   }
 
-  // ==================== MIDDLEWARE OPCIONAL ====================
-
+  /**
+   * Verificar autenticação (opcional)
+   */
   verificarAutenticacaoOpcional() {
     return async (req, res, next) => {
       try {
-        const token = this.extrairToken(req);
-        const apiKey = this.extrairApiKey(req);
+        const authHeader = req.headers.authorization;
+        const apiKey = req.headers['x-api-key'] || req.query.apiKey;
 
-        if (token) {
-          const usuario = await this.verificarJWT(token);
-          if (usuario) {
-            req.usuario = usuario;
-            req.tipoAuth = 'JWT';
-          }
-        } else if (apiKey) {
-          const usuario = await this.verificarApiKey(apiKey);
-          if (usuario) {
-            req.usuario = usuario;
-            req.tipoAuth = 'API_KEY';
-          }
+        // Se não há autenticação, continuar sem usuário
+        if (!authHeader && !apiKey) {
+          req.usuario = null;
+          req.tipoAuth = null;
+          return next();
         }
 
-        // Sempre continua, mesmo sem autenticação
-        await logService.logAcesso(req.path, req.method, req.ip, req.get('User-Agent'));
-        next();
+        // Usar verificação normal se há autenticação
+        const verificacao = this.verificarAutenticacao();
+        verificacao(req, res, (err) => {
+          if (err) {
+            // Em caso de erro, continuar sem usuário
+            req.usuario = null;
+            req.tipoAuth = null;
+          }
+          next();
+        });
 
       } catch (error) {
-        // Em caso de erro, continua sem autenticação
-        await logService.logErro('autenticacao_opcional', error, {
-          endpoint: req.path,
-          ip: req.ip
-        });
+        // Em caso de erro, continuar sem usuário
+        req.usuario = null;
+        req.tipoAuth = null;
         next();
       }
     };
   }
 
-  // ==================== VERIFICAÇÃO DE PERMISSÕES ====================
-
+  /**
+   * Verificar permissão específica
+   */
   verificarPermissao(permissaoRequerida) {
     return (req, res, next) => {
       try {
         if (!req.usuario) {
           return res.status(401).json({
             sucesso: false,
-            erro: 'Usuário não autenticado.',
-            codigo: 'USER_NOT_AUTHENTICATED'
+            erro: 'Autenticação necessária',
+            codigo: 'AUTENTICACAO_NECESSARIA'
           });
         }
 
-        const permissoesUsuario = req.usuario.permissoes || [];
-        
-        // Admin e superadmin têm todas as permissões
-        if (permissoesUsuario.includes('admin') || permissoesUsuario.includes('admin_total')) {
+        // API Key tem permissões específicas
+        if (req.tipoAuth === 'api-key') {
+          const permissoesApiKey = ['nfe_consultar', 'nfe_emitir', 'nfe_cancelar'];
+          if (!permissoesApiKey.includes(permissaoRequerida)) {
+            return res.status(403).json({
+              sucesso: false,
+              erro: 'Permissão insuficiente para API Key',
+              codigo: 'PERMISSAO_INSUFICIENTE'
+            });
+          }
           return next();
         }
 
-        // Verifica permissão específica
-        if (!permissoesUsuario.includes(permissaoRequerida)) {
-          logService.logErro('autorizacao', new Error(`Permissão negada: ${permissaoRequerida}`), {
-            usuario: req.usuario.id,
-            permissaoRequerida,
-            permissoesUsuario,
-            endpoint: req.path
-          });
+        // Verificar permissões do usuário
+        const permissoes = req.usuario.permissoes || [];
+        
+        // Admin tem todas as permissões
+        if (permissoes.includes('admin') || permissoes.includes('admin_total')) {
+          return next();
+        }
 
+        // Verificar permissão específica
+        if (!permissoes.includes(permissaoRequerida)) {
           return res.status(403).json({
             sucesso: false,
-            erro: `Permissão insuficiente. Requerida: ${permissaoRequerida}`,
-            codigo: 'PERMISSION_DENIED'
+            erro: `Permissão '${permissaoRequerida}' necessária`,
+            codigo: 'PERMISSAO_INSUFICIENTE'
           });
         }
 
         next();
 
       } catch (error) {
-        logService.logErro('autorizacao', error, {
-          endpoint: req.path,
-          usuario: req.usuario?.id
-        });
-
-        return res.status(500).json({
+        console.error('❌ Erro na verificação de permissão:', error);
+        res.status(500).json({
           sucesso: false,
-          erro: 'Erro interno de autorização.',
-          codigo: 'AUTHORIZATION_ERROR'
+          erro: 'Erro interno no servidor',
+          codigo: 'ERRO_INTERNO'
         });
       }
     };
   }
 
-  // ==================== RATE LIMITING ====================
+  // ==================== MÉTODOS UTILITÁRIOS ====================
 
-  limitarTaxa(maxRequests = 100, windowMs = 15 * 60 * 1000) { // 100 requests por 15 minutos
-    const requests = new Map();
-
-    return (req, res, next) => {
-      const identificador = req.ip + (req.usuario?.id || 'anonimo');
-      const agora = Date.now();
-      const janela = Math.floor(agora / windowMs);
-      const chave = `${identificador}:${janela}`;
-
-      const contadorAtual = requests.get(chave) || 0;
-
-      if (contadorAtual >= maxRequests) {
-        logService.logErro('rate_limit', new Error('Rate limit excedido'), {
-          ip: req.ip,
-          usuario: req.usuario?.id,
-          requests: contadorAtual,
-          limite: maxRequests
-        });
-
-        return res.status(429).json({
-          sucesso: false,
-          erro: 'Muitas requisições. Tente novamente em alguns minutos.',
-          codigo: 'RATE_LIMIT_EXCEEDED',
-          limite: maxRequests,
-          janela: windowMs / 1000 / 60 // em minutos
-        });
-      }
-
-      requests.set(chave, contadorAtual + 1);
-
-      // Limpa entradas antigas periodicamente
-      if (Math.random() < 0.01) { // 1% de chance
-        this.limparRequestsAntigos(requests, windowMs);
-      }
-
-      next();
-    };
-  }
-
-  // ==================== MÉTODOS DE VERIFICAÇÃO ====================
-
-  async verificarJWT(token) {
-    try {
-      const decoded = jwt.verify(token, this.JWT_SECRET);
-      
-      // Verifica se o token não expirou
-      if (decoded.exp && decoded.exp < Date.now() / 1000) {
-        return null;
-      }
-
-      return {
-        id: decoded.id,
-        nome: decoded.nome,
-        email: decoded.email,
-        permissoes: decoded.permissoes || ['user'],
-        tipo: 'jwt'
-      };
-
-    } catch (error) {
-      return null;
-    }
-  }
-
-  async verificarApiKey(apiKey) {
-    try {
-      // Verifica se a API Key está na lista de chaves válidas
-      if (!this.API_KEYS.includes(apiKey)) {
-        return null;
-      }
-
-      // Para API Keys, retorna um usuário padrão do sistema
-      return {
-        id: 'api-key-user',
-        nome: 'Sistema API',
-        email: 'sistema@brandaocontador.com.br',
-        permissoes: ['nfe_emitir', 'nfe_consultar', 'nfe_cancelar'],
-        tipo: 'api_key',
-        apiKey: apiKey.substring(0, 8) + '...' // Para logs
-      };
-
-    } catch (error) {
-      return null;
-    }
-  }
-
-  // ==================== GERAÇÃO DE TOKENS ====================
-
+  /**
+   * Gerar token JWT
+   */
   gerarToken(usuario) {
     const payload = {
-      id: usuario.id,
-      nome: usuario.nome,
+      id: usuario._id || usuario.id,
       email: usuario.email,
-      permissoes: usuario.permissoes || ['user'],
-      iat: Math.floor(Date.now() / 1000)
+      tipo: usuario.tipoCliente || usuario.tipo,
+      permissoes: usuario.permissoes || []
     };
 
-    return jwt.sign(payload, this.JWT_SECRET, { 
-      expiresIn: this.JWT_EXPIRES_IN 
+    return jwt.sign(payload, JWT_SECRET, { 
+      expiresIn: JWT_EXPIRES_IN,
+      issuer: 'brandao-contador-nfe',
+      audience: 'nfe-system'
     });
   }
 
+  /**
+   * Gerar API Key
+   */
   gerarApiKey() {
-    // Gera uma API Key aleatória
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-    let result = 'nfe-';
-    
-    for (let i = 0; i < 32; i++) {
-      result += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    
-    return result;
+    const apiKey = `nfe-${crypto.randomBytes(16).toString('hex')}-${Date.now()}`;
+    this.apiKeys.add(apiKey);
+    return apiKey;
   }
 
-  // ==================== MÉTODOS AUXILIARES ====================
-
-  extrairToken(req) {
-    const authHeader = req.headers.authorization;
-    
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      return authHeader.substring(7);
-    }
-    
-    // Também verifica query parameter para facilitar testes
-    return req.query.token || null;
+  /**
+   * Validar API Key
+   */
+  validarApiKey(apiKey) {
+    return this.apiKeys.has(apiKey);
   }
 
-  extrairApiKey(req) {
-    // Verifica header personalizado
-    let apiKey = req.headers['x-api-key'];
+  /**
+   * Invalidar token (logout)
+   */
+  invalidarToken(token) {
+    this.blacklistedTokens.add(token);
     
-    // Também verifica query parameter
-    if (!apiKey) {
-      apiKey = req.query.apiKey || req.query.api_key;
-    }
-    
-    return apiKey || null;
-  }
-
-  limparRequestsAntigos(requests, windowMs) {
-    const agora = Date.now();
-    const janelaAtual = Math.floor(agora / windowMs);
-    
-    for (const [chave] of requests) {
-      const [, janela] = chave.split(':');
-      if (parseInt(janela) < janelaAtual - 1) {
-        requests.delete(chave);
-      }
+    // Limpar blacklist periodicamente (manter apenas últimas 1000)
+    if (this.blacklistedTokens.size > 1000) {
+      const tokens = Array.from(this.blacklistedTokens);
+      this.blacklistedTokens.clear();
+      tokens.slice(-500).forEach(t => this.blacklistedTokens.add(t));
     }
   }
 
-  // ==================== ENDPOINTS DE AUTENTICAÇÃO ====================
-
-  async login(req, res) {
-    try {
-      const { email, senha } = req.body;
-
-      if (!email || !senha) {
-        return res.status(400).json({
-          sucesso: false,
-          erro: 'Email e senha são obrigatórios.',
-          codigo: 'MISSING_CREDENTIALS'
-        });
-      }
-
-      // Simulação de verificação de usuário (substituir por banco de dados)
-      const usuario = await this.verificarCredenciais(email, senha);
-      
-      if (!usuario) {
-        await logService.logErro('login', new Error('Credenciais inválidas'), {
-          email,
-          ip: req.ip
-        });
-
-        return res.status(401).json({
-          sucesso: false,
-          erro: 'Email ou senha inválidos.',
-          codigo: 'INVALID_CREDENTIALS'
-        });
-      }
-
-      const token = this.gerarToken(usuario);
-
-      await logService.log('login', 'SUCESSO', {
-        usuario: usuario.id,
-        email: usuario.email,
-        ip: req.ip
-      });
-
-      res.json({
-        sucesso: true,
-        token,
-        usuario: {
-          id: usuario.id,
-          nome: usuario.nome,
-          email: usuario.email,
-          permissoes: usuario.permissoes
-        },
-        expiresIn: this.JWT_EXPIRES_IN
-      });
-
-    } catch (error) {
-      await logService.logErro('login', error, {
-        ip: req.ip
-      });
-
-      res.status(500).json({
-        sucesso: false,
-        erro: 'Erro interno no login.',
-        codigo: 'LOGIN_ERROR'
-      });
-    }
-  }
-
-  async verificarCredenciais(email, senha) {
-    // SIMULAÇÃO - Substituir por consulta ao banco de dados
-    // Obter todos os usuários (demo + criados dinamicamente)
-    const todosUsuarios = await this.obterTodosUsuarios();
-
-    const usuario = todosUsuarios.find(u => u.email === email && u.senha === senha);
-    
-    if (usuario) {
-      // Remove a senha do objeto retornado
-      const { senha: _, ...usuarioSemSenha } = usuario;
-      return usuarioSemSenha;
-    }
-
-    return null;
-  }
-
-  // Endpoint para validar token
+  /**
+   * Validar token (para endpoint /auth/validate)
+   */
   async validarToken(req, res) {
     try {
-      // O middleware já validou o token e adicionou o usuário ao req
-      if (req.usuario) {
-        res.json({
-          sucesso: true,
-          usuario: {
-            id: req.usuario.id,
-            nome: req.usuario.nome,
-            email: req.usuario.email,
-            permissoes: req.usuario.permissoes
-          }
-        });
-      } else {
-        res.status(401).json({
-          sucesso: false,
-          erro: 'Token inválido',
-          codigo: 'INVALID_TOKEN'
-        });
-      }
-    } catch (error) {
-      await logService.logErro('validar_token', error, {
-        ip: req.ip
-      });
-
-      res.status(500).json({
-        sucesso: false,
-        erro: 'Erro interno na validação do token',
-        codigo: 'TOKEN_VALIDATION_ERROR'
-      });
-    }
-  }
-
-  // ==================== REGISTRO DE USUÁRIO ====================
-
-  async register(req, res) {
-    try {
-      const { 
-        tipoCliente, 
-        nome, 
-        email, 
-        senha, 
-        documento, 
-        telefone, 
-        endereco,
-        razaoSocial,
-        nomeFantasia,
-        inscricaoEstadual
-      } = req.body;
-
-      // Validações básicas
-      if (!nome || !email || !senha || !documento || !telefone) {
-        return res.status(400).json({
-          sucesso: false,
-          erro: 'Dados obrigatórios não fornecidos',
-          codigo: 'MISSING_REQUIRED_FIELDS'
-        });
-      }
-
-      if (!tipoCliente || !['cpf', 'cnpj'].includes(tipoCliente)) {
-        return res.status(400).json({
-          sucesso: false,
-          erro: 'Tipo de cliente inválido',
-          codigo: 'INVALID_CLIENT_TYPE'
-        });
-      }
-
-      // Validação de email
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(email)) {
-        return res.status(400).json({
-          sucesso: false,
-          erro: 'Email inválido',
-          codigo: 'INVALID_EMAIL'
-        });
-      }
-
-      // Verificar se o email já existe
-      const emailExistente = await this.verificarEmailExistente(email);
-      if (emailExistente) {
-        return res.status(409).json({
-          sucesso: false,
-          erro: 'Email já cadastrado',
-          codigo: 'EMAIL_ALREADY_EXISTS'
-        });
-      }
-
-      // Verificar se o documento já existe
-      const documentoExistente = await this.verificarDocumentoExistente(documento);
-      if (documentoExistente) {
-        return res.status(409).json({
-          sucesso: false,
-          erro: `${tipoCliente.toUpperCase()} já cadastrado`,
-          codigo: 'DOCUMENT_ALREADY_EXISTS'
-        });
-      }
-
-      // Validação de senha
-      if (senha.length < 6) {
-        return res.status(400).json({
-          sucesso: false,
-          erro: 'Senha deve ter pelo menos 6 caracteres',
-          codigo: 'WEAK_PASSWORD'
-        });
-      }
-
-      // Validações específicas para CNPJ
-      if (tipoCliente === 'cnpj') {
-        if (!razaoSocial || !nomeFantasia) {
-          return res.status(400).json({
-            sucesso: false,
-            erro: 'Razão Social e Nome Fantasia são obrigatórios para CNPJ',
-            codigo: 'MISSING_CNPJ_FIELDS'
-          });
-        }
-      }
-
-      // Validação de endereço
-      if (!endereco || !endereco.cep || !endereco.logradouro || !endereco.numero || 
-          !endereco.bairro || !endereco.cidade || !endereco.uf) {
-        return res.status(400).json({
-          sucesso: false,
-          erro: 'Dados de endereço incompletos',
-          codigo: 'INCOMPLETE_ADDRESS'
-        });
-      }
-
-      // Criar novo usuário
-      const novoUsuario = await this.criarUsuario({
-        tipoCliente,
-        nome,
-        email,
-        senha, // Em produção, fazer hash da senha
-        documento,
-        telefone,
-        endereco,
-        razaoSocial,
-        nomeFantasia,
-        inscricaoEstadual,
-        dataCadastro: new Date().toISOString(),
-        ativo: true,
-        permissoes: ['nfe_emitir', 'nfe_consultar'] // Permissões padrão para novos clientes
-      });
-
-      await logService.log('registro', 'SUCESSO', {
-        usuario: novoUsuario.id,
-        email: novoUsuario.email,
-        tipoCliente,
-        ip: req.ip
-      });
-
-      // Gerar token para login automático
-      const token = this.gerarToken(novoUsuario);
-
-      res.status(201).json({
+      res.json({
         sucesso: true,
-        mensagem: 'Usuário cadastrado com sucesso',
-        token,
         usuario: {
-          id: novoUsuario.id,
-          nome: novoUsuario.nome,
-          email: novoUsuario.email,
-          tipoCliente: novoUsuario.tipoCliente,
-          documento: novoUsuario.documento,
-          permissoes: novoUsuario.permissoes
+          id: req.usuario.id,
+          nome: req.usuario.nome,
+          email: req.usuario.email,
+          permissoes: req.usuario.permissoes || [],
+          tipo: req.usuario.tipo || req.usuario.tipoCliente
         },
-        expiresIn: this.JWT_EXPIRES_IN
+        tipoAuth: req.tipoAuth
       });
-
     } catch (error) {
-      await logService.logErro('registro', error, {
-        ip: req.ip,
-        email: req.body.email
-      });
-
+      console.error('❌ Erro na validação de token:', error);
       res.status(500).json({
         sucesso: false,
-        erro: 'Erro interno no cadastro',
-        codigo: 'REGISTER_ERROR'
+        erro: 'Erro ao validar token',
+        codigo: 'ERRO_INTERNO'
       });
     }
-  }
-
-  async verificarEmailExistente(email) {
-    // SIMULAÇÃO - Em produção, consultar banco de dados
-    const todosUsuarios = await this.obterTodosUsuarios();
-    return todosUsuarios.find(user => user.email.toLowerCase() === email.toLowerCase());
-  }
-
-  async verificarDocumentoExistente(documento) {
-    // SIMULAÇÃO - Em produção, consultar banco de dados
-    const todosUsuarios = await this.obterTodosUsuarios();
-    return todosUsuarios.find(user => user.documento === documento);
-  }
-
-  async criarUsuario(dadosUsuario) {
-    // SIMULAÇÃO - Em produção, salvar no banco de dados
-    const novoId = Date.now(); // ID temporário
-    
-    const novoUsuario = {
-      id: novoId,
-      ...dadosUsuario
-    };
-
-    // Salva o usuário no armazenamento em memória
-    this.usuariosCriados.set(novoId, novoUsuario);
-
-    // Em um sistema real, aqui salvaria no banco de dados
-    console.log('📝 Novo usuário criado (simulação):', {
-      id: novoUsuario.id,
-      nome: novoUsuario.nome,
-      email: novoUsuario.email,
-      tipoCliente: novoUsuario.tipoCliente,
-      documento: novoUsuario.documento
-    });
-
-    return novoUsuario;
-  }
-
-  async obterUsuariosDemo() {
-    // SIMULAÇÃO - Lista de usuários demo (em produção seria consulta ao banco)
-    return [
-      {
-        id: 1,
-        nome: 'Administrador',
-        email: 'admin@brandaocontador.com.br',
-        senha: 'admin123',
-        documento: '00000000000',
-        tipoCliente: 'cpf',
-        permissoes: ['admin', 'nfe_emitir', 'nfe_consultar', 'nfe_cancelar']
-      },
-      {
-        id: 2,
-        nome: 'Operador NFe',
-        email: 'operador@brandaocontador.com.br',
-        senha: 'operador123',
-        documento: '11111111111',
-        tipoCliente: 'cpf',
-        permissoes: ['nfe_emitir', 'nfe_consultar']
-      }
-    ];
-  }
-
-  async obterTodosUsuarios() {
-    // Combina usuários demo com usuários criados dinamicamente
-    const usuariosDemo = await this.obterUsuariosDemo();
-    const usuariosCriados = Array.from(this.usuariosCriados.values());
-    
-    return [...usuariosDemo, ...usuariosCriados];
   }
 }
 
-module.exports = new AuthMiddleware();
+// ==================== EXPORTAÇÃO ====================
+const authMiddleware = new AuthMiddleware();
+
+module.exports = authMiddleware;

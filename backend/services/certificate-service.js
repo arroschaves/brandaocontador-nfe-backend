@@ -38,7 +38,7 @@ class CertificateService {
                 console.log(`Tentando carregar certificado de: ${certPath}`);
                 
                 if (!fs.existsSync(certPath)) {
-                    console.log(`Arquivo não encontrado: ${certPath}`);
+                    
                     continue;
                 }
 

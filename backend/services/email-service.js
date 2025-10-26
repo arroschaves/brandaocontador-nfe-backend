@@ -1,47 +1,34 @@
 const nodemailer = require('nodemailer');
 
-async function sendTestEmail({ config, to }) {
+/**
+ * Envia email usando configurações reais de SMTP
+ * @param {Object} params - Parâmetros do email
+ * @param {Object} params.config - Configurações do sistema
+ * @param {string} params.to - Destinatário
+ * @param {string} params.subject - Assunto
+ * @param {string} params.text - Texto simples
+ * @param {string} params.html - HTML do email
+ * @param {Array} params.attachments - Anexos (opcional)
+ */
+async function sendEmail({ config, to, subject, text, html, attachments = [] }) {
   if (!config) {
     throw new Error('Configurações não encontradas');
   }
 
   const fromName = config?.empresa?.razaoSocial || 'Sistema NFe';
   const emailCfg = (config?.nfe?.emailEnvio) || (config?.notificacoes?.emailEnvio) || {};
+  
   const servidor = emailCfg?.servidor;
-  const porta = Number(emailCfg?.porta || 0);
+  const porta = Number(emailCfg?.porta || 587);
   const usuario = emailCfg?.usuario;
   const senha = emailCfg?.senha;
   const ssl = Boolean(emailCfg?.ssl);
 
-  const useSimulation = String(process.env.SIMULATION_MODE || '').toLowerCase() === 'true' || process.env.NODE_ENV !== 'production';
-
-  async function sendWithEthereal() {
-    const testAccount = await nodemailer.createTestAccount();
-    const transporter = nodemailer.createTransport({
-      host: 'smtp.ethereal.email',
-      port: 587,
-      secure: false,
-      auth: { user: testAccount.user, pass: testAccount.pass }
-    });
-
-    const info = await transporter.sendMail({
-      from: `"${fromName}" <${testAccount.user}>`,
-      to: to || testAccount.user,
-      subject: 'Teste de envio de e-mail - Sistema NFe',
-      text: 'Este é um e-mail de teste para validar a configuração SMTP.',
-      html: '<p>Este é um <b>e-mail de teste</b> para validar a configuração SMTP.</p>'
-    });
-
-    const previewUrl = nodemailer.getTestMessageUrl(info);
-    console.log('Ethereal preview URL:', previewUrl);
-    return { messageId: info.messageId, accepted: info.accepted, rejected: info.rejected, response: info.response, previewUrl, simulation: true };
+  if (!servidor || !usuario || !senha) {
+    throw new Error('Configurações de email incompletas. Verifique servidor, usuário e senha.');
   }
 
-  if (useSimulation && (!servidor || !porta || !usuario || !senha)) {
-    return await sendWithEthereal();
-  }
-
-  const transporter = nodemailer.createTransport({
+  const transporter = nodemailer.createTransporter({
     host: servidor,
     port: porta,
     secure: ssl,
@@ -49,22 +36,72 @@ async function sendTestEmail({ config, to }) {
     tls: { rejectUnauthorized: false }
   });
 
-  try {
-    const info = await transporter.sendMail({
-      from: `"${fromName}" <${usuario}>`,
-      to: to || usuario,
-      subject: 'Teste de envio de e-mail - Sistema NFe',
-      text: 'Este é um e-mail de teste para validar a configuração SMTP.',
-      html: '<p>Este é um <b>e-mail de teste</b> para validar a configuração SMTP.</p>'
-    });
+  // Verificar conexão
+  await transporter.verify();
 
-    return { messageId: info.messageId, accepted: info.accepted, rejected: info.rejected, response: info.response, simulation: false };
-  } catch (err) {
-    if (useSimulation) {
-      return await sendWithEthereal();
-    }
-    throw err;
-  }
+  const info = await transporter.sendMail({
+    from: `"${fromName}" <${usuario}>`,
+    to: to,
+    subject: subject,
+    text: text,
+    html: html,
+    attachments: attachments
+  });
+
+  return { 
+    messageId: info.messageId, 
+    accepted: info.accepted, 
+    rejected: info.rejected, 
+    response: info.response 
+  };
 }
 
-module.exports = { sendTestEmail };
+/**
+ * Envia NFe por email
+ * @param {Object} params - Parâmetros
+ * @param {Object} params.config - Configurações
+ * @param {string} params.destinatario - Email do destinatário
+ * @param {Object} params.nfe - Dados da NFe
+ * @param {string} params.xmlPath - Caminho do XML
+ * @param {string} params.pdfPath - Caminho do PDF
+ */
+async function sendNfeEmail({ config, destinatario, nfe, xmlPath, pdfPath }) {
+  const attachments = [];
+  
+  if (xmlPath) {
+    attachments.push({
+      filename: `NFe_${nfe.numero}.xml`,
+      path: xmlPath
+    });
+  }
+  
+  if (pdfPath) {
+    attachments.push({
+      filename: `NFe_${nfe.numero}.pdf`,
+      path: pdfPath
+    });
+  }
+
+  const subject = `NFe ${nfe.numero} - ${config?.empresa?.razaoSocial || 'Sistema NFe'}`;
+  const html = `
+    <h2>Nota Fiscal Eletrônica</h2>
+    <p><strong>Número:</strong> ${nfe.numero}</p>
+    <p><strong>Série:</strong> ${nfe.serie}</p>
+    <p><strong>Data de Emissão:</strong> ${new Date(nfe.dataEmissao).toLocaleDateString('pt-BR')}</p>
+    <p><strong>Valor Total:</strong> R$ ${nfe.valorTotal?.toFixed(2) || '0,00'}</p>
+    <br>
+    <p>Em anexo seguem os arquivos XML e PDF da Nota Fiscal.</p>
+    <p><em>Este é um email automático, não responda.</em></p>
+  `;
+
+  return await sendEmail({
+    config,
+    to: destinatario,
+    subject,
+    text: `NFe ${nfe.numero} em anexo`,
+    html,
+    attachments
+  });
+}
+
+module.exports = { sendEmail, sendNfeEmail };

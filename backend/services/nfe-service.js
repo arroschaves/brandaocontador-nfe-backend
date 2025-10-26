@@ -2,10 +2,15 @@ const fs = require("fs");
 const path = require("path");
 const axios = require("axios");
 const { carregarCertificado, assinarNFe, assinarInutilizacao, assinarEventoCancelamento } = require("../assinador");
-const { DOMParser, XMLSerializer } = require("xmldom");
+const { DOMParser, XMLSerializer } = require("@xmldom/xmldom");
 const CertificateService = require('./certificate-service');
 const SefazClient = require('./sefaz-client');
-const { EmissorNFeAxios } = require('../emit-nfe-axios');
+const SefazStatusService = require('./sefaz-status');
+const { TaxCalculationService } = require('./tax-calculation-service');
+const TributacaoService = require('./tributacao-service');
+const XmlValidatorService = require('./xml-validator-service');
+const DanfeService = require('./danfe-service');
+const { ValidationService } = require('./validation-service');
 const Configuracao = require('../models/Configuracao');
 
 class NFeService {
@@ -22,6 +27,12 @@ class NFeService {
     this.NUMERACAO_PATH = path.join(this.XMLS_DIR, "numeracao.json");
     
     this.certificateService = new CertificateService();
+    this.sefazStatusService = new SefazStatusService();
+    this.taxCalculationService = new TaxCalculationService();
+    this.tributacaoService = new TributacaoService();
+    this.xmlValidatorService = new XmlValidatorService();
+    this.danfeService = new DanfeService();
+    this.validationService = new ValidationService();
     
     // Cria diretórios se não existirem
     this.criarDiretorios();
@@ -86,9 +97,6 @@ class NFeService {
 
   async emitirNfe(dadosNfe) {
     try {
-      console.log('📄 Iniciando emissão de NFe...');
-      console.log('📋 Dados recebidos:', JSON.stringify(dadosNfe, null, 2));
-
       // Normaliza série e número quando ausentes/zerados (numeração no servidor)
       if (!dadosNfe.serie || Number(dadosNfe.serie) <= 0) {
         const seriePadrao = await this.obterSeriePadrao();
@@ -99,10 +107,9 @@ class NFeService {
         dadosNfe.numero = proximoNumero;
       }
       
-      // PRODUÇÃO REAL - Sem simulação
+      // PRODUÇÃO REAL
       
       if (!this.chavePrivada || !this.certificado) {
-        console.log('❌ Certificado não carregado');
         // Retorna erro estruturado para permitir resposta 400 na rota
         return {
           sucesso: false,
@@ -110,52 +117,58 @@ class NFeService {
           codigo: 'CERTIFICADO_AUSENTE'
         };
       }
-
-      console.log('🔐 Certificado carregado, gerando XML...');
-      // Gera o XML da NFe
-      const xmlNfe = this.gerarXmlNfe(dadosNfe);
-      console.log('📄 XML gerado com sucesso');
+      
+      // PRODUÇÃO REAL - Cálculo tributário completo
+      const dadosComImpostos = await this.calcularImpostosCompletos(dadosNfe);
+      
+      // Gera o XML da NFe com impostos calculados
+      const xmlNfe = this.gerarXmlNfe(dadosComImpostos);
+      
+      // Validação XML NFe 4.0 conforme legislação SEFAZ
+      const resultadoValidacao = this.xmlValidatorService.validarXmlNfe(xmlNfe, dadosComImpostos);
+      
+      if (!resultadoValidacao.valido) {
+        return {
+          sucesso: false,
+          erro: 'XML não conforme com a legislação NFe 4.0',
+          detalhes: resultadoValidacao.erros,
+          avisos: resultadoValidacao.avisos,
+          codigo: 'XML_INVALIDO'
+        };
+      }
       
       // Assina o XML
-      console.log('🔐 Assinando XML...');
       const xmlAssinado = await this.assinarXml(xmlNfe);
-      console.log('✅ XML assinado com sucesso');
-
-      // Validação de segurança do XML controlada por flag
-      // TODO: Implementar validação de segurança
-      console.log('⚠️ Validação de segurança desabilitada temporariamente');
       
       // Salva XML antes do envio
-      console.log('💾 Salvando XML...');
       const nomeArquivo = `NFe_${dadosNfe.numero}_${Date.now()}.xml`;
       const caminhoXml = path.join(this.XMLS_DIR, nomeArquivo);
       fs.writeFileSync(caminhoXml, xmlAssinado, "utf-8");
-      console.log('✅ XML salvo:', caminhoXml);
       
       // Envia para SEFAZ
-      console.log('📤 Enviando para SEFAZ...');
       const resultado = await this.enviarParaSefaz(xmlAssinado);
-      console.log('📥 Resposta SEFAZ:', resultado);
       
       // Move para pasta apropriada baseado no resultado
       if (resultado.sucesso) {
         const caminhoFinal = path.join(this.ENVIADAS_DIR, nomeArquivo);
         fs.renameSync(caminhoXml, caminhoFinal);
         
-        console.log('✅ NFe emitida com sucesso!');
+        // Gera PDF DANFE
+        const caminhoDANFE = await this.danfeService.gerarDanfe(dadosComImpostos, xmlAssinado);
+        
         return {
           sucesso: true,
           chave: resultado.chave,
           protocolo: resultado.protocolo,
           dataEmissao: new Date().toISOString(),
           arquivo: nomeArquivo,
-          xml: xmlAssinado
+          xml: xmlAssinado,
+          danfe: caminhoDANFE
         };
       } else {
         const caminhoFalha = path.join(this.FALHAS_DIR, nomeArquivo);
         fs.renameSync(caminhoXml, caminhoFalha);
         
-        console.log('❌ Falha na emissão da NFe');
         throw new Error(`Erro SEFAZ: ${resultado.erro}`);
       }
 
@@ -232,12 +245,29 @@ class NFeService {
     ${this.gerarItensXml(dados.itens)}
     <total>
       <ICMSTot>
-        <vBC>${dados.totais.baseCalculoICMS}</vBC>
-        <vICMS>${dados.totais.valorICMS}</vICMS>
-        <vProd>${dados.totais.valorProdutos}</vProd>
-        <vNF>${dados.totais.valorTotal}</vNF>
+        <vBC>${dados.totais?.vBC || '0.00'}</vBC>
+        <vICMS>${dados.totais?.vICMS || '0.00'}</vICMS>
+        <vICMSDeson>0.00</vICMSDeson>
+        <vFCP>0.00</vFCP>
+        <vBCST>0.00</vBCST>
+        <vST>0.00</vST>
+        <vFCPST>0.00</vFCPST>
+        <vFCPSTRet>0.00</vFCPSTRet>
+        <vProd>${dados.totais?.vProd || '0.00'}</vProd>
+        <vFrete>0.00</vFrete>
+        <vSeg>0.00</vSeg>
+        <vDesc>0.00</vDesc>
+        <vII>0.00</vII>
+        <vIPI>${dados.totais?.vIPI || '0.00'}</vIPI>
+        <vIPIDevol>0.00</vIPIDevol>
+        <vPIS>${dados.totais?.vPIS || '0.00'}</vPIS>
+        <vCOFINS>${dados.totais?.vCOFINS || '0.00'}</vCOFINS>
+        <vOutro>0.00</vOutro>
+        <vNF>${dados.totais?.vNF || '0.00'}</vNF>
+        <vTotTrib>${dados.totais?.vTotTrib || '0.00'}</vTotTrib>
       </ICMSTot>
     </total>
+    ${dados.observacoes ? `<infAdic><infCpl>${dados.observacoes}</infCpl></infAdic>` : ''}
   </infNFe>
 </NFe>`;
 
@@ -245,31 +275,145 @@ class NFeService {
   }
 
   gerarItensXml(itens) {
-    return itens.map((item, index) => `
+    return itens.map((item, index) => {
+      const valorTotal = parseFloat(item.valorUnitario) * parseFloat(item.quantidade);
+      const tributacao = item.tributacao || {};
+      
+      return `
     <det nItem="${index + 1}">
       <prod>
         <cProd>${item.codigo}</cProd>
+        <cEAN>SEM GTIN</cEAN>
         <xProd>${item.descricao}</xProd>
+        <NCM>${item.ncm || '00000000'}</NCM>
         <CFOP>${item.cfop}</CFOP>
         <uCom>${item.unidade}</uCom>
         <qCom>${item.quantidade}</qCom>
         <vUnCom>${item.valorUnitario}</vUnCom>
-        <vProd>${item.valorTotal}</vProd>
+        <vProd>${valorTotal.toFixed(2)}</vProd>
+        <cEANTrib>SEM GTIN</cEANTrib>
+        <uTrib>${item.unidade}</uTrib>
+        <qTrib>${item.quantidade}</qTrib>
+        <vUnTrib>${item.valorUnitario}</vUnTrib>
         <indTot>1</indTot>
       </prod>
       <imposto>
+        <vTotTrib>${(
+          (tributacao.icms?.valor || 0) + 
+          (tributacao.ipi?.valor || 0) + 
+          (tributacao.pis?.valor || 0) + 
+          (tributacao.cofins?.valor || 0) + 
+          (tributacao.iss?.valor || 0)
+        ).toFixed(2)}</vTotTrib>
         <ICMS>
-          <ICMS00>
+          <ICMS${tributacao.icms?.cst || '00'}>
             <orig>0</orig>
-            <CST>00</CST>
+            <CST>${tributacao.icms?.cst || '00'}</CST>
+            ${tributacao.icms?.valor > 0 ? `
             <modBC>3</modBC>
-            <vBC>${item.baseCalculoICMS}</vBC>
-            <pICMS>${item.aliquotaICMS}</pICMS>
-            <vICMS>${item.valorICMS}</vICMS>
-          </ICMS00>
+            <vBC>${tributacao.icms.baseCalculo.toFixed(2)}</vBC>
+            <pICMS>${tributacao.icms.aliquota.toFixed(2)}</pICMS>
+            <vICMS>${tributacao.icms.valor.toFixed(2)}</vICMS>` : ''}
+          </ICMS${tributacao.icms?.cst || '00'}>
         </ICMS>
+        ${tributacao.ipi?.valor > 0 ? `
+        <IPI>
+          <cEnq>999</cEnq>
+          <IPITrib>
+            <CST>${tributacao.ipi.cst}</CST>
+            <vBC>${tributacao.ipi.baseCalculo.toFixed(2)}</vBC>
+            <pIPI>${tributacao.ipi.aliquota.toFixed(2)}</pIPI>
+            <vIPI>${tributacao.ipi.valor.toFixed(2)}</vIPI>
+          </IPITrib>
+        </IPI>` : `
+        <IPI>
+          <cEnq>999</cEnq>
+          <IPINT>
+            <CST>${tributacao.ipi?.cst || '53'}</CST>
+          </IPINT>
+        </IPI>`}
+        <PIS>
+          <PIS${this.obterTipoPIS(tributacao.pis?.cst)}>
+            <CST>${tributacao.pis?.cst || '08'}</CST>
+            ${tributacao.pis?.valor > 0 ? `
+            <vBC>${tributacao.pis.baseCalculo.toFixed(2)}</vBC>
+            <pPIS>${tributacao.pis.aliquota.toFixed(4)}</pPIS>` : ''}
+            <vPIS>${(tributacao.pis?.valor || 0).toFixed(2)}</vPIS>
+          </PIS${this.obterTipoPIS(tributacao.pis?.cst)}>
+        </PIS>
+        <COFINS>
+          <COFINS${this.obterTipoCOFINS(tributacao.cofins?.cst)}>
+            <CST>${tributacao.cofins?.cst || '08'}</CST>
+            ${tributacao.cofins?.valor > 0 ? `
+            <vBC>${tributacao.cofins.baseCalculo.toFixed(2)}</vBC>
+            <pCOFINS>${tributacao.cofins.aliquota.toFixed(4)}</pCOFINS>` : ''}
+            <vCOFINS>${(tributacao.cofins?.valor || 0).toFixed(2)}</vCOFINS>
+          </COFINS${this.obterTipoCOFINS(tributacao.cofins?.cst)}>
+        </COFINS>
+        ${tributacao.iss?.valor > 0 ? `
+        <ISSQN>
+          <vBC>${tributacao.iss.baseCalculo.toFixed(2)}</vBC>
+          <vAliq>${tributacao.iss.aliquota.toFixed(2)}</vAliq>
+          <vISSQN>${tributacao.iss.valor.toFixed(2)}</vISSQN>
+          <cMunFG>${item.codigoMunicipioISS || '5006272'}</cMunFG>
+          <cListServ>${item.codigoServico || '01.01'}</cListServ>
+        </ISSQN>` : ''}
       </imposto>
-    </det>`).join('');
+      ${item.observacoesFiscais ? `<infAdProd>${item.observacoesFiscais}</infAdProd>` : ''}
+    </det>`;
+    }).join('');
+  }
+
+  /**
+   * Determina o tipo de PIS baseado no CST
+   */
+  obterTipoPIS(cst) {
+    if (!cst) return 'NT';
+    
+    switch (cst) {
+      case '01':
+      case '02':
+        return 'Aliq';
+      case '03':
+        return 'Qtde';
+      case '04':
+      case '05':
+      case '06':
+      case '07':
+      case '08':
+      case '09':
+        return 'NT';
+      case '99':
+        return 'Outr';
+      default:
+        return 'NT';
+    }
+  }
+
+  /**
+   * Determina o tipo de COFINS baseado no CST
+   */
+  obterTipoCOFINS(cst) {
+    if (!cst) return 'NT';
+    
+    switch (cst) {
+      case '01':
+      case '02':
+        return 'Aliq';
+      case '03':
+        return 'Qtde';
+      case '04':
+      case '05':
+      case '06':
+      case '07':
+      case '08':
+      case '09':
+        return 'NT';
+      case '99':
+        return 'Outr';
+      default:
+        return 'NT';
+    }
   }
 
   async assinarXml(xml) {
@@ -290,24 +434,7 @@ class NFeService {
     try {
       console.log(`🔍 Consultando NFe: ${chave}`);
       
-      // Se estiver em modo simulação, usar dados simulados
-      if (process.env.SIMULATION_MODE === 'true') {
-        const situacoes = ['Autorizada', 'Cancelada', 'Denegada'];
-        const situacao = situacoes[Math.floor(Math.random() * situacoes.length)];
-        
-        const resultado = {
-          chave,
-          situacao,
-          protocolo: `${Date.now()}${Math.floor(Math.random() * 1000)}`,
-          dataHora: new Date().toISOString(),
-          motivo: situacao === 'Autorizada' ? 'Autorizado o uso da NF-e' : 
-                 situacao === 'Cancelada' ? 'Cancelamento de NF-e homologado' :
-                 'Uso Denegado'
-        };
-        
-        console.log('✅ Consulta simulada realizada:', resultado);
-        return resultado;
-      }
+      // Consulta real na SEFAZ
       
       // Integração real com SEFAZ (consulta direta via SefazClient)
       const resultado = await this.consultarSefaz(chave);
@@ -324,45 +451,17 @@ class NFeService {
 
   async cancelarNfe(chave, justificativa) {
     try {
-      console.log(`🚫 Cancelando NFe: ${chave}`);
-      console.log(`📝 Justificativa: ${justificativa}`);
-      console.log(`🔧 SIMULATION_MODE: ${process.env.SIMULATION_MODE}`);
-      console.log(`🔧 AMBIENTE: ${process.env.AMBIENTE}`);
-      
       // Validações
       if (!chave || chave.length !== 44) {
-        console.error('❌ Chave de acesso inválida:', chave);
         throw new Error('Chave de acesso inválida');
       }
       
       if (!justificativa || justificativa.length < 15) {
-        console.error('❌ Justificativa inválida:', justificativa);
         throw new Error('Justificativa deve ter pelo menos 15 caracteres');
       }
       
-      console.log('✅ Validações passaram');
-      
-      // Se estiver em modo simulação
-      if (process.env.SIMULATION_MODE === 'true') {
-        console.log('🎭 Processando cancelamento em modo simulação');
-        const resultado = {
-          chave,
-          situacao: 'Cancelada',
-          protocolo: `${Date.now()}${Math.floor(Math.random() * 1000)}`,
-          dataHora: new Date().toISOString(),
-          motivo: 'Cancelamento de NF-e homologado',
-          justificativa
-        };
-        
-        console.log('✅ Cancelamento simulado processado:', resultado);
-        return resultado;
-      }
-      
       // Cancelamento real via SEFAZ
-      console.log('🌐 Processando cancelamento real com SEFAZ');
-      
       if (!this.chavePrivada || !this.certificado) {
-        console.error('❌ Certificado não carregado para cancelamento');
         return {
           sucesso: false,
           erro: 'Certificado não carregado',
@@ -377,7 +476,6 @@ class NFeService {
       const xmlAssinado = assinarEventoCancelamento(xmlCancelamento, this.chavePrivada, this.certificado);
       
       // Envia para SEFAZ
-      console.log('📤 Enviando cancelamento para SEFAZ...');
       const resposta = await this.enviarCancelamentoSefaz(xmlAssinado);
       
       const resultado = {
@@ -389,12 +487,10 @@ class NFeService {
         justificativa
       };
       
-      console.log('✅ Cancelamento SEFAZ processado:', resultado);
       return resultado;
       
     } catch (error) {
       console.error('❌ Erro no cancelamento:', error.message);
-      console.error('❌ Stack trace:', error.stack);
       throw error;
     }
   }
@@ -403,9 +499,6 @@ class NFeService {
 
   async inutilizarNumeracao({ serie, numeroInicial, numeroFinal, justificativa, ano }) {
     try {
-      console.log('🗑️ Iniciando inutilização de numeração...');
-      console.log('📋 Dados:', { serie, numeroInicial, numeroFinal, justificativa, ano });
-
       // Validações básicas
       const s = parseInt(serie, 10);
       const nIni = parseInt(numeroInicial, 10);
@@ -417,20 +510,7 @@ class NFeService {
       if (nFim < nIni) throw new Error('Número final deve ser maior ou igual ao inicial');
       if (!justificativa || justificativa.trim().length < 15) throw new Error('Justificativa deve ter pelo menos 15 caracteres');
 
-      // Simulação
-      if (process.env.SIMULATION_MODE === 'true') {
-        console.log('🎭 Processando inutilização em modo simulação');
-        return {
-          sucesso: true,
-          protocolo: `${Date.now()}${Math.floor(Math.random() * 1000)}`,
-          recibo: `${Math.floor(Math.random() * 1000000000)}`,
-          dataHora: new Date().toISOString(),
-          mensagem: 'Inutilização homologada (simulação)',
-          serie: s,
-          numeroInicial: nIni,
-          numeroFinal: nFim,
-        };
-      }
+      // Processamento real da inutilização
 
       // Verifica certificado
       if (!this.chavePrivada || !this.certificado) {
@@ -442,17 +522,13 @@ class NFeService {
       }
 
       // Gera XML de inutilização
-      console.log('📄 Gerando XML de inutilização...');
       const xmlInut = this.gerarXmlInutilizacao({ serie: s, numeroInicial: nIni, numeroFinal: nFim, justificativa, ano: anoRef });
 
       // Assina XML
-      console.log('🔐 Assinando XML de inutilização...');
       const xmlAssinado = assinarInutilizacao(xmlInut, this.chavePrivada, this.certificado);
 
       // Envia para SEFAZ
-      console.log('📤 Enviando inutilização para SEFAZ...');
       const resposta = await this.enviarInutilizacaoSefaz(xmlAssinado);
-      console.log('📥 Resposta SEFAZ inutilização:', resposta);
 
       // Normaliza resultado
       if (resposta?.sucesso || resposta?.cStat === '102' || resposta?.cStat === 102) { // 102: Inutilização de número homologado
@@ -570,7 +646,6 @@ class NFeService {
 
   async verificarStatusSistema() {
     try {
-      const simulacao = process.env.SIMULATION_MODE === 'true';
       return {
         certificado: {
           carregado: !!this.chavePrivada,
@@ -580,8 +655,7 @@ class NFeService {
         sefaz: {
           disponivel: await this.verificarStatusSefaz(),
           ambiente: this.AMBIENTE === "1" ? "Produção" : "Homologação",
-          uf: this.UF,
-          simulacao
+          uf: this.UF
         },
         diretorios: {
           xmls: fs.existsSync(this.XMLS_DIR),
@@ -799,26 +873,30 @@ class NFeService {
 
   async verificarStatusSefaz() {
     try {
-      // Em modo simulação, sempre retorna disponível
-      const simulacao = process.env.SIMULATION_MODE === 'true';
-      if (simulacao) {
-        console.log('🎭 Modo simulação ativo - SEFAZ considerada disponível');
-        return true;
-      }
+      // Verificação real da SEFAZ
 
-      // Tentativa simples de inicializar cliente e checar WSDL
-      const client = new SefazClient({
-        certPath: this.CERT_PATH,
-        certPass: this.CERT_PASS,
+      // Verificação real usando o novo serviço de status
+      const statusUF = await this.sefazStatusService.verificarStatusUF(this.UF, this.AMBIENTE);
+      
+      return {
+        disponivel: statusUF.disponivel,
+        status: statusUF.status,
+        modo: 'real',
         uf: this.UF,
-        ambiente: this.AMBIENTE,
-        timeout: 8000
-      });
-      await client.init();
-      return true;
+        ambiente: this.AMBIENTE === '1' ? 'produção' : 'homologação',
+        detalhes: statusUF,
+        responseTime: statusUF.responseTime
+      };
     } catch (error) {
-      console.warn('⚠️ SEFAZ indisponível:', error.message);
-      return false;
+      console.warn('⚠️ Erro ao verificar status SEFAZ:', error.message);
+      return {
+        disponivel: false,
+        status: 'offline',
+        modo: 'real',
+        uf: this.UF,
+        ambiente: this.AMBIENTE === '1' ? 'produção' : 'homologação',
+        erro: error.message
+      };
     }
   }
 
@@ -846,27 +924,268 @@ class NFeService {
 </envEvento>`;
   }
 
-  validarXmlSeguranca(xml) {
+  /**
+   * Calcula impostos completos usando o novo serviço de tributação
+   * @param {Object} dadosNfe - Dados da NFe
+   * @returns {Object} Dados da NFe com impostos calculados
+   */
+  async calcularImpostosCompletos(dadosNfe) {
     try {
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(xml, "text/xml");
+      // Copia os dados para não modificar o original
+      const dadosComImpostos = JSON.parse(JSON.stringify(dadosNfe));
       
-      // Checa se tem <infNFe> tag obrigatória
-      const infNFe = doc.getElementsByTagName('infNFe')[0];
-      if (!infNFe) {
-        throw new Error('XML inválido: Tag <infNFe> obrigatória ausente - possível injection');
+      // Inicializa totais
+      let totalProdutos = 0;
+      let totalICMS = 0;
+      let totalIPI = 0;
+      let totalPIS = 0;
+      let totalCOFINS = 0;
+      let totalISS = 0;
+      let totalImpostos = 0;
+      
+      // Calcula impostos para cada item
+      for (let i = 0; i < dadosComImpostos.itens.length; i++) {
+        const item = dadosComImpostos.itens[i];
+        
+        // Calcula impostos do item
+        const resultadoTributacao = await this.tributacaoService.calcularImpostos(
+          item,
+          dadosComImpostos.emitente,
+          dadosComImpostos.destinatario,
+          dadosComImpostos.configuracao || {}
+        );
+        
+        if (!resultadoTributacao.sucesso) {
+          throw new Error(`Erro no cálculo tributário do item ${i + 1}: ${resultadoTributacao.erro}`);
+        }
+        
+        // Adiciona informações tributárias ao item
+        item.tributacao = {
+          icms: {
+            cst: resultadoTributacao.impostos.icms.cst,
+            aliquota: resultadoTributacao.impostos.icms.aliquota,
+            baseCalculo: resultadoTributacao.impostos.icms.baseCalculo,
+            valor: resultadoTributacao.impostos.icms.valor,
+            situacao: resultadoTributacao.impostos.icms.situacao
+          },
+          ipi: {
+            cst: resultadoTributacao.impostos.ipi.cst,
+            aliquota: resultadoTributacao.impostos.ipi.aliquota,
+            baseCalculo: resultadoTributacao.impostos.ipi.baseCalculo,
+            valor: resultadoTributacao.impostos.ipi.valor,
+            situacao: resultadoTributacao.impostos.ipi.situacao
+          },
+          pis: {
+            cst: resultadoTributacao.impostos.pis.cst,
+            aliquota: resultadoTributacao.impostos.pis.aliquota,
+            baseCalculo: resultadoTributacao.impostos.pis.baseCalculo,
+            valor: resultadoTributacao.impostos.pis.valor,
+            situacao: resultadoTributacao.impostos.pis.situacao
+          },
+          cofins: {
+            cst: resultadoTributacao.impostos.cofins.cst,
+            aliquota: resultadoTributacao.impostos.cofins.aliquota,
+            baseCalculo: resultadoTributacao.impostos.cofins.baseCalculo,
+            valor: resultadoTributacao.impostos.cofins.valor,
+            situacao: resultadoTributacao.impostos.cofins.situacao
+          },
+          iss: {
+            aliquota: resultadoTributacao.impostos.iss.aliquota,
+            baseCalculo: resultadoTributacao.impostos.iss.baseCalculo,
+            valor: resultadoTributacao.impostos.iss.valor,
+            situacao: resultadoTributacao.impostos.iss.situacao,
+            municipio: resultadoTributacao.impostos.iss.municipio
+          }
+        };
+        
+        // Adiciona observações fiscais ao item
+        if (resultadoTributacao.observacoes) {
+          item.observacoesFiscais = resultadoTributacao.observacoes;
+        }
+        
+        // Soma aos totais
+        const valorItem = parseFloat(item.valorUnitario) * parseFloat(item.quantidade);
+        totalProdutos += valorItem;
+        totalICMS += resultadoTributacao.impostos.icms.valor;
+        totalIPI += resultadoTributacao.impostos.ipi.valor;
+        totalPIS += resultadoTributacao.impostos.pis.valor;
+        totalCOFINS += resultadoTributacao.impostos.cofins.valor;
+        totalISS += resultadoTributacao.impostos.iss.valor;
       }
       
-      // Checa CNPJ emitente matches env
-      const cnpj = doc.getElementsByTagName('CNPJ')[0];
-      if (cnpj && cnpj.textContent !== this.CNPJ_EMITENTE) {
-        throw new Error('XML inválido: CNPJ emitente não autorizado');
+      // Calcula total de impostos
+      totalImpostos = totalICMS + totalIPI + totalPIS + totalCOFINS + totalISS;
+      
+      // Adiciona totais à NFe
+      dadosComImpostos.totais = {
+        vBC: parseFloat(totalProdutos.toFixed(2)),      // Base de cálculo ICMS
+        vICMS: parseFloat(totalICMS.toFixed(2)),        // Valor ICMS
+        vICMSDeson: 0.00,                               // Valor ICMS desonerado
+        vFCP: 0.00,                                     // Valor FCP
+        vBCST: 0.00,                                    // Base de cálculo ICMS ST
+        vST: 0.00,                                      // Valor ICMS ST
+        vFCPST: 0.00,                                   // Valor FCP ST
+        vFCPSTRet: 0.00,                                // Valor FCP ST retido
+        vProd: parseFloat(totalProdutos.toFixed(2)),    // Valor total produtos
+        vFrete: 0.00,                                   // Valor frete
+        vSeg: 0.00,                                     // Valor seguro
+        vDesc: 0.00,                                    // Valor desconto
+        vII: 0.00,                                      // Valor II
+        vIPI: parseFloat(totalIPI.toFixed(2)),          // Valor IPI
+        vIPIDevol: 0.00,                                // Valor IPI devolvido
+        vPIS: parseFloat(totalPIS.toFixed(2)),          // Valor PIS
+        vCOFINS: parseFloat(totalCOFINS.toFixed(2)),    // Valor COFINS
+        vOutro: 0.00,                                   // Outras despesas
+        vNF: parseFloat((totalProdutos + totalImpostos).toFixed(2)), // Valor total NFe
+        vTotTrib: parseFloat(totalImpostos.toFixed(2)), // Total tributos aproximados
+        vISS: parseFloat(totalISS.toFixed(2))           // Valor ISS
+      };
+      
+      // Gera observações gerais da NFe
+      const observacoesGerais = this.gerarObservacoesGeraisNfe(dadosComImpostos);
+      if (observacoesGerais) {
+        dadosComImpostos.observacoes = (dadosComImpostos.observacoes || '') + ' ' + observacoesGerais;
       }
       
-      console.log('✅ XML validado com sucesso');
+      return dadosComImpostos;
+      
     } catch (error) {
-      console.error('❌ Erro validação XML:', error.message);
-      throw new Error(`Validação XML falhou: ${error.message}`);
+      console.error('❌ Erro no cálculo tributário completo:', error.message);
+      throw new Error(`Falha no cálculo tributário: ${error.message}`);
+    }
+  }
+
+  /**
+   * Gera observações gerais da NFe baseadas nos cálculos tributários
+   */
+  gerarObservacoesGeraisNfe(dadosNfe) {
+    try {
+      let observacoes = [];
+      
+      // Observações sobre tributação
+      if (dadosNfe.emitente && dadosNfe.emitente.regimeTributario) {
+        switch (dadosNfe.emitente.regimeTributario) {
+          case '1': // Simples Nacional
+            observacoes.push('Documento emitido por ME ou EPP optante pelo Simples Nacional.');
+            break;
+          case '2': // Simples Nacional - excesso de sublimite
+            observacoes.push('Documento emitido por ME ou EPP optante pelo Simples Nacional com excesso de sublimite.');
+            break;
+          case '3': // Regime Normal
+            observacoes.push('Documento emitido por empresa do Regime Normal de tributação.');
+            break;
+        }
+      }
+      
+      // Observações sobre impostos aproximados
+      if (dadosNfe.totais && dadosNfe.totais.vTotTrib > 0) {
+        const percentualTributos = ((dadosNfe.totais.vTotTrib / dadosNfe.totais.vNF) * 100).toFixed(2);
+        observacoes.push(`Valor aproximado dos tributos: R$ ${dadosNfe.totais.vTotTrib.toFixed(2)} (${percentualTributos}%) - Fonte: IBPT.`);
+      }
+      
+      // Observações sobre ICMS
+      let temICMSIsento = false;
+      let temICMSNaoTributado = false;
+      
+      if (dadosNfe.itens) {
+        dadosNfe.itens.forEach(item => {
+          if (item.tributacao && item.tributacao.icms) {
+            const cstICMS = item.tributacao.icms.cst;
+            if (['40', '41', '50'].includes(cstICMS)) {
+              temICMSIsento = true;
+            }
+            if (['30', '60'].includes(cstICMS)) {
+              temICMSNaoTributado = true;
+            }
+          }
+        });
+      }
+      
+      if (temICMSIsento) {
+        observacoes.push('Mercadoria isenta de ICMS conforme artigo da legislação estadual.');
+      }
+      
+      if (temICMSNaoTributado) {
+        observacoes.push('Mercadoria não tributada pelo ICMS conforme legislação estadual.');
+      }
+      
+      // Observações sobre certificado digital
+      if (dadosNfe.certificado && dadosNfe.certificado.validade) {
+        const validadeCert = new Date(dadosNfe.certificado.validade);
+        const hoje = new Date();
+        const diasRestantes = Math.ceil((validadeCert - hoje) / (1000 * 60 * 60 * 24));
+        
+        if (diasRestantes <= 30) {
+          observacoes.push(`ATENÇÃO: Certificado digital vence em ${diasRestantes} dias. Providencie a renovação.`);
+        }
+      }
+      
+      // Observações personalizadas do emitente
+      if (dadosNfe.observacoesPersonalizadas) {
+        observacoes.push(dadosNfe.observacoesPersonalizadas);
+      }
+      
+      const resultado = observacoes.join(' ');
+      
+      return resultado;
+      
+    } catch (error) {
+      console.error('❌ Erro ao gerar observações gerais:', error.message);
+      return '';
+    }
+  }
+
+  validarXmlSeguranca(xmlContent) {
+    try {
+      // Lista de elementos perigosos que não devem estar presentes
+      const elementosProibidos = [
+        '<!ENTITY',
+        '<!DOCTYPE',
+        '<script',
+        'javascript:',
+        'vbscript:',
+        'onload=',
+        'onerror=',
+        'onclick=',
+        'eval(',
+        'document.cookie',
+        'window.location',
+        'XMLHttpRequest',
+        'fetch(',
+        'import(',
+        'require(',
+        'process.env'
+      ];
+      
+      // Verifica se há elementos proibidos
+      const xmlLowerCase = xmlContent.toLowerCase();
+      for (const elemento of elementosProibidos) {
+        if (xmlLowerCase.includes(elemento.toLowerCase())) {
+          throw new Error(`XML contém elemento não permitido: ${elemento}`);
+        }
+      }
+      
+      // Verifica tamanho do XML (máximo 5MB)
+      const tamanhoMB = Buffer.byteLength(xmlContent, 'utf8') / (1024 * 1024);
+      if (tamanhoMB > 5) {
+        throw new Error(`XML excede o tamanho máximo permitido: ${tamanhoMB.toFixed(2)}MB`);
+      }
+      
+      // Verifica se é um XML válido básico
+      if (!xmlContent.includes('<?xml') || !xmlContent.includes('<NFe') || !xmlContent.includes('</NFe>')) {
+        throw new Error('XML não possui estrutura válida de NFe');
+      }
+      
+      // Verifica encoding
+      if (!xmlContent.includes('encoding="UTF-8"') && !xmlContent.includes("encoding='UTF-8'")) {
+        // Não é erro crítico, apenas aviso
+      }
+      
+      return true;
+      
+    } catch (error) {
+      console.error('❌ Falha na validação de segurança do XML:', error.message);
+      throw error;
     }
   }
 }
