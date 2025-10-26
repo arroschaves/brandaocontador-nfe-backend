@@ -1,0 +1,31 @@
+[
+  {
+    "id": 1,
+    "nome": "Administrador",
+    "email": "admin@brandaocontador.com.br",
+    "senha": "$2b$10$0l1AkMt11PpexMlTWitfzOoLcOJAGCREnh7WzdaAaYK0zeOcY0cra",
+    "tipoCliente": "cnpj",
+    "documento": "12345678000199",
+    "telefone": "(11) 4000-0000",
+    "razaoSocial": "Brandão Contador LTDA",
+    "nomeFantasia": "Brandão Contador",
+    "endereco": {
+      "cep": "01001-000",
+      "logradouro": "Rua Exemplo",
+      "numero": "100",
+      "complemento": "",
+      "bairro": "Centro",
+      "cidade": "São Paulo",
+      "uf": "SP"
+    },
+    "permissoes": [
+      "admin",
+      "admin_total",
+      "nfe_emitir",
+      "nfe_consultar"
+    ],
+    "ativo": true,
+    "dataCriacao": "2025-10-26T03:13:08.764Z",
+    "dataAtualizacao": "2025-10-26T03:13:08.764Z"
+  }
+]
