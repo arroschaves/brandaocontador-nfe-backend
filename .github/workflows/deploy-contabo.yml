@@ -170,98 +170,11 @@ jobs:
             
             echo "🔄 Iniciando processo de deploy na CONTABO..."
             
-            # Verificar e instalar dependências necessárias
-            echo "🔧 Verificando dependências do sistema..."
-            
-            # Limpar cache e preparar ambiente
-            echo "🧹 Preparando ambiente de instalação..."
-            sudo apt-get clean || true
-            sudo rm -rf /var/lib/apt/lists/* || true
-            sudo mkdir -p /tmp/apt-install
-            sudo chmod 777 /tmp/apt-install
-            export TMPDIR=/tmp/apt-install
-            
-            # Verificar Node.js
-            if ! command -v node &> /dev/null; then
-              echo "❌ Node.js não encontrado. Instalando..."
-              
-              # Método 1: Tentar instalação via NodeSource
-              echo "🔧 Tentativa 1: Instalação via NodeSource..."
-              if curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash - && sudo -E apt-get update && sudo -E apt-get install -y nodejs; then
-                echo "✅ Node.js instalado via NodeSource: $(node --version)"
-              else
-                echo "⚠️ Falha na instalação via NodeSource, tentando método alternativo..."
-                
-                # Método 2: Instalação via snap
-                echo "🔧 Tentativa 2: Instalação via snap..."
-                if sudo snap install node --classic; then
-                  echo "✅ Node.js instalado via snap: $(node --version)"
-                else
-                  echo "⚠️ Falha na instalação via snap, tentando download direto..."
-                  
-                  # Método 3: Download direto e instalação manual
-                  echo "🔧 Tentativa 3: Download direto..."
-                  cd /tmp
-                  wget https://nodejs.org/dist/v18.19.0/node-v18.19.0-linux-x64.tar.xz
-                  tar -xf node-v18.19.0-linux-x64.tar.xz
-                  sudo cp -r node-v18.19.0-linux-x64/* /usr/local/
-                  sudo ln -sf /usr/local/bin/node /usr/bin/node
-                  sudo ln -sf /usr/local/bin/npm /usr/bin/npm
-                  
-                  if command -v node &> /dev/null; then
-                    echo "✅ Node.js instalado via download direto: $(node --version)"
-                  else
-                    echo "❌ Falha em todos os métodos de instalação do Node.js"
-                    exit 1
-                  fi
-                fi
-              fi
-            else
-              echo "✅ Node.js encontrado: $(node --version)"
-            fi
-            
-            # Verificar npm
-            if ! command -v npm &> /dev/null; then
-              echo "❌ npm não encontrado. Instalando..."
-              
-              # Método 1: Tentar instalação via apt
-              echo "🔧 Tentativa 1: Instalação do npm via apt..."
-              if sudo -E apt-get update && sudo -E apt-get install -y npm; then
-                echo "✅ npm instalado via apt: $(npm --version)"
-              else
-                echo "⚠️ Falha na instalação via apt, tentando método alternativo..."
-                
-                # Método 2: Criar symlink se nodejs foi instalado mas npm não
-                if [ -f "/usr/bin/nodejs" ] && [ ! -f "/usr/bin/node" ]; then
-                  sudo ln -sf /usr/bin/nodejs /usr/bin/node
-                fi
-                
-                # Método 3: Instalar npm via curl
-                echo "🔧 Tentativa 2: Instalação do npm via curl..."
-                curl -L https://www.npmjs.com/install.sh | sudo sh
-                
-                # Verificar se npm foi instalado
-                if command -v npm &> /dev/null; then
-                  echo "✅ npm instalado via curl: $(npm --version)"
-                else
-                  echo "❌ Falha em todos os métodos de instalação do npm"
-                  exit 1
-                fi
-              fi
-            else
-              echo "✅ npm encontrado: $(npm --version)"
-            fi
-            
-            # Verificar/instalar pm2
-            if ! command -v pm2 &> /dev/null; then
-              echo "🔧 Instalando PM2..."
-              npm install -g pm2
-              echo "✅ PM2 instalado: $(pm2 --version)"
-            else
-              echo "✅ PM2 encontrado: $(pm2 --version)"
-            fi
-            
-            echo "✅ Dependências verificadas"
+            # Verificação rápida de dependências (assumindo que já estão instaladas)
+            echo "🔧 Verificando ambiente..."
+            echo "Node.js: $(node --version 2>/dev/null || echo 'Não encontrado')"
+            echo "npm: $(npm --version 2>/dev/null || echo 'Não encontrado')"
+            echo "PM2: $(pm2 --version 2>/dev/null || echo 'Não encontrado')"
             
             # Criar backup antes do deploy
             BACKUP_DIR="/var/backups/brandaocontador-nfe-backend/$(date +%Y%m%d_%H%M%S)"
