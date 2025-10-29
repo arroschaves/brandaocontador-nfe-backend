@@ -170,6 +170,37 @@ jobs:
             
             echo "🔄 Iniciando processo de deploy na CONTABO..."
             
+            # Verificar e instalar dependências necessárias
+            echo "🔧 Verificando dependências do sistema..."
+            
+            # Verificar Node.js
+            if ! command -v node &> /dev/null; then
+              echo "❌ Node.js não encontrado. Instalando..."
+              curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+              sudo apt-get install -y nodejs
+            else
+              echo "✅ Node.js encontrado: $(node --version)"
+            fi
+            
+            # Verificar npm
+            if ! command -v npm &> /dev/null; then
+              echo "❌ npm não encontrado"
+              exit 1
+            else
+              echo "✅ npm encontrado: $(npm --version)"
+            fi
+            
+            # Verificar/instalar pm2
+            if ! command -v pm2 &> /dev/null; then
+              echo "🔧 Instalando PM2..."
+              npm install -g pm2
+              echo "✅ PM2 instalado: $(pm2 --version)"
+            else
+              echo "✅ PM2 encontrado: $(pm2 --version)"
+            fi
+            
+            echo "✅ Dependências verificadas"
+            
             # Criar backup antes do deploy
             BACKUP_DIR="/var/backups/brandaocontador-nfe-backend/$(date +%Y%m%d_%H%M%S)"
             echo "💾 Criando backup em: $BACKUP_DIR"
