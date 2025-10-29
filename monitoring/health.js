@@ -26,9 +26,13 @@ async function basicHealthCheck() {
       checks: {}
     };
     
-    // Verificação de memória
+    // Verificação de memória (corrigido para usar memória real do sistema)
+    const os = require('os');
     const memoryUsage = process.memoryUsage();
-    const memoryUsagePercent = memoryUsage.heapUsed / memoryUsage.heapTotal;
+    const totalMemory = os.totalmem();
+    const freeMemory = os.freemem();
+    const usedMemory = totalMemory - freeMemory;
+    const memoryUsagePercent = usedMemory / totalMemory;
     
     health.checks.memory = {
       status: memoryUsagePercent < monitoringConfig.health.thresholds.memory.critical ? 'healthy' : 'critical',
