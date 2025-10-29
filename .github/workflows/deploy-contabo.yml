@@ -130,15 +130,15 @@ jobs:
           # Criar arquivo temporário com arquivos essenciais
           # CRÍTICO: Excluir pasta data/ para proteger dados de produção
           tar -czf backend-deploy.tar.gz \
-            . \
             --exclude=node_modules \
             --exclude=logs \
             --exclude=coverage \
             --exclude=.env \
             --exclude=certs \
             --exclude=data \
-            --exclude=data/ \
-            --exclude=data/*.json
+            --exclude=.git \
+            --exclude=.github \
+            .
           
           echo "📊 Tamanho do arquivo de deploy:"
           ls -lh backend-deploy.tar.gz
