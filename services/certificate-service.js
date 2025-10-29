@@ -16,9 +16,10 @@ class CertificateService {
 
     /**
      * Carrega o certificado digital com sistema de fallback
-     * @returns {Object} Certificado carregado
+     * @param {boolean} optional Se true, não gera erro quando certificado não encontrado
+     * @returns {Object|null} Certificado carregado ou null se opcional e não encontrado
      */
-    async loadCertificate() {
+    async loadCertificate(optional = false) {
         const cacheKey = 'main_certificate';
         
         // Verifica cache primeiro
@@ -35,28 +36,29 @@ class CertificateService {
         // Tenta carregar de cada caminho possível
         for (const certPath of this.fallbackPaths) {
             try {
-                console.log(`Tentando carregar certificado de: ${certPath}`);
-                
                 if (!fs.existsSync(certPath)) {
-                    
                     continue;
                 }
 
                 const certificate = await this.loadCertificateFromPath(certPath);
                 
                 if (this.isCertificateValid(certificate)) {
-                    console.log(`Certificado carregado com sucesso de: ${certPath}`);
+                    console.log(`✅ Certificado carregado com sucesso de: ${certPath}`);
                     this.certificateCache.set(cacheKey, certificate);
                     return certificate;
                 }
             } catch (error) {
-                console.error(`Erro ao carregar certificado de ${certPath}:`, error.message);
                 lastError = error;
             }
         }
 
         // Se chegou aqui, não conseguiu carregar nenhum certificado
-        throw new Error(`Não foi possível carregar o certificado digital. Último erro: ${lastError?.message || 'Nenhum certificado encontrado'}`);
+        if (optional) {
+            console.log('ℹ️ Certificado não carregado (modo opcional)');
+            return null;
+        }
+        
+        throw new Error(`Certificado digital não encontrado. ${lastError?.message || 'Nenhum certificado válido encontrado nos caminhos configurados'}`);
     }
 
     /**
@@ -179,7 +181,16 @@ class CertificateService {
      */
     async getCertificateStatus() {
         try {
-            const certificate = await this.loadCertificate();
+            const certificate = await this.loadCertificate(true); // Modo opcional
+            
+            if (!certificate) {
+                return {
+                    status: 'not_configured',
+                    info: null,
+                    message: 'Certificado digital não configurado - Cliente deve importar via interface'
+                };
+            }
+            
             const info = this.getCertificateInfo(certificate);
             
             return {
