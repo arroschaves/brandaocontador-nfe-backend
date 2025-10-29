@@ -270,14 +270,29 @@ jobs:
           key: ${{ secrets.CONTABO_SSH_PRIVATE_KEY }}
           port: ${{ env.SERVER_PORT }}
           script: |
-            # Verificação rápida se PM2 está rodando
+            # Verificar se PM2 está rodando
             if pm2 list | grep -q "${{ env.PM2_APP_NAME }}"; then
-              echo "✅ Aplicação rodando no PM2"
-              echo "🎉 Deploy verificado com sucesso na CONTABO!"
+              echo "✅ Aplicação está rodando no PM2"
             else
               echo "❌ Aplicação não está rodando no PM2"
+              echo "⚠️ Verificando logs do PM2..."
+              pm2 logs ${{ env.PM2_APP_NAME }} --lines 10
               exit 1
             fi
+            
+            # Mostrar logs recentes para verificação
+            echo "📋 Logs recentes da aplicação:"
+            pm2 logs ${{ env.PM2_APP_NAME }} --lines 5
+            
+            # Mostrar status PM2
+            echo "📊 Status PM2:"
+            pm2 list
+            
+            # Verificar estrutura JSON
+            echo "📊 Verificando estrutura JSON:"
+            ls -la ${{ env.DEPLOY_PATH }}/data/
+            
+            echo "🎉 Deploy verificado com sucesso na CONTABO!"
             
       - name: 🧹 Limpeza pós-deploy
         if: always()

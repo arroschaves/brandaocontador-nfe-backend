@@ -237,6 +237,10 @@ const {
   initialize: initializeLogging 
 } = require('./monitoring/logger');
 
+// Sistema de logging avançado
+const AdvancedLogger = require('./services/advanced-logger');
+const advancedLogger = new AdvancedLogger();
+
 initializeLogging();
 initializeMetrics();
 initializeHealthChecks();
@@ -249,6 +253,13 @@ app.use(performanceMiddleware);
 
 // Middleware de logging de requisições
 app.use(requestLoggingMiddleware());
+
+// Sistema de logging avançado - deve vir após o middleware de performance
+app.set('advancedLogger', advancedLogger);
+app.use((req, res, next) => advancedLogger.logRequest(req, res, next));
+
+// Configurar handlers globais de erro
+advancedLogger.setupGlobalErrorHandlers();
 
 // ==================== CONFIGURAÇÃO DE UPLOAD ====================
 const certsDir = path.join(__dirname, 'certs');
@@ -685,6 +696,10 @@ app.post('/me/certificado',
 
 // ==================== ROTAS MODERNAS ====================
 // Usar as rotas modernas organizadas em arquivos separados
+const meRoutes = require('./routes/me');
+const logsRoutes = require('./routes/logs');
+const testErrorsRoutes = require('./routes/test-errors');
+
 app.use('/api/auth', authRoutes);
 app.use('/api/clientes', clientesRoutes);
 app.use('/api/auth', authRoutes);
@@ -697,6 +712,77 @@ app.use('/api/eventos', eventosRoutes);
 app.use('/api/relatorios', relatoriosRoutes);
 app.use('/api/configuracoes', configuracoesRoutes);
 app.use('/api/dashboard', authMiddleware.verificarAutenticacao(), dashboardRoutes);
+app.use('/api/me', meRoutes);
+app.use('/api/logs', logsRoutes);
+app.use('/api', testErrorsRoutes);
+
+// ==================== ENDPOINTS DE TESTE PARA LOGGING ====================
+
+/**
+ * @swagger
+ * /api/test-error:
+ *   get:
+ *     tags:
+ *       - Teste
+ *     summary: Endpoint para testar captura de erros
+ *     description: Gera um erro 500 para testar o sistema de logging
+ *     responses:
+ *       500:
+ *         description: Erro gerado propositalmente para teste
+ */
+app.get('/api/test-error', (req, res) => {
+  const advancedLogger = req.app.get('advancedLogger');
+  
+  // Log da tentativa de teste
+  advancedLogger.logInfo('system', 'Endpoint de teste de erro acessado', req, {
+    userAgent: req.get('User-Agent'),
+    ip: req.ip
+  });
+  
+  // Gerar erro propositalmente
+  const erro = new Error('Erro de teste gerado propositalmente para verificar o sistema de logging');
+  erro.code = 'TEST_ERROR';
+  
+  advancedLogger.logError('system', 'Erro de teste gerado', req, erro, {
+    tipoTeste: 'erro_500',
+    proposital: true
+  });
+  
+  res.status(500).json({
+    sucesso: false,
+    erro: 'Erro de teste gerado propositalmente',
+    codigo: 'TEST_ERROR',
+    timestamp: new Date().toISOString()
+  });
+});
+
+/**
+ * @swagger
+ * /api/test-404:
+ *   get:
+ *     tags:
+ *       - Teste
+ *     summary: Endpoint para testar captura de 404
+ *     description: Gera um erro 404 para testar o sistema de logging
+ *     responses:
+ *       404:
+ *         description: Recurso não encontrado (teste)
+ */
+app.get('/api/test-404', (req, res) => {
+  const advancedLogger = req.app.get('advancedLogger');
+  
+  advancedLogger.logWarning('system', 'Teste de erro 404', req, {
+    rota: '/api/test-404',
+    tipoTeste: 'not_found'
+  });
+  
+  res.status(404).json({
+    sucesso: false,
+    erro: 'Recurso não encontrado (teste)',
+    codigo: 'NOT_FOUND_TEST',
+    timestamp: new Date().toISOString()
+  });
+});
 
 // ==================== ENDPOINTS NFE (LEGADOS) ====================
 
@@ -2287,19 +2373,19 @@ app.get('/admin/security-status',
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/Error'
  *       403:
  *         description: Usuário não possui permissão de administrador
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/Error'
  *       500:
  *         description: Erro interno do servidor
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/Error'
  */
 app.get('/admin/usuarios',
   authMiddleware.verificarAutenticacao(),
@@ -2379,19 +2465,19 @@ app.get('/admin/usuarios',
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/Error'
  *       403:
  *         description: Usuário não possui permissão de administrador
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/Error'
  *       500:
  *         description: Erro interno do servidor
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/Error'
  */
 app.get('/admin/health',
   authMiddleware.verificarAutenticacao(),
@@ -2557,13 +2643,13 @@ app.get('/api/health', healthCheckHandler);
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/Error'
  *       500:
  *         description: Erro interno do servidor
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/Error'
  */
 // Health check detalhado (requer autenticação)
 app.get('/health/detailed', 
@@ -2618,7 +2704,7 @@ app.get('/health/detailed',
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/Error'
  */
 // Métricas Prometheus (público para scraping)
 app.get('/metrics', metricsHandler);
@@ -2736,13 +2822,13 @@ app.get('/metrics', metricsHandler);
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/Error'
  *       500:
  *         description: Erro interno do servidor
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/Error'
  */
 // Status de performance (requer autenticação)
 app.get('/status/performance', 
@@ -2851,19 +2937,19 @@ app.get('/status/performance',
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/Error'
  *       403:
  *         description: Usuário não possui permissão de administrador
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/Error'
  *       500:
  *         description: Erro interno do servidor
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/Error'
  */
 app.get('/admin/alerts', 
   authMiddleware.verificarAutenticacao(),
@@ -2951,25 +3037,25 @@ app.get('/admin/alerts',
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/Error'
  *       401:
  *         description: Token de autenticação inválido ou ausente
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/Error'
  *       403:
  *         description: Usuário não possui permissão de administrador
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/Error'
  *       500:
  *         description: Erro interno do servidor
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/Error'
  */
 // Teste de alertas (requer autenticação admin)
 app.post('/admin/alerts/test', 
@@ -2978,53 +3064,15 @@ app.post('/admin/alerts/test',
   testAlertHandler
 );
 
-// ==================== MIDDLEWARE DE ERRO ====================
+// ==================== MIDDLEWARE DE ERRO AVANÇADO ====================
 // Middleware de logging de erros (deve vir antes do handler de erro)
 app.use(errorLoggingMiddleware());
 
-app.use((err, req, res, next) => {
-    console.error('❌ Erro não tratado:', {
-        message: err.message,
-        stack: err.stack,
-        url: req.url,
-        method: req.method,
-        timestamp: new Date().toISOString()
-    });
-    
-    if (res.headersSent) {
-        return next(err);
-    }
-    
-    let statusCode = 500;
-    let message = 'Erro interno do servidor';
-    
-    if (err.message === 'JSON inválido') {
-        statusCode = 400;
-        message = 'Dados JSON inválidos';
-    } else if (err.name === 'ValidationError') {
-        statusCode = 400;
-        message = 'Dados de entrada inválidos';
-    } else if (err.name === 'UnauthorizedError') {
-        statusCode = 401;
-        message = 'Não autorizado';
-    }
-    
-    res.status(statusCode).json({
-        erro: message,
-        detalhes: NODE_ENV === 'development' ? err.message : undefined,
-        timestamp: new Date().toISOString()
-    });
-});
+// Middleware para rotas não encontradas (404) - deve vir antes do handler de erro global
+app.use('*', advancedLogger.notFoundHandler());
 
-// Middleware para rotas não encontradas
-app.use('*', (req, res) => {
-  res.status(404).json({
-    status: "erro",
-    message: "Endpoint não encontrado",
-    path: req.originalUrl,
-    timestamp: new Date().toISOString()
-  });
-});
+// Middleware global de captura de erros - deve ser o último
+app.use(advancedLogger.globalErrorHandler());
 
 // ==================== HEALTH CHECK ENDPOINT ====================
 /**
@@ -3055,7 +3103,44 @@ app.use('*', (req, res) => {
  *                   type: string
  *                   example: "1.0.0"
  */
-// Health check routes are defined above using proper handlers from monitoring/health.js
+app.get('/health', (req, res) => {
+  res.json({
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    version: require('./package.json').version || '1.0.0',
+    environment: NODE_ENV,
+    database: 'file',
+    memory: process.memoryUsage(),
+    pid: process.pid
+  });
+});
+
+/**
+ * @swagger
+ * /health/detailed:
+ *   get:
+ *     summary: Health check detalhado
+ *     description: Verifica todos os componentes do sistema
+ *     tags: [Health]
+ *     responses:
+ *       200:
+ *         description: Status detalhado do sistema
+ */
+app.get('/health/detailed', async (req, res) => {
+  try {
+    const HealthCheck = require('./scripts/health-check');
+    const healthCheck = new HealthCheck();
+    const resultado = await healthCheck.executarHealthCheck();
+    res.json(resultado);
+  } catch (error) {
+    res.status(500).json({
+      status: 'error',
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
 
 // ==================== CONFIGURAÇÕES DE PRODUÇÃO ====================
 // Configurar compressão para produção
@@ -3121,8 +3206,8 @@ async function iniciarServidor() {
     
     // Tentar conectar ao banco de dados
     try {
-      await database.conectar();
-      console.log('✅ Banco de dados conectado');
+      await database.conectarBanco();
+      console.log('✅ Banco de dados JSON conectado');
     } catch (dbError) {
       console.warn('⚠️ Falha ao conectar banco de dados:', dbError.message);
       console.log('🔄 Servidor continuará sem banco de dados...');
