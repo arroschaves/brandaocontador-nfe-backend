@@ -37,6 +37,10 @@ const logService = require('./services/log-service');
 const emailService = require('./services/email-service');
 const CertificateService = require('./services/certificate-service');
 
+// Sistema de logging avançado
+const AdvancedLogger = require('./services/advanced-logger');
+const advancedLogger = new AdvancedLogger();
+
 // Sistema usando apenas arquivos JSON - sem models MongoDB
 
 // Database e Auth (consolidados com detecção automática)
@@ -249,6 +253,13 @@ app.use(performanceMiddleware);
 
 // Middleware de logging de requisições
 app.use(requestLoggingMiddleware());
+
+// Sistema de logging avançado - deve vir após o middleware de performance
+app.set('advancedLogger', advancedLogger);
+app.use((req, res, next) => advancedLogger.logRequest(req, res, next));
+
+// Configurar handlers globais de erro
+advancedLogger.setupGlobalErrorHandlers();
 
 // ==================== CONFIGURAÇÃO DE UPLOAD ====================
 const certsDir = path.join(__dirname, 'certs');
@@ -697,6 +708,15 @@ app.use('/api/eventos', eventosRoutes);
 app.use('/api/relatorios', relatoriosRoutes);
 app.use('/api/configuracoes', configuracoesRoutes);
 app.use('/api/dashboard', authMiddleware.verificarAutenticacao(), dashboardRoutes);
+
+// Rotas de logging e teste
+const meRoutes = require('./routes/me');
+const logsRoutes = require('./routes/logs');
+const testErrorsRoutes = require('./routes/test-errors');
+
+app.use('/api/me', meRoutes);
+app.use('/api/logs', logsRoutes);
+app.use('/api', testErrorsRoutes);
 
 // ==================== ENDPOINTS NFE (LEGADOS) ====================
 
