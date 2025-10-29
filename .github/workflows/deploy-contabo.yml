@@ -125,7 +125,6 @@ jobs:
           ssh -o ConnectTimeout=10 ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} "echo '✅ Conexão SSH estabelecida com sucesso na CONTABO'"
           
       - name: 📦 Preparar arquivos para deploy
-        working-directory: backend
         run: |
           echo "📦 Preparando arquivos para CONTABO..."
           # Criar arquivo temporário com arquivos essenciais
@@ -159,7 +158,7 @@ jobs:
           username: ${{ env.SERVER_USER }}
           key: ${{ secrets.CONTABO_SSH_PRIVATE_KEY }}
           port: ${{ env.SERVER_PORT }}
-          source: "backend/backend-deploy.tar.gz"
+          source: "backend-deploy.tar.gz"
           target: "/tmp/"
           
       - name: 🔄 Executar deploy no servidor
