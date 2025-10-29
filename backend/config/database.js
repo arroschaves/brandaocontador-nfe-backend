@@ -767,6 +767,67 @@ class DatabaseConfig {
     return this.config.removerProduto(id);
   }
 
+  // ==================== MÉTODOS PARA CONFIGURAÇÕES ====================
+  
+  async buscarConfiguracao(tipo) {
+    if (this.useMongoDb) {
+      throw new Error('Use o modelo Configuracao para MongoDB');
+    }
+    
+    try {
+      const configuracoes = await this.config.lerArquivo('configuracoes');
+      
+      // Se configuracoes for um objeto, retornar a seção específica
+      if (typeof configuracoes === 'object' && !Array.isArray(configuracoes)) {
+        return configuracoes[tipo] || null;
+      }
+      
+      // Se for array, buscar por tipo
+      if (Array.isArray(configuracoes)) {
+        return configuracoes.find(config => config.tipo === tipo) || null;
+      }
+      
+      return null;
+    } catch (error) {
+      console.warn(`⚠️ Erro ao buscar configuração ${tipo}:`, error.message);
+      return null;
+    }
+  }
+
+  async salvarConfiguracao(tipo, dados) {
+    if (this.useMongoDb) {
+      throw new Error('Use o modelo Configuracao para MongoDB');
+    }
+    
+    try {
+      const configuracoes = await this.config.lerArquivo('configuracoes');
+      
+      // Se configuracoes for um objeto, atualizar a seção específica
+      if (typeof configuracoes === 'object' && !Array.isArray(configuracoes)) {
+        configuracoes[tipo] = dados;
+        await this.config.escreverArquivo('configuracoes', configuracoes);
+        return dados;
+      }
+      
+      // Se for array, buscar e atualizar ou adicionar
+      if (Array.isArray(configuracoes)) {
+        const indice = configuracoes.findIndex(config => config.tipo === tipo);
+        if (indice >= 0) {
+          configuracoes[indice] = { tipo, ...dados };
+        } else {
+          configuracoes.push({ tipo, ...dados });
+        }
+        await this.config.escreverArquivo('configuracoes', configuracoes);
+        return { tipo, ...dados };
+      }
+      
+      return null;
+    } catch (error) {
+      console.error(`❌ Erro ao salvar configuração ${tipo}:`, error.message);
+      throw error;
+    }
+  }
+
   // ==================== MÉTODOS PARA USUÁRIOS (LISTA) ====================
   
   async listarUsuarios() {

@@ -1,5 +1,7 @@
-const Usuario = require('../models/Usuario');
+const database = require('../config/database');
 const jwt = require('jsonwebtoken');
+const bcrypt = require('bcrypt');
+const { v4: uuidv4 } = require('uuid');
 
 class AuthService {
   constructor() {
@@ -9,24 +11,24 @@ class AuthService {
 
   async login(email, senha) {
     try {
-      // Buscar usuário no banco de dados
-      const usuario = await Usuario.findOne({ 
-        email: email.toLowerCase(), 
-        ativo: true 
-      });
+      // Buscar usuário no arquivo JSON
+      const usuario = await database.buscarUsuarioPorEmail(email.toLowerCase());
 
-      if (!usuario) {
+      if (!usuario || !usuario.ativo) {
         throw new Error('Usuário não encontrado ou inativo');
       }
 
       // Verificar senha
-      const senhaValida = await usuario.compararSenha(senha);
+      const senhaValida = await bcrypt.compare(senha, usuario.senha);
       if (!senhaValida) {
         throw new Error('Senha incorreta');
       }
 
       // Atualizar último acesso
-      await usuario.atualizarUltimoAcesso();
+      await database.atualizarUsuario(usuario.id, {
+        ultimoAcesso: new Date().toISOString(),
+        totalLogins: (usuario.totalLogins || 0) + 1
+      });
 
       // Gerar token JWT
       const token = this.gerarToken(usuario);
@@ -34,7 +36,7 @@ class AuthService {
       return {
         sucesso: true,
         token,
-        usuario: usuario.toJSON(),
+        usuario: this.formatarUsuario(usuario),
         expiresIn: this.JWT_EXPIRES_IN
       };
 
@@ -47,9 +49,7 @@ class AuthService {
   async register(dadosUsuario) {
     try {
       // Verificar se email já existe
-      const emailExistente = await Usuario.findOne({ 
-        email: dadosUsuario.email.toLowerCase() 
-      });
+      const emailExistente = await database.buscarUsuarioPorEmail(dadosUsuario.email.toLowerCase());
 
       if (emailExistente) {
         throw new Error('Email já cadastrado');
@@ -57,17 +57,35 @@ class AuthService {
 
       // Verificar se documento já existe (se fornecido)
       if (dadosUsuario.documento) {
-        const documentoExistente = await Usuario.findOne({ 
-          documento: dadosUsuario.documento 
-        });
+        const documentoExistente = await database.buscarUsuarioPorDocumento(dadosUsuario.documento);
         if (documentoExistente) {
           throw new Error(`${(dadosUsuario.tipoCliente || 'cpf').toUpperCase()} já cadastrado`);
         }
       }
 
+      // Criptografar senha
+      const senhaHash = await bcrypt.hash(dadosUsuario.senha, 10);
+
       // Criar novo usuário
-      const novoUsuario = new Usuario(dadosUsuario);
-      await novoUsuario.save();
+      const novoUsuario = {
+        id: uuidv4(),
+        nome: dadosUsuario.nome,
+        email: dadosUsuario.email.toLowerCase(),
+        senha: senhaHash,
+        documento: dadosUsuario.documento,
+        tipoCliente: dadosUsuario.tipoCliente || 'cpf',
+        telefone: dadosUsuario.telefone,
+        endereco: dadosUsuario.endereco,
+        permissoes: dadosUsuario.permissoes || ['nfe_emitir', 'nfe_consultar'],
+        perfil: dadosUsuario.perfil || 'usuario',
+        ativo: true,
+        criadoEm: new Date().toISOString(),
+        atualizadoEm: new Date().toISOString(),
+        ultimoAcesso: null,
+        totalLogins: 0
+      };
+
+      await database.criarUsuario(novoUsuario);
 
       // Gerar token para login automático
       const token = this.gerarToken(novoUsuario);
@@ -76,7 +94,7 @@ class AuthService {
         sucesso: true,
         mensagem: 'Usuário cadastrado com sucesso',
         token,
-        usuario: novoUsuario.toJSON(),
+        usuario: this.formatarUsuario(novoUsuario),
         expiresIn: this.JWT_EXPIRES_IN
       };
 
@@ -88,43 +106,52 @@ class AuthService {
 
   async socialLogin({ provider, providerId, email, name, image }) {
     try {
-      // Tentar encontrar usuário pelo providerId ou email
-      let usuario = await Usuario.findOne({
-        $or: [
-          { socialProvider: provider, socialProviderId: providerId },
-          { email: email?.toLowerCase() }
-        ]
-      });
+      // Tentar encontrar usuário pelo email
+      let usuario = await database.buscarUsuarioPorEmail(email?.toLowerCase());
 
       if (!usuario) {
         // Criar usuário básico sem senha obrigatória (gera senha aleatória)
         const senhaTemporaria = Math.random().toString(36).slice(-10);
-        usuario = new Usuario({
+        const senhaHash = await bcrypt.hash(senhaTemporaria, 10);
+        
+        usuario = {
+          id: uuidv4(),
           nome: name || email?.split('@')[0] || 'Usuário',
           email: email?.toLowerCase(),
-          senha: senhaTemporaria,
+          senha: senhaHash,
           tipoCliente: 'cpf',
           documento: undefined,
           socialProvider: provider,
           socialProviderId: providerId,
           image,
           permissoes: ['nfe_emitir', 'nfe_consultar'],
-          ativo: true
-        });
-        await usuario.save();
+          perfil: 'usuario',
+          ativo: true,
+          criadoEm: new Date().toISOString(),
+          atualizadoEm: new Date().toISOString(),
+          ultimoAcesso: null,
+          totalLogins: 0
+        };
+        
+        await database.criarUsuario(usuario);
       } else {
         // Atualizar dados sociais
-        usuario.socialProvider = provider;
-        usuario.socialProviderId = providerId;
-        usuario.image = image || usuario.image;
-        await usuario.save();
+        await database.atualizarUsuario(usuario.id, {
+          socialProvider: provider,
+          socialProviderId: providerId,
+          image: image || usuario.image,
+          atualizadoEm: new Date().toISOString()
+        });
+        
+        // Buscar usuário atualizado
+        usuario = await database.buscarUsuarioPorId(usuario.id);
       }
 
       const token = this.gerarToken(usuario);
       return {
         sucesso: true,
         token,
-        usuario: usuario.toJSON(),
+        usuario: this.formatarUsuario(usuario),
         expiresIn: this.JWT_EXPIRES_IN
       };
     } catch (error) {
@@ -135,7 +162,7 @@ class AuthService {
 
   async verificarEmailExistente(email) {
     try {
-      const usuario = await Usuario.findOne({ email: email.toLowerCase() });
+      const usuario = await database.buscarUsuarioPorEmail(email.toLowerCase());
       return !!usuario;
     } catch (error) {
       console.error('❌ Erro ao verificar email:', error.message);
@@ -145,7 +172,7 @@ class AuthService {
 
   async verificarDocumentoExistente(documento) {
     try {
-      const usuario = await Usuario.findOne({ documento });
+      const usuario = await database.buscarUsuarioPorDocumento(documento);
       return !!usuario;
     } catch (error) {
       console.error('❌ Erro ao verificar documento:', error.message);
@@ -155,10 +182,11 @@ class AuthService {
 
   gerarToken(usuario) {
     const payload = {
-      id: usuario._id,
+      id: usuario.id,
       email: usuario.email,
       nome: usuario.nome,
-      permissoes: usuario.permissoes
+      permissoes: usuario.permissoes,
+      perfil: usuario.perfil
     };
 
     return jwt.sign(payload, this.JWT_SECRET, {
@@ -176,8 +204,8 @@ class AuthService {
 
   async buscarUsuarioPorId(id) {
     try {
-      const usuario = await Usuario.findById(id);
-      return usuario ? usuario.toJSON() : null;
+      const usuario = await database.buscarUsuarioPorId(id);
+      return usuario ? this.formatarUsuario(usuario) : null;
     } catch (error) {
       console.error('❌ Erro ao buscar usuário por ID:', error.message);
       throw error;
@@ -187,13 +215,23 @@ class AuthService {
   async limparUsuarios() {
     try {
       console.log('🧹 Limpando todos os usuários...');
-      const resultado = await Usuario.deleteMany({});
-      console.log(`✅ ${resultado.deletedCount} usuários removidos`);
-      return resultado;
+      const usuarios = await database.listarUsuarios();
+      const totalUsuarios = usuarios.length;
+      
+      // Limpar arquivo de usuários
+      await database.limparUsuarios();
+      
+      console.log(`✅ ${totalUsuarios} usuários removidos`);
+      return { deletedCount: totalUsuarios };
     } catch (error) {
       console.error('❌ Erro ao limpar usuários:', error.message);
       throw error;
     }
+  }
+
+  formatarUsuario(usuario) {
+    const { senha, ...usuarioSemSenha } = usuario;
+    return usuarioSemSenha;
   }
 }
 

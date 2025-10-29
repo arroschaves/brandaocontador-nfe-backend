@@ -16,7 +16,6 @@ const helmet = require('helmet');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 const slowDown = require('express-slow-down');
-const mongoSanitize = require('express-mongo-sanitize');
 const xss = require('xss');
 const validator = require('validator');
 const crypto = require('crypto');
@@ -157,7 +156,6 @@ class SecurityMiddleware {
     if (IS_DEVELOPMENT) {
       origens.push(
         'http://localhost:3000',
-        'http://localhost:3001',
         'http://localhost:5173',
         'http://127.0.0.1:3000',
         'http://127.0.0.1:5173'
@@ -188,6 +186,11 @@ class SecurityMiddleware {
       },
       standardHeaders: true,
       legacyHeaders: false,
+      keyGenerator: (req) => {
+        const ip = this.getClientIP(req) || req.ip || req.connection?.remoteAddress || 'unknown';
+        // Normalizar IPv6 para IPv4 se possível
+        return ip.replace(/^::ffff:/, '') || 'unknown';
+      },
       skip: (req) => {
         // Pular rate limiting para IPs confiáveis em desenvolvimento
         if (IS_DEVELOPMENT && this.isIPConfiavel(this.getClientIP(req))) {
@@ -206,7 +209,7 @@ class SecurityMiddleware {
   configurarRateLimitingAuth() {
     return rateLimit({
       windowMs: 15 * 60 * 1000, // 15 minutos
-      max: 5, // Máximo 5 tentativas de login
+      max: IS_PRODUCTION ? 20 : 100, // Mais tentativas para testes
       message: {
         sucesso: false,
         erro: 'Muitas tentativas de login. Tente novamente em 15 minutos.',
@@ -214,6 +217,11 @@ class SecurityMiddleware {
       },
       standardHeaders: true,
       legacyHeaders: false,
+      keyGenerator: (req) => {
+        const ip = this.getClientIP(req) || req.ip || req.connection?.remoteAddress || 'unknown';
+        // Normalizar IPv6 para IPv4 se possível
+        return ip.replace(/^::ffff:/, '') || 'unknown';
+      },
       handler: (req, res, next, options) => {
         this.logRateLimitExcedido(req, 'auth');
         this.marcarIPSuspeito(this.getClientIP(req), 'auth_abuse');
@@ -233,6 +241,11 @@ class SecurityMiddleware {
       },
       standardHeaders: true,
       legacyHeaders: false,
+      keyGenerator: (req) => {
+        const ip = this.getClientIP(req) || req.ip || req.connection?.remoteAddress || 'unknown';
+        // Normalizar IPv6 para IPv4 se possível
+        return ip.replace(/^::ffff:/, '') || 'unknown';
+      },
       handler: (req, res, next, options) => {
         this.logRateLimitExcedido(req, 'api');
         res.status(options.statusCode).json(options.message);
@@ -258,14 +271,6 @@ class SecurityMiddleware {
   
   configurarSanitizacao() {
     return [
-      // Sanitização contra NoSQL Injection
-      mongoSanitize({
-        replaceWith: '_',
-        onSanitize: ({ req, key }) => {
-          this.logTentativaSQLInjection(req, key);
-        }
-      }),
-      
       // Middleware customizado para XSS e validação
       this.sanitizarXSS.bind(this),
       this.validarTiposConteudo.bind(this)

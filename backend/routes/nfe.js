@@ -1,9 +1,13 @@
 const express = require('express');
 const router = express.Router();
 const nfeService = require('../services/nfe-service');
-const taxCalculationService = require('../services/tax-calculation-service');
+const { TaxCalculationService } = require('../services/tax-calculation-service');
 const validationService = require('../services/validation-service');
+const XmlValidatorService = require('../services/xml-validator-service');
 const authMiddleware = require('../middleware/auth');
+
+const taxCalculationService = new TaxCalculationService();
+const xmlValidatorService = new XmlValidatorService();
 
 /**
  * @swagger
@@ -160,17 +164,20 @@ router.post('/emitir', authMiddleware.verificarAutenticacao(), async (req, res) 
     const dadosNfe = req.body;
     
     // Validar dados de entrada
-    const validacao = await validationService.validarDadosNfe(dadosNfe);
-    if (!validacao.valido) {
+    try {
+      xmlValidatorService.validarDadosNfe(dadosNfe);
+    } catch (error) {
       return res.status(400).json({
         sucesso: false,
         erro: 'Dados inválidos',
-        detalhes: validacao.erros
+        detalhes: error.message
       });
     }
 
     // Calcular impostos automaticamente baseado no regime tributário
-    const calculosImpostos = await taxCalculationService.calcularImpostos(dadosNfe);
+    const calculosImpostos = taxCalculationService.calcularImpostosCompleto(dadosNfe.itens[0] || {}, {
+      regimeTributario: dadosNfe.emitente?.regimeTributario || 'simplesNacional'
+    });
     
     // Aplicar cálculos aos dados da NFe
     dadosNfe.calculosRealizados = calculosImpostos;

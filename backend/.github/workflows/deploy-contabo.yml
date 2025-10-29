@@ -1,0 +1,345 @@
+# ============================================================================
+# GITHUB ACTIONS - DEPLOY AUTOMÁTICO BACKEND NFE PARA CONTABO
+# ============================================================================
+# Servidor: 147.93.186.214 (Ubuntu 24.04.3 LTS)
+# Fluxo: GitHub Push → Deploy Automático → Restart PM2
+# Sistema: 100% JSON Database
+# ============================================================================
+
+name: 🚀 Deploy Backend NFe para Contabo
+
+on:
+  push:
+    branches: [ main, master ]
+    paths:
+      - '**'
+      - '.github/workflows/deploy-contabo.yml'
+      - 'ecosystem.config.js'
+  
+  workflow_dispatch:
+    inputs:
+      force_deploy:
+        description: 'Forçar deploy mesmo sem mudanças'
+        required: false
+        default: 'false'
+        type: boolean
+      skip_tests:
+        description: 'Pular testes (apenas para emergência)'
+        required: false
+        default: 'false'
+        type: boolean
+
+env:
+  NODE_VERSION: '22.x'
+  SERVER_HOST: '147.93.186.214'
+  SERVER_USER: 'root'
+  SERVER_PORT: '22'
+  DEPLOY_PATH: '/var/www/brandaocontador-nfe-backend'
+  PM2_APP_NAME: 'nfe-backend'
+
+jobs:
+  # ============================================================================
+  # JOB 1: TESTES E VALIDAÇÃO
+  # ============================================================================
+  test:
+    name: 🧪 Testes e Validação
+    runs-on: ubuntu-latest
+    if: github.event.inputs.skip_tests != 'true'
+    
+    steps:
+      - name: 📥 Checkout do código
+        uses: actions/checkout@v4
+        
+      - name: 🟢 Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+          
+      - name: 📦 Instalar dependências
+        run: |
+          npm ci --only=production
+          
+      - name: 🔍 Verificar estrutura de arquivos
+        run: |
+          echo "🔍 Verificando arquivos essenciais..."
+          test -f app.js || (echo "❌ app.js não encontrado" && exit 1)
+          test -f package.json || (echo "❌ package.json não encontrado" && exit 1)
+          test -f ecosystem.config.js || (echo "❌ ecosystem.config.js não encontrado" && exit 1)
+          echo "✅ Todos os arquivos essenciais encontrados"
+          
+      - name: 🧪 Executar testes básicos
+        run: |
+          echo "🧪 Executando validações básicas..."
+          node -c app.js || (echo "❌ Erro de sintaxe em app.js" && exit 1)
+          echo "✅ Validação de sintaxe passou"
+          
+      - name: 📊 Verificar estrutura JSON
+        run: |
+          echo "📊 Verificando estrutura de dados JSON..."
+          if [ -d "data" ]; then
+            echo "✅ Diretório data encontrado"
+            for file in data/*.json; do
+              if [ -f "$file" ]; then
+                echo "🔍 Validando $file..."
+                python3 -m json.tool "$file" > /dev/null || (echo "❌ JSON inválido: $file" && exit 1)
+              fi
+            done
+            echo "✅ Todos os arquivos JSON são válidos"
+          else
+            echo "⚠️ Diretório data não encontrado (será criado no deploy)"
+          fi
+
+  # ============================================================================
+  # JOB 2: DEPLOY NO SERVIDOR CONTABO
+  # ============================================================================
+  deploy:
+    name: 🚀 Deploy para Contabo
+    runs-on: ubuntu-latest
+    needs: test
+    if: always() && (needs.test.result == 'success' || needs.test.result == 'skipped')
+    
+    steps:
+      - name: 📥 Checkout do código
+        uses: actions/checkout@v4
+        
+      - name: 🔧 Preparar ambiente de deploy
+        run: |
+          echo "🔧 Preparando ambiente..."
+          mkdir -p ~/.ssh
+          echo "${{ secrets.CONTABO_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          echo "Host ${{ env.SERVER_HOST }}" >> ~/.ssh/config
+          echo "  HostName ${{ env.SERVER_HOST }}" >> ~/.ssh/config
+          echo "  User ${{ env.SERVER_USER }}" >> ~/.ssh/config
+          echo "  Port ${{ env.SERVER_PORT }}" >> ~/.ssh/config
+          echo "  IdentityFile ~/.ssh/id_rsa" >> ~/.ssh/config
+          echo "  StrictHostKeyChecking no" >> ~/.ssh/config
+          echo "  UserKnownHostsFile /dev/null" >> ~/.ssh/config
+          chmod 600 ~/.ssh/config
+          
+      - name: 🌐 Testar conectividade com servidor
+        run: |
+          echo "🌐 Testando conectividade com CONTABO..."
+          ssh -o ConnectTimeout=10 ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} "echo '✅ Conexão SSH estabelecida com sucesso na CONTABO'"
+          
+      - name: 📦 Preparar arquivos para deploy
+        run: |
+          echo "📦 Preparando arquivos para CONTABO..."
+          
+          # Criar diretório temporário
+          echo "🗂️ Criando diretório temporário..."
+          mkdir -p /tmp/deploy-temp
+          
+          # Copiar arquivos necessários (excluindo os que não queremos)
+          echo "📋 Copiando arquivos (excluindo dados sensíveis)..."
+          rsync -av --exclude=node_modules --exclude=data --exclude=.git --exclude=.github --exclude=*.log . /tmp/deploy-temp/
+          
+          # Criar tar do diretório temporário
+          echo "📦 Criando arquivo tar..."
+          cd /tmp/deploy-temp
+          tar -czf /tmp/backend-deploy.tar.gz .
+          
+          # Mover arquivo para o workspace
+          echo "📁 Movendo arquivo para workspace..."
+          mv /tmp/backend-deploy.tar.gz $GITHUB_WORKSPACE/
+          
+          echo "📊 Arquivo criado com sucesso:"
+          ls -lh $GITHUB_WORKSPACE/backend-deploy.tar.gz
+          
+      - name: 🚀 Transferir arquivos para servidor
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ env.SERVER_HOST }}
+          username: ${{ env.SERVER_USER }}
+          key: ${{ secrets.CONTABO_SSH_PRIVATE_KEY }}
+          port: ${{ env.SERVER_PORT }}
+          source: "backend-deploy.tar.gz"
+          target: "/tmp/"
+          
+      - name: 🔄 Executar deploy no servidor
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ env.SERVER_HOST }}
+          username: ${{ env.SERVER_USER }}
+          key: ${{ secrets.CONTABO_SSH_PRIVATE_KEY }}
+          port: ${{ env.SERVER_PORT }}
+          script: |
+            set -e
+            
+            echo "🔄 Iniciando processo de deploy na CONTABO..."
+            
+            # Verificar se dependências estão disponíveis
+            echo "🔧 Verificando ambiente..."
+            
+            if ! command -v node &> /dev/null; then
+              echo "❌ Node.js não encontrado no servidor. Por favor, instale Node.js primeiro."
+              exit 1
+            fi
+            echo "✅ Node.js encontrado: $(node --version)"
+            
+            if ! command -v npm &> /dev/null; then
+              echo "❌ npm não encontrado no servidor. Por favor, instale npm primeiro."
+              exit 1
+            fi
+            echo "✅ npm encontrado: $(npm --version)"
+            
+            if ! command -v pm2 &> /dev/null; then
+              echo "❌ PM2 não encontrado no servidor. Por favor, instale PM2 primeiro."
+              exit 1
+            fi
+            echo "✅ PM2 encontrado: $(pm2 --version)"
+            
+            echo "✅ Ambiente verificado - todas as dependências estão disponíveis"
+            echo "🚀 Servidor Contabo configurado com Node.js v18.19.1, npm 9.2.0, PM2 6.0.13"
+            
+            # Criar backup antes do deploy
+            BACKUP_DIR="/var/backups/brandaocontador-nfe-backend/$(date +%Y%m%d_%H%M%S)"
+            echo "💾 Criando backup em: $BACKUP_DIR"
+            mkdir -p "$BACKUP_DIR"
+            
+            if [ -d "${{ env.DEPLOY_PATH }}" ]; then
+              cp -r "${{ env.DEPLOY_PATH }}" "$BACKUP_DIR/"
+              echo "✅ Backup criado com sucesso"
+            fi
+            
+            # Usar pm2 reload para zero downtime (ao invés de stop/start)
+            echo "🔄 Recarregando aplicação (zero downtime)..."
+            if pm2 list | grep -q "${{ env.PM2_APP_NAME }}"; then
+              pm2 reload ${{ env.PM2_APP_NAME }} || echo "⚠️ Reload falhou, tentando restart..."
+            else
+              echo "⚠️ Aplicação não estava rodando, será iniciada"
+            fi
+            
+            # Extrair novos arquivos
+            echo "📦 Extraindo novos arquivos..."
+            cd /tmp
+            tar -xzf backend-deploy.tar.gz
+            
+            # Criar diretório se não existir
+            mkdir -p "${{ env.DEPLOY_PATH }}"
+            
+            # Copiar arquivos (preservando data/ existente)
+            echo "📁 Copiando arquivos..."
+            cp -r . "${{ env.DEPLOY_PATH }}/"
+            
+            # Configurar permissões
+            echo "🔐 Configurando permissões..."
+            chmod -R 755 "${{ env.DEPLOY_PATH }}"
+            
+            # Instalar dependências
+            echo "📦 Instalando dependências..."
+            cd "${{ env.DEPLOY_PATH }}"
+            npm install --production --no-audit --no-fund
+            
+            # Criar estrutura de dados JSON APENAS se pasta data/ não existir
+            echo "📊 Verificando estrutura de dados JSON..."
+            if [ ! -d "data" ]; then
+              echo "📁 Criando estrutura inicial de dados..."
+              mkdir -p data
+              
+              # Criar arquivos JSON se não existirem
+              for file in clientes.json configuracoes.json database.json logs.json nfes.json produtos.json usuarios.json; do
+                if [ ! -f "data/$file" ]; then
+                  echo "[]" | tee "data/$file" > /dev/null
+                  echo "✅ Criado: data/$file"
+                fi
+              done
+            else
+              echo "✅ Estrutura de dados existente preservada"
+            fi
+            
+            # Iniciar aplicação se não estava rodando
+            if ! pm2 list | grep -q "${{ env.PM2_APP_NAME }}"; then
+              echo "🚀 Iniciando aplicação..."
+              pm2 start ecosystem.config.js --env production
+              pm2 save
+            fi
+            
+            # Aguardar inicialização
+            sleep 5
+            
+            echo "✅ Deploy concluído com sucesso na CONTABO!"
+            
+      - name: 🏥 Verificar saúde da aplicação
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ env.SERVER_HOST }}
+          username: ${{ env.SERVER_USER }}
+          key: ${{ secrets.CONTABO_SSH_PRIVATE_KEY }}
+          port: ${{ env.SERVER_PORT }}
+          script: |
+            # Verificar se PM2 está rodando
+            if pm2 list | grep -q "${{ env.PM2_APP_NAME }}"; then
+              echo "✅ Aplicação está rodando no PM2"
+            else
+              echo "❌ Aplicação não está rodando no PM2"
+              echo "⚠️ Verificando logs do PM2..."
+              pm2 logs ${{ env.PM2_APP_NAME }} --lines 10
+              exit 1
+            fi
+            
+            # Mostrar logs recentes para verificação
+            echo "📋 Logs recentes da aplicação:"
+            pm2 logs ${{ env.PM2_APP_NAME }} --lines 5
+            
+            # Mostrar status PM2
+            echo "📊 Status PM2:"
+            pm2 list
+            
+            # Verificar estrutura JSON
+            echo "📊 Verificando estrutura JSON:"
+            ls -la ${{ env.DEPLOY_PATH }}/data/
+            
+            echo "🎉 Deploy verificado com sucesso na CONTABO!"
+            
+      - name: 🧹 Limpeza pós-deploy
+        if: always()
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ env.SERVER_HOST }}
+          username: ${{ env.SERVER_USER }}
+          key: ${{ secrets.CONTABO_SSH_PRIVATE_KEY }}
+          port: ${{ env.SERVER_PORT }}
+          script: |
+            echo "🧹 Limpando arquivos temporários na CONTABO..."
+            rm -f /tmp/backend-deploy.tar.gz
+            echo "✅ Limpeza concluída na CONTABO"
+
+  # ============================================================================
+  # JOB 3: NOTIFICAÇÕES
+  # ============================================================================
+  notify:
+    name: 📢 Notificações
+    runs-on: ubuntu-latest
+    needs: [test, deploy]
+    if: always()
+    
+    steps:
+      - name: 📢 Notificar resultado do deploy
+        run: |
+          if [ "${{ needs.deploy.result }}" == "success" ]; then
+            echo "🎉 DEPLOY REALIZADO COM SUCESSO NA CONTABO!"
+            echo "✅ Backend NFe atualizado no servidor CONTABO"
+            echo "🌐 Servidor: ${{ env.SERVER_HOST }} (Ubuntu 24.04.3 LTS)"
+            echo "📊 Sistema: 100% JSON Database"
+            echo "📅 Data: $(date)"
+            echo "🔗 Commit: ${{ github.sha }}"
+            echo "🚀 URL: https://api.brandaocontador.com.br"
+          else
+            echo "❌ FALHA NO DEPLOY NA CONTABO!"
+            echo "🚨 Verificar logs para mais detalhes"
+            echo "🔗 Commit: ${{ github.sha }}"
+            echo "🌐 Servidor: ${{ env.SERVER_HOST }}"
+          fi
+          
+      # Aqui você pode adicionar integrações com Discord, Slack, etc.
+      # - name: 📱 Notificar Discord
+      #   if: always()
+      #   uses: sarisia/actions-status-discord@v1
+      #   with:
+      #     webhook: ${{ secrets.DISCORD_WEBHOOK }}
+      #     status: ${{ job.status }}
+      #     title: "Deploy Backend NFe"
+      #     description: "Deploy automático para servidor Contabo"

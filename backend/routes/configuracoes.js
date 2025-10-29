@@ -66,7 +66,7 @@ router.get('/empresa',
   authMiddleware.verificarAutenticacao(),
   async (req, res) => {
     try {
-      const configuracao = await configService.obterConfigEmpresa(req.user);
+      const configuracao = await configService.obterConfigEmpresa(req.usuario);
 
       res.json({
         sucesso: true,
@@ -121,7 +121,7 @@ router.put('/empresa',
         });
       }
 
-      const resultado = await configService.configurarEmpresa(req.body, req.user);
+      const resultado = await configService.configurarEmpresa(req.body, req.usuario);
 
       res.json(resultado);
 
@@ -151,7 +151,7 @@ router.get('/sefaz',
   authMiddleware.verificarAutenticacao(),
   async (req, res) => {
     try {
-      const configuracao = await configService.obterConfigSefaz(req.user);
+      const configuracao = await configService.obterConfigSefaz(req.usuario);
 
       res.json({
         sucesso: true,
@@ -200,7 +200,7 @@ router.put('/sefaz',
   authMiddleware.verificarAutenticacao(),
   async (req, res) => {
     try {
-      const resultado = await configService.configurarSefaz(req.body, req.user);
+      const resultado = await configService.configurarSefaz(req.body, req.usuario);
 
       res.json(resultado);
 
@@ -230,7 +230,7 @@ router.get('/backup',
   authMiddleware.verificarAutenticacao(),
   async (req, res) => {
     try {
-      const configuracao = await configService.obterConfigBackup(req.user);
+      const configuracao = await configService.obterConfigBackup(req.usuario);
 
       res.json({
         sucesso: true,

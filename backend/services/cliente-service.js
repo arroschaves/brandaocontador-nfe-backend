@@ -1,5 +1,6 @@
-const Cliente = require('../models/Cliente');
+const database = require('../config/database');
 const ValidationExternalService = require('./validation-external-service');
+const { v4: uuidv4 } = require('uuid');
 
 /**
  * Serviço de Clientes
@@ -9,10 +10,13 @@ const ValidationExternalService = require('./validation-external-service');
  * - CEP via BrasilAPI/ViaCEP
  * - Enriquecimento automático de dados
  * - Estados e cidades brasileiras
+ * 
+ * Sistema usando apenas arquivos JSON - sem MongoDB
  */
 class ClienteService {
   constructor() {
     this.validationService = new ValidationExternalService();
+    this.db = database;
   }
 
   // ==================== CRUD BÁSICO ====================
@@ -35,32 +39,46 @@ class ClienteService {
         };
       }
 
-      // Adiciona usuário responsável
-      validacao.dados.usuarioId = usuarioId;
-
-      // Cria cliente no banco
-      const cliente = new Cliente(validacao.dados);
-      await cliente.save();
-
-      console.log('✅ Cliente criado com sucesso:', cliente._id);
+      // Verifica se cliente já existe
+      const clientes = await this.db.listarClientes();
+      const documentoLimpo = validacao.dados.documento.replace(/\D/g, '');
       
-      return {
-        sucesso: true,
-        cliente: cliente.toJSON(),
-        avisos: validacao.avisos
-      };
+      const clienteExistente = clientes.find(c => 
+        c.documento === documentoLimpo && 
+        c.usuarioId === usuarioId && 
+        c.ativo
+      );
 
-    } catch (error) {
-      console.error('❌ Erro ao criar cliente:', error.message);
-      
-      // Trata erros de duplicação
-      if (error.code === 11000) {
+      if (clienteExistente) {
         return {
           sucesso: false,
           erros: ['Cliente com este documento já existe']
         };
       }
+
+      // Cria novo cliente
+      const novoCliente = {
+        id: uuidv4(),
+        ...validacao.dados,
+        documento: documentoLimpo,
+        usuarioId,
+        ativo: true,
+        dataCadastro: new Date().toISOString(),
+        dataAtualizacao: new Date().toISOString()
+      };
+
+      const clienteCriado = await this.db.criarCliente(novoCliente);
+
+      console.log('✅ Cliente criado com sucesso:', clienteCriado.id);
       
+      return {
+        sucesso: true,
+        cliente: clienteCriado,
+        avisos: validacao.avisos
+      };
+
+    } catch (error) {
+      console.error('❌ Erro ao criar cliente:', error.message);
       throw new Error(`Erro ao criar cliente: ${error.message}`);
     }
   }
@@ -72,26 +90,22 @@ class ClienteService {
     try {
       console.log('👤 Atualizando cliente:', clienteId);
 
-      // Busca cliente existente
-      const clienteExistente = await Cliente.findOne({ 
-        _id: clienteId, 
-        usuarioId 
-      });
-
-      if (!clienteExistente) {
+      const cliente = await this.db.buscarClientePorId(clienteId);
+      
+      if (!cliente || cliente.usuarioId !== usuarioId || !cliente.ativo) {
         return {
           sucesso: false,
           erros: ['Cliente não encontrado']
         };
       }
 
-      // Se mudou documento, revalida
-      if (dadosAtualizacao.documento && dadosAtualizacao.documento !== clienteExistente.documento) {
+      // Valida dados se houver mudanças significativas
+      if (dadosAtualizacao.documento || dadosAtualizacao.email) {
         const validacao = await this.validationService.validarEEnriquecerCliente({
-          ...clienteExistente.toObject(),
+          ...cliente,
           ...dadosAtualizacao
         });
-
+        
         if (!validacao.valido) {
           return {
             sucesso: false,
@@ -99,34 +113,22 @@ class ClienteService {
             avisos: validacao.avisos
           };
         }
-
-        dadosAtualizacao = validacao.dados;
       }
 
-      // Atualiza cliente
-      const clienteAtualizado = await Cliente.findByIdAndUpdate(
-        clienteId,
-        { $set: dadosAtualizacao },
-        { new: true, runValidators: true }
-      );
+      const dadosAtualizados = {
+        ...dadosAtualizacao,
+        dataAtualizacao: new Date().toISOString()
+      };
 
-      console.log('✅ Cliente atualizado com sucesso');
-      
+      const clienteAtualizado = await this.db.atualizarCliente(clienteId, dadosAtualizados);
+
       return {
         sucesso: true,
-        cliente: clienteAtualizado.toJSON()
+        cliente: clienteAtualizado
       };
 
     } catch (error) {
       console.error('❌ Erro ao atualizar cliente:', error.message);
-      
-      if (error.code === 11000) {
-        return {
-          sucesso: false,
-          erros: ['Cliente com este documento já existe']
-        };
-      }
-      
       throw new Error(`Erro ao atualizar cliente: ${error.message}`);
     }
   }
@@ -136,13 +138,9 @@ class ClienteService {
    */
   async buscarClientePorId(clienteId, usuarioId) {
     try {
-      const cliente = await Cliente.findOne({ 
-        _id: clienteId, 
-        usuarioId,
-        ativo: true 
-      });
-
-      if (!cliente) {
+      const cliente = await this.db.buscarClientePorId(clienteId);
+      
+      if (!cliente || cliente.usuarioId !== usuarioId || !cliente.ativo) {
         return {
           sucesso: false,
           erros: ['Cliente não encontrado']
@@ -151,7 +149,7 @@ class ClienteService {
 
       return {
         sucesso: true,
-        cliente: cliente.toJSON()
+        cliente
       };
 
     } catch (error) {
@@ -166,12 +164,13 @@ class ClienteService {
   async buscarClientePorDocumento(documento, usuarioId) {
     try {
       const documentoLimpo = documento.replace(/\D/g, '');
+      const clientes = await this.db.listarClientes();
       
-      const cliente = await Cliente.findOne({ 
-        documento: documentoLimpo, 
-        usuarioId,
-        ativo: true 
-      });
+      const cliente = clientes.find(c => 
+        c.documento === documentoLimpo && 
+        c.usuarioId === usuarioId && 
+        c.ativo
+      );
 
       if (!cliente) {
         return {
@@ -182,7 +181,7 @@ class ClienteService {
 
       return {
         sucesso: true,
-        cliente: cliente.toJSON()
+        cliente
       };
 
     } catch (error) {
@@ -196,54 +195,87 @@ class ClienteService {
    */
   async listarClientes(filtros = {}, usuarioId) {
     try {
-      const {
-        pagina = 1,
-        limite = 20,
-        busca = '',
-        tipo = '',
-        ativo = true,
-        ordenacao = 'nome'
-      } = filtros;
-
-      // Constrói query
-      const query = { usuarioId };
+      const clientes = await this.db.listarClientes();
       
-      if (ativo !== undefined) {
-        query.ativo = ativo;
+      // Filtrar por usuário e status ativo
+      let clientesFiltrados = clientes.filter(c => 
+        c.usuarioId === usuarioId && c.ativo
+      );
+
+      // Aplicar filtros
+      if (filtros.nome) {
+        const nomeFilter = filtros.nome.toLowerCase();
+        clientesFiltrados = clientesFiltrados.filter(c => 
+          c.nome?.toLowerCase().includes(nomeFilter) ||
+          c.razaoSocial?.toLowerCase().includes(nomeFilter)
+        );
       }
 
-      if (tipo) {
-        query.tipo = tipo;
+      if (filtros.documento) {
+        const docFilter = filtros.documento.replace(/\D/g, '');
+        clientesFiltrados = clientesFiltrados.filter(c => 
+          c.documento?.includes(docFilter)
+        );
       }
 
-      if (busca) {
-        query.$or = [
-          { nome: { $regex: busca, $options: 'i' } },
-          { razaoSocial: { $regex: busca, $options: 'i' } },
-          { documento: { $regex: busca.replace(/\D/g, ''), $options: 'i' } },
-          { email: { $regex: busca, $options: 'i' } }
-        ];
+      if (filtros.tipoCliente) {
+        clientesFiltrados = clientesFiltrados.filter(c => 
+          c.tipoCliente === filtros.tipoCliente
+        );
       }
 
-      // Executa consulta com paginação
-      const skip = (pagina - 1) * limite;
-      const [clientes, total] = await Promise.all([
-        Cliente.find(query)
-          .sort({ [ordenacao]: 1 })
-          .skip(skip)
-          .limit(limite)
-          .lean(),
-        Cliente.countDocuments(query)
-      ]);
+      if (filtros.cidade) {
+        const cidadeFilter = filtros.cidade.toLowerCase();
+        clientesFiltrados = clientesFiltrados.filter(c => 
+          c.endereco?.cidade?.toLowerCase().includes(cidadeFilter)
+        );
+      }
+
+      if (filtros.uf) {
+        clientesFiltrados = clientesFiltrados.filter(c => 
+          c.endereco?.uf === filtros.uf.toUpperCase()
+        );
+      }
+
+      // Ordenação
+      const ordenacao = filtros.ordenacao || 'nome';
+      const direcao = filtros.direcao || 'asc';
+      
+      clientesFiltrados.sort((a, b) => {
+        let valorA = a[ordenacao] || '';
+        let valorB = b[ordenacao] || '';
+        
+        if (typeof valorA === 'string') {
+          valorA = valorA.toLowerCase();
+          valorB = valorB.toLowerCase();
+        }
+        
+        if (direcao === 'desc') {
+          return valorB > valorA ? 1 : -1;
+        }
+        return valorA > valorB ? 1 : -1;
+      });
+
+      // Paginação
+      const pagina = parseInt(filtros.pagina) || 1;
+      const limite = parseInt(filtros.limite) || 20;
+      const inicio = (pagina - 1) * limite;
+      const fim = inicio + limite;
+
+      const clientesPaginados = clientesFiltrados.slice(inicio, fim);
+      const total = clientesFiltrados.length;
+      const totalPaginas = Math.ceil(total / limite);
 
       return {
         sucesso: true,
-        clientes,
+        clientes: clientesPaginados,
         paginacao: {
-          pagina: parseInt(pagina),
-          limite: parseInt(limite),
+          pagina,
+          limite,
           total,
-          totalPaginas: Math.ceil(total / limite)
+          totalPaginas,
+          temProxima: pagina < totalPaginas,
+          temAnterior: pagina > 1
         }
       };
 
@@ -258,24 +290,23 @@ class ClienteService {
    */
   async desativarCliente(clienteId, usuarioId) {
     try {
-      const cliente = await Cliente.findOneAndUpdate(
-        { _id: clienteId, usuarioId },
-        { $set: { ativo: false } },
-        { new: true }
-      );
-
-      if (!cliente) {
+      const cliente = await this.db.buscarClientePorId(clienteId);
+      
+      if (!cliente || cliente.usuarioId !== usuarioId) {
         return {
           sucesso: false,
           erros: ['Cliente não encontrado']
         };
       }
 
-      console.log('✅ Cliente desativado:', clienteId);
-      
+      await this.db.atualizarCliente(clienteId, {
+        ativo: false,
+        dataDesativacao: new Date().toISOString()
+      });
+
       return {
         sucesso: true,
-        cliente: cliente.toJSON()
+        mensagem: 'Cliente desativado com sucesso'
       };
 
     } catch (error) {
@@ -284,145 +315,31 @@ class ClienteService {
     }
   }
 
-  // ==================== VALIDAÇÕES E CONSULTAS EXTERNAS ====================
-
-  /**
-   * Validar documento (CPF/CNPJ)
-   */
-  async validarDocumento(documento, tipo) {
-    try {
-      if (tipo === 'cpf') {
-        return {
-          valido: this.validationService.validarFormatoCPF(documento),
-          tipo: 'cpf'
-        };
-      } else if (tipo === 'cnpj') {
-        return {
-          valido: this.validationService.validarFormatoCNPJ(documento),
-          tipo: 'cnpj'
-        };
-      }
-      
-      return { valido: false, erro: 'Tipo de documento inválido' };
-
-    } catch (error) {
-      console.error('❌ Erro ao validar documento:', error.message);
-      return { valido: false, erro: error.message };
-    }
-  }
-
-  /**
-   * Consultar CNPJ na Receita Federal
-   */
-  async consultarCNPJ(cnpj) {
-    try {
-      const dados = await this.validationService.consultarCNPJ(cnpj);
-      return {
-        sucesso: true,
-        dados
-      };
-    } catch (error) {
-      console.error('❌ Erro ao consultar CNPJ:', error.message);
-      return {
-        sucesso: false,
-        erro: error.message
-      };
-    }
-  }
-
-  /**
-   * Consultar CEP
-   */
-  async consultarCEP(cep) {
-    try {
-      const dados = await this.validationService.consultarCEP(cep);
-      return {
-        sucesso: true,
-        dados
-      };
-    } catch (error) {
-      console.error('❌ Erro ao consultar CEP:', error.message);
-      return {
-        sucesso: false,
-        erro: error.message
-      };
-    }
-  }
-
-  /**
-   * Obter estados brasileiros
-   */
-  async obterEstados() {
-    try {
-      const estados = await this.validationService.obterEstados();
-      return {
-        sucesso: true,
-        estados
-      };
-    } catch (error) {
-      console.error('❌ Erro ao obter estados:', error.message);
-      return {
-        sucesso: false,
-        erro: error.message
-      };
-    }
-  }
-
-  /**
-   * Obter cidades por UF
-   */
-  async obterCidades(uf) {
-    try {
-      const cidades = await this.validationService.obterCidades(uf);
-      return {
-        sucesso: true,
-        cidades
-      };
-    } catch (error) {
-      console.error('❌ Erro ao obter cidades:', error.message);
-      return {
-        sucesso: false,
-        erro: error.message
-      };
-    }
-  }
-
-  // ==================== RELATÓRIOS E ESTATÍSTICAS ====================
-
   /**
    * Obter estatísticas de clientes
    */
   async obterEstatisticas(usuarioId) {
     try {
-      const [
-        totalAtivos,
-        totalInativos,
-        totalPorTipo,
-        clientesRecentes
-      ] = await Promise.all([
-        Cliente.countDocuments({ usuarioId, ativo: true }),
-        Cliente.countDocuments({ usuarioId, ativo: false }),
-        Cliente.aggregate([
-          { $match: { usuarioId, ativo: true } },
-          { $group: { _id: '$tipo', total: { $sum: 1 } } }
-        ]),
-        Cliente.find({ usuarioId, ativo: true })
-          .sort({ dataCadastro: -1 })
-          .limit(5)
-          .select('nome documento tipo dataCadastro')
-          .lean()
-      ]);
+      const clientes = await this.db.listarClientes();
+      const clientesUsuario = clientes.filter(c => c.usuarioId === usuarioId && c.ativo);
 
       const estatisticas = {
-        total: totalAtivos + totalInativos,
-        ativos: totalAtivos,
-        inativos: totalInativos,
-        porTipo: totalPorTipo.reduce((acc, item) => {
-          acc[item._id] = item.total;
-          return acc;
-        }, {}),
-        recentes: clientesRecentes
+        total: clientesUsuario.length,
+        porTipo: {
+          cpf: clientesUsuario.filter(c => c.tipoCliente === 'cpf').length,
+          cnpj: clientesUsuario.filter(c => c.tipoCliente === 'cnpj').length
+        },
+        porEstado: {},
+        recentes: clientesUsuario
+          .sort((a, b) => new Date(b.dataCadastro) - new Date(a.dataCadastro))
+          .slice(0, 5)
       };
+
+      // Agrupar por estado
+      clientesUsuario.forEach(cliente => {
+        const uf = cliente.endereco?.uf || 'Não informado';
+        estatisticas.porEstado[uf] = (estatisticas.porEstado[uf] || 0) + 1;
+      });
 
       return {
         sucesso: true,
@@ -438,89 +355,52 @@ class ClienteService {
   /**
    * Exportar clientes para CSV
    */
-  async exportarClientes(filtros = {}, usuarioId) {
+  async exportarCSV(filtros = {}, usuarioId) {
     try {
-      const resultado = await this.listarClientes({
-        ...filtros,
-        limite: 10000 // Exporta todos
-      }, usuarioId);
-
+      const resultado = await this.listarClientes(filtros, usuarioId);
+      
       if (!resultado.sucesso) {
         return resultado;
       }
 
-      const csv = this.gerarCSV(resultado.clientes);
+      const clientes = resultado.clientes;
       
+      // Cabeçalho CSV
+      const cabecalho = [
+        'ID', 'Nome/Razão Social', 'Documento', 'Tipo', 'Email', 'Telefone',
+        'CEP', 'Logradouro', 'Número', 'Bairro', 'Cidade', 'UF',
+        'Data Cadastro'
+      ].join(',');
+
+      // Linhas de dados
+      const linhas = clientes.map(cliente => [
+        cliente.id,
+        `"${cliente.nome || cliente.razaoSocial || ''}"`,
+        cliente.documento || '',
+        cliente.tipoCliente || '',
+        cliente.email || '',
+        cliente.telefone || '',
+        cliente.endereco?.cep || '',
+        `"${cliente.endereco?.logradouro || ''}"`,
+        cliente.endereco?.numero || '',
+        `"${cliente.endereco?.bairro || ''}"`,
+        `"${cliente.endereco?.cidade || ''}"`,
+        cliente.endereco?.uf || '',
+        cliente.dataCadastro || ''
+      ].join(','));
+
+      const csv = [cabecalho, ...linhas].join('\n');
+
       return {
         sucesso: true,
         csv,
-        total: resultado.clientes.length
+        nomeArquivo: `clientes_${new Date().toISOString().split('T')[0]}.csv`
       };
 
     } catch (error) {
-      console.error('❌ Erro ao exportar clientes:', error.message);
-      throw new Error(`Erro ao exportar clientes: ${error.message}`);
+      console.error('❌ Erro ao exportar CSV:', error.message);
+      throw new Error(`Erro ao exportar CSV: ${error.message}`);
     }
-  }
-
-  /**
-   * Gerar CSV dos clientes
-   */
-  gerarCSV(clientes) {
-    const headers = [
-      'Tipo',
-      'Documento',
-      'Nome',
-      'Razão Social',
-      'Email',
-      'Telefone',
-      'CEP',
-      'Logradouro',
-      'Número',
-      'Bairro',
-      'Cidade',
-      'UF',
-      'Data Cadastro',
-      'Ativo'
-    ];
-
-    const linhas = clientes.map(cliente => [
-      cliente.tipo?.toUpperCase() || '',
-      cliente.documento || '',
-      cliente.nome || '',
-      cliente.razaoSocial || '',
-      cliente.email || '',
-      cliente.telefone || '',
-      cliente.endereco?.cep || '',
-      cliente.endereco?.logradouro || '',
-      cliente.endereco?.numero || '',
-      cliente.endereco?.bairro || '',
-      cliente.endereco?.cidade || '',
-      cliente.endereco?.uf || '',
-      new Date(cliente.dataCadastro).toLocaleDateString('pt-BR'),
-      cliente.ativo ? 'Sim' : 'Não'
-    ]);
-
-    return [headers, ...linhas]
-      .map(linha => linha.map(campo => `"${campo}"`).join(','))
-      .join('\n');
-  }
-
-  // ==================== LIMPEZA E MANUTENÇÃO ====================
-
-  /**
-   * Limpar cache de validações
-   */
-  limparCache() {
-    this.validationService.limparCache();
-    console.log('✅ Cache de validações limpo');
-  }
-
-  /**
-   * Obter estatísticas do cache
-   */
-  obterEstatisticasCache() {
-    return this.validationService.estatisticasCache();
   }
 }
 

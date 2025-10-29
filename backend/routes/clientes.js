@@ -1,12 +1,12 @@
 const express = require('express');
 const router = express.Router();
 const ClienteService = require('../services/cliente-service');
-const { authenticateToken } = require('../middleware/auth');
+const authMiddleware = require('../middleware/auth');
 
 // ==================== MIDDLEWARE ====================
 
 // Aplica autenticação em todas as rotas
-router.use(authenticateToken);
+router.use(authMiddleware.verificarAutenticacao());
 
 // ==================== ROTAS CRUD ====================
 
@@ -17,7 +17,7 @@ router.use(authenticateToken);
  */
 router.post('/', async (req, res) => {
   try {
-    const resultado = await ClienteService.criarCliente(req.body, req.user.id);
+    const resultado = await ClienteService.criarCliente(req.body, req.usuario.id);
     
     if (!resultado.sucesso) {
       return res.status(400).json({
@@ -60,7 +60,7 @@ router.get('/', async (req, res) => {
       ordenacao: req.query.ordenacao || 'nome'
     };
 
-    const resultado = await ClienteService.listarClientes(filtros, req.user.id);
+    const resultado = await ClienteService.listarClientes(filtros, req.usuario.id);
 
     res.json({
       sucesso: true,
@@ -85,7 +85,7 @@ router.get('/', async (req, res) => {
  */
 router.get('/:id', async (req, res) => {
   try {
-    const resultado = await ClienteService.buscarClientePorId(req.params.id, req.user.id);
+    const resultado = await ClienteService.buscarClientePorId(req.params.id, req.usuario.id);
     
     if (!resultado.sucesso) {
       return res.status(404).json({
@@ -119,7 +119,7 @@ router.put('/:id', async (req, res) => {
     const resultado = await ClienteService.atualizarCliente(
       req.params.id, 
       req.body, 
-      req.user.id
+      req.usuario.id
     );
     
     if (!resultado.sucesso) {
@@ -153,7 +153,7 @@ router.put('/:id', async (req, res) => {
  */
 router.delete('/:id', async (req, res) => {
   try {
-    const resultado = await ClienteService.desativarCliente(req.params.id, req.user.id);
+    const resultado = await ClienteService.desativarCliente(req.params.id, req.usuario.id);
     
     if (!resultado.sucesso) {
       return res.status(404).json({
@@ -189,7 +189,7 @@ router.get('/documento/:documento', async (req, res) => {
   try {
     const resultado = await ClienteService.buscarClientePorDocumento(
       req.params.documento, 
-      req.user.id
+      req.usuario.id
     );
     
     if (!resultado.sucesso) {
@@ -384,7 +384,7 @@ router.get('/cidades/:uf', async (req, res) => {
  */
 router.get('/relatorios/estatisticas', async (req, res) => {
   try {
-    const resultado = await ClienteService.obterEstatisticas(req.user.id);
+    const resultado = await ClienteService.obterEstatisticas(req.usuario.id);
 
     res.json({
       sucesso: true,
@@ -414,7 +414,7 @@ router.get('/exportar/csv', async (req, res) => {
       ativo: req.query.ativo !== undefined ? req.query.ativo === 'true' : true
     };
 
-    const resultado = await ClienteService.exportarClientes(filtros, req.user.id);
+    const resultado = await ClienteService.exportarClientes(filtros, req.usuario.id);
     
     if (!resultado.sucesso) {
       return res.status(400).json({

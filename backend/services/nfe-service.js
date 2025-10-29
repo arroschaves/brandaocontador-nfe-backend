@@ -3,6 +3,7 @@ const path = require("path");
 const axios = require("axios");
 const { carregarCertificado, assinarNFe, assinarInutilizacao, assinarEventoCancelamento } = require("../assinador");
 const { DOMParser, XMLSerializer } = require("@xmldom/xmldom");
+const database = require('../config/database');
 const CertificateService = require('./certificate-service');
 const SefazClient = require('./sefaz-client');
 const SefazStatusService = require('./sefaz-status');
@@ -11,7 +12,6 @@ const TributacaoService = require('./tributacao-service');
 const XmlValidatorService = require('./xml-validator-service');
 const DanfeService = require('./danfe-service');
 const { ValidationService } = require('./validation-service');
-const Configuracao = require('../models/Configuracao');
 
 class NFeService {
   constructor() {
@@ -56,10 +56,10 @@ class NFeService {
       let certificate;
       let info;
 
-      // Tenta carregar do banco (Configuracao)
-      const config = await Configuracao.findOne({ chave: 'padrao' }).lean().catch(() => null);
-      const dbPath = config?.nfe?.certificadoDigital?.arquivo;
-      const dbPass = config?.nfe?.certificadoDigital?.senha;
+      // Tenta carregar das configurações JSON
+      const config = await database.buscarConfiguracao('nfe').catch(() => null);
+      const dbPath = config?.certificadoDigital?.arquivo;
+      const dbPass = config?.certificadoDigital?.senha;
 
       if (dbPath && dbPass) {
         certificate = await this.certificateService.loadCertificateFromPath(dbPath, dbPass);
@@ -672,8 +672,8 @@ class NFeService {
 
   async obterSeriePadrao() {
     try {
-      const config = await Configuracao.findOne({ chave: 'padrao' }).lean().catch(() => null);
-      const serieCfg = config?.nfe?.serie ?? '1';
+      const config = await database.buscarConfiguracao('nfe').catch(() => null);
+      const serieCfg = config?.serie ?? '1';
       const serieNum = parseInt(serieCfg, 10);
       return Number.isNaN(serieNum) ? 1 : serieNum;
     } catch (e) {
@@ -683,23 +683,22 @@ class NFeService {
   }
 
   async obterProximoNumero(serie) {
-    // Primeiro tenta persistir via Configuração (Mongo)
+    // Primeiro tenta persistir via Configuração JSON
     try {
-      const config = await Configuracao.findOne({ chave: 'padrao' }).lean().catch(() => null);
+      const config = await database.buscarConfiguracao('nfe').catch(() => null);
       let proximo = 1;
-      if (config?.nfe?.numeracaoInicial !== undefined && config?.nfe?.numeracaoInicial !== null) {
-        const atual = parseInt(config.nfe.numeracaoInicial, 10);
+      if (config?.numeracaoInicial !== undefined && config?.numeracaoInicial !== null) {
+        const atual = parseInt(config.numeracaoInicial, 10);
         proximo = Number.isNaN(atual) ? 1 : atual;
       }
       // Atualiza para o próximo número
-      await Configuracao.updateOne(
-        { chave: 'padrao' },
-        { $set: { 'nfe.numeracaoInicial': proximo + 1 } },
-        { upsert: true }
-      ).catch(() => null);
+      await database.salvarConfiguracao('nfe', {
+        ...config,
+        numeracaoInicial: proximo + 1
+      }).catch(() => null);
       return proximo;
     } catch (e) {
-      console.warn('⚠️ Falha ao atualizar numeração no banco. Usando arquivo.', e.message);
+      console.warn('⚠️ Falha ao atualizar numeração nas configurações. Usando arquivo.', e.message);
     }
 
     // Fallback: usar arquivo numeracao.json

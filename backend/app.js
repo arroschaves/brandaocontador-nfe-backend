@@ -3,10 +3,9 @@ require('dotenv').config();
 
 // Auto-detecção de ambiente e configuração dinâmica
 const NODE_ENV = process.env.NODE_ENV || 'development';
-const USE_MONGODB = process.env.USE_MONGODB !== 'false' && NODE_ENV !== 'test';
 
 console.log(`🔧 Ambiente detectado: ${NODE_ENV}`);
-console.log(`💾 Banco de dados: ${USE_MONGODB ? 'MongoDB' : 'Arquivo JSON'}`);
+console.log(`💾 Banco de dados: Arquivo JSON`);
 console.log(`🧪 Modo simulação: ${process.env.SIMULATION_MODE === 'true' ? 'ATIVO' : 'DESATIVO'}`);
 
 // ==================== IMPORTS ====================
@@ -14,7 +13,6 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
-const mongoSanitize = require('express-mongo-sanitize');
 const morgan = require('morgan');
 const path = require('path');
 const fs = require('fs');
@@ -39,26 +37,24 @@ const logService = require('./services/log-service');
 const emailService = require('./services/email-service');
 const CertificateService = require('./services/certificate-service');
 
-// Models (apenas se usando MongoDB)
-let Usuario, Configuracao, Cliente, Produto;
-if (USE_MONGODB) {
-  Usuario = require('./models/Usuario');
-  Configuracao = require('./models/Configuracao');
-  Cliente = require('./models/Cliente');
-  Produto = require('./models/Produto');
-}
+// Sistema usando apenas arquivos JSON - sem models MongoDB
 
 // Database e Auth (consolidados com detecção automática)
 const database = require('./config/database');
 const authMiddleware = require('./middleware/auth');
 
 // Importar rotas modernas
+const authRoutes = require('./routes/auth');
+const clientesRoutes = require('./routes/clientes');
+const produtosRoutes = require('./routes/produtos');
+const adminRoutes = require('./routes/admin');
 const nfeRoutes = require('./routes/nfe');
 const cteRoutes = require('./routes/cte');
 const mdfeRoutes = require('./routes/mdfe');
 const eventosRoutes = require('./routes/eventos');
 const relatoriosRoutes = require('./routes/relatorios');
 const configuracoesRoutes = require('./routes/configuracoes');
+const dashboardRoutes = require('./routes/dashboard');
 
 // Middlewares de segurança
 const {
@@ -76,7 +72,7 @@ const {
 // ==================== CONFIGURAÇÃO BÁSICA ====================
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3000;
 
 // Inicializar serviços
 const validationExternalService = new ValidationExternalService();
@@ -225,8 +221,7 @@ const swaggerOptions = {
   apis: [
     './app.js',
     './routes/*.js',
-    './controllers/*.js',
-    './models/*.js'
+    './controllers/*.js'
   ]
 };
 
@@ -247,8 +242,6 @@ initializeMetrics();
 initializeHealthChecks();
 initializeAPM();
 initializeAlerts();
-
-
 
 // ==================== MIDDLEWARES DE MONITORAMENTO ====================
 // Middleware de performance (deve ser um dos primeiros)
@@ -294,8 +287,8 @@ app.use(morgan('combined', {
 // Detecção de ameaças
 app.use(securityMiddleware.detectarAmeacas());
 
-// Rate limiting global
-app.use(securityMiddleware.configurarRateLimitingGlobal());
+// Rate limiting global - TEMPORARIAMENTE DESABILITADO
+// app.use(securityMiddleware.configurarRateLimitingGlobal());
 
 // Slow down progressivo
 app.use(securityMiddleware.configurarSlowDown());
@@ -303,27 +296,23 @@ app.use(securityMiddleware.configurarSlowDown());
 // CORS configurado dinamicamente
 app.use(securityMiddleware.configurarCORS());
 
-// Sanitização de entrada (XSS, NoSQL injection, validação)
-const sanitizationMiddlewares = securityMiddleware.configurarSanitizacao();
-sanitizationMiddlewares.forEach(middleware => app.use(middleware));
+// Sanitização de entrada (XSS, NoSQL injection, validação) - TEMPORARIAMENTE DESABILITADO
+// const sanitizationMiddlewares = securityMiddleware.configurarSanitizacao();
+// sanitizationMiddlewares.forEach(middleware => app.use(middleware));
 
-// Rate limiting específico para autenticação
-app.use('/auth/login', securityMiddleware.configurarRateLimitingAuth());
-app.use('/auth/register', securityMiddleware.configurarRateLimitingAuth());
+// Rate limiting específico para autenticação - TEMPORARIAMENTE DESABILITADO
+// app.use('/auth/login', securityMiddleware.configurarRateLimitingAuth());
+// app.use('/auth/register', securityMiddleware.configurarRateLimitingAuth());
 
-// Rate limiting para APIs
-app.use('/api', securityMiddleware.configurarRateLimitingAPI());
+// Rate limiting para APIs - TEMPORARIAMENTE DESABILITADO
+// app.use('/api', securityMiddleware.configurarRateLimitingAPI());
 
-// 8. Middleware para parsing JSON com tratamento de erros
+// 8. Middleware para parsing JSON padrão
+app.use(express.json({ limit: '50mb' }));
+
+// Middleware padrão para outras rotas
 app.use(express.json({ 
-    limit: '10mb',
-    verify: (req, res, buf) => {
-      try {
-        JSON.parse(buf);
-      } catch (e) {
-        throw new Error('JSON inválido');
-      }
-    }
+    limit: '10mb'
 }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
@@ -408,6 +397,10 @@ app.get('/api-docs.json', (req, res) => {
  *               $ref: '#/components/schemas/Error'
  */
 app.post('/auth/login', authMiddleware.login.bind(authMiddleware));
+// Rota alternativa para compatibilidade com frontend
+app.post('/api/auth/login', authMiddleware.login.bind(authMiddleware));
+app.post("/auth/register", authMiddleware.register.bind(authMiddleware));
+app.post("/api/auth/register", authMiddleware.register.bind(authMiddleware));
 
 /**
  * @swagger
@@ -478,7 +471,7 @@ app.post('/auth/login', authMiddleware.login.bind(authMiddleware));
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-app.post('/auth/register', authMiddleware.register.bind(authMiddleware));
+// Rotas de registro removidas - agora são tratadas pelo routes/auth.js
 
 /**
  * @swagger
@@ -535,10 +528,30 @@ app.get('/auth/validate',
   }
 );
 
-// Rota social (apenas para MongoDB)
-if (USE_MONGODB && authMiddleware.social) {
-  app.post('/auth/social', authMiddleware.social.bind(authMiddleware));
-}
+// Rota alternativa para compatibilidade com frontend
+app.get('/api/auth/validate', 
+  authMiddleware.verificarAutenticacao(), 
+  async (req, res) => {
+    try {
+      res.json({
+        sucesso: true,
+        usuario: {
+          id: req.usuario.id,
+          nome: req.usuario.nome,
+          email: req.usuario.email,
+          permissoes: req.usuario.permissoes || [],
+          tipo: req.usuario.tipo || req.usuario.tipoCliente
+        },
+        tipoAuth: req.tipoAuth
+      });
+    } catch (error) {
+      await logService.logErro('validate_token', error, { ip: req.ip });
+      res.status(500).json({ sucesso: false, erro: 'Erro ao validar token' });
+    }
+  }
+);
+
+// Rota social removida - sistema JSON apenas
 
 // Geração de API Key (apenas para admins)
 app.get('/auth/api-key', 
@@ -559,15 +572,10 @@ app.get('/me',
   authMiddleware.verificarAutenticacao(),
   async (req, res) => {
     try {
-      let usuario;
-      if (USE_MONGODB) {
-        usuario = await Usuario.findById(req.usuario.id).select('-senha');
-      } else {
-        usuario = await database.buscarUsuarioPorId(req.usuario.id);
-        if (usuario) {
-          const { senha, ...semSenha } = usuario;
-          usuario = semSenha;
-        }
+      let usuario = await database.buscarUsuarioPorId(req.usuario.id);
+      if (usuario) {
+        const { senha, ...semSenha } = usuario;
+        usuario = semSenha;
       }
       
       if (!usuario) {
@@ -594,19 +602,10 @@ app.patch('/me',
         if (dados[campo] !== undefined) atualizacoes[campo] = dados[campo];
       }
 
-      let usuarioAtualizado;
-      if (USE_MONGODB) {
-        usuarioAtualizado = await Usuario.findByIdAndUpdate(
-          req.usuario.id, 
-          atualizacoes, 
-          { new: true }
-        ).select('-senha');
-      } else {
-        usuarioAtualizado = await database.atualizarUsuario(req.usuario.id, atualizacoes);
-        if (usuarioAtualizado) {
-          const { senha, ...semSenha } = usuarioAtualizado;
-          usuarioAtualizado = semSenha;
-        }
+      let usuarioAtualizado = await database.atualizarUsuario(req.usuario.id, atualizacoes);
+      if (usuarioAtualizado) {
+        const { senha, ...semSenha } = usuarioAtualizado;
+        usuarioAtualizado = semSenha;
       }
       
       res.json({ sucesso: true, usuario: usuarioAtualizado });
@@ -657,11 +656,7 @@ app.post('/me/certificado',
           certificadoUploadEm: new Date().toISOString()
         };
 
-        if (USE_MONGODB) {
-          await Usuario.findByIdAndUpdate(req.usuario.id, { certificado: configCert });
-        } else {
-          await database.atualizarUsuario(req.usuario.id, { certificado: configCert });
-        }
+        await database.atualizarUsuario(req.usuario.id, { certificado: configCert });
 
         await logService.log('certificado_upload', 'SUCESSO', {
           usuario: req.usuario.id,
@@ -690,12 +685,18 @@ app.post('/me/certificado',
 
 // ==================== ROTAS MODERNAS ====================
 // Usar as rotas modernas organizadas em arquivos separados
+app.use('/api/auth', authRoutes);
+app.use('/api/clientes', clientesRoutes);
+app.use('/api/auth', authRoutes);
+app.use('/api/produtos', produtosRoutes);
+app.use('/api/admin', adminRoutes);
 app.use('/api/nfe', nfeRoutes);
 app.use('/api/cte', cteRoutes);
 app.use('/api/mdfe', mdfeRoutes);
 app.use('/api/eventos', eventosRoutes);
 app.use('/api/relatorios', relatoriosRoutes);
 app.use('/api/configuracoes', configuracoesRoutes);
+app.use('/api/dashboard', authMiddleware.verificarAutenticacao(), dashboardRoutes);
 
 // ==================== ENDPOINTS NFE (LEGADOS) ====================
 
@@ -875,16 +876,10 @@ app.get('/nfe/historico',
       let nfes = [];
       let total = 0;
 
-      if (USE_MONGODB) {
-        // Implementar busca no MongoDB quando necessário
-        nfes = [];
-        total = 0;
-      } else {
-        const todasNfes = await database.listarNfes(filtros);
-        total = todasNfes.length;
-        const inicio = (pagina - 1) * limite;
-        nfes = todasNfes.slice(inicio, inicio + limite);
-      }
+      const todasNfes = await database.listarNfes(filtros);
+      total = todasNfes.length;
+      const inicio = (pagina - 1) * limite;
+      nfes = todasNfes.slice(inicio, inicio + limite);
 
       await logService.log('historico', 'SUCESSO', {
         usuario: req.usuario.id,
@@ -1708,44 +1703,7 @@ app.get('/clientes',
         pagina: parseInt(req.query.pagina) || 1
       };
       
-      let clientes;
-      if (USE_MONGODB) {
-        // Construir query MongoDB
-        const query = {};
-        
-        if (filtros.ativo !== undefined) {
-          query.ativo = filtros.ativo === 'true';
-        }
-        
-        if (filtros.tipo) {
-          query.tipo = filtros.tipo;
-        }
-        
-        if (filtros.q) {
-          query.$or = [
-            { nome: { $regex: filtros.q, $options: 'i' } },
-            { razaoSocial: { $regex: filtros.q, $options: 'i' } },
-            { documento: { $regex: filtros.q.replace(/\D/g, ''), $options: 'i' } },
-            { email: { $regex: filtros.q, $options: 'i' } }
-          ];
-        }
-        
-        const skip = (filtros.pagina - 1) * filtros.limite;
-        const total = await Cliente.countDocuments(query);
-        const clientesData = await Cliente.find(query)
-          .skip(skip)
-          .limit(filtros.limite)
-          .sort({ nome: 1 });
-        
-        clientes = {
-          dados: clientesData,
-          total,
-          pagina: filtros.pagina,
-          totalPaginas: Math.ceil(total / filtros.limite)
-        };
-      } else {
-        clientes = await database.listarClientes(filtros);
-      }
+      const clientes = await database.listarClientes(filtros);
       
       res.json({ sucesso: true, clientes });
     } catch (error) {
@@ -1849,33 +1807,21 @@ app.post('/clientes',
         });
       }
 
-      let cliente;
-      if (USE_MONGODB) {
-        // Verificar se já existe
-        const existente = await Cliente.findOne({ 
-          documento: validacao.dados.documento.replace(/\D/g, '') 
-        });
-        
-        if (existente) {
-          return res.status(409).json({ 
-            sucesso: false, 
-            erro: 'Cliente já cadastrado com este documento' 
-          });
-        }
-        
-        // Criar cliente no MongoDB
-        cliente = new Cliente({
-          ...validacao.dados,
-          usuarioId: req.usuario.id
-        });
-        await cliente.save();
-      } else {
-        // Criar cliente no arquivo JSON
-        cliente = await database.criarCliente({
-          ...validacao.dados,
-          usuarioId: req.usuario.id
+      // Verificar se cliente já existe
+      const existente = await database.buscarClientePorDocumento(validacao.dados.documento, req.usuario.id);
+      
+      if (existente) {
+        return res.status(409).json({ 
+          sucesso: false, 
+          erro: 'Cliente já cadastrado com este documento' 
         });
       }
+      
+      // Criar cliente no arquivo JSON
+      const cliente = await database.criarCliente({
+        ...validacao.dados,
+        usuarioId: req.usuario.id
+      });
       
       await logService.log('cliente_criado', 'SUCESSO', { 
         cliente: cliente.id || cliente._id, 
@@ -1931,12 +1877,9 @@ app.get('/clientes/:id',
   async (req, res) => {
     try {
       let cliente;
-      if (USE_MONGODB) {
-        cliente = await Cliente.findById(req.params.id);
-      } else {
-        cliente = await database.buscarClientePorId(req.params.id);
-      }
       
+        cliente = await database.buscarClientePorId(req.params.id);
+
       if (!cliente) {
         return res.status(404).json({ sucesso: false, erro: 'Cliente não encontrado' });
       }
@@ -2015,16 +1958,7 @@ app.patch('/clientes/:id',
         }
       }
 
-      let cliente;
-      if (USE_MONGODB) {
-        cliente = await Cliente.findByIdAndUpdate(
-          req.params.id, 
-          dadosAtualizacao, 
-          { new: true, runValidators: true }
-        );
-      } else {
-        cliente = await database.atualizarCliente(req.params.id, dadosAtualizacao);
-      }
+      let cliente = await database.atualizarCliente(req.params.id, dadosAtualizacao);
       
       if (!cliente) {
         return res.status(404).json({ sucesso: false, erro: 'Cliente não encontrado' });
@@ -2071,13 +2005,9 @@ app.delete('/clientes/:id',
   async (req, res) => {
     try {
       let removido;
-      if (USE_MONGODB) {
-        const cliente = await Cliente.findByIdAndDelete(req.params.id);
-        removido = !!cliente;
-      } else {
-        removido = await database.removerCliente(req.params.id);
-      }
       
+        removido = await database.removerCliente(req.params.id);
+
       if (!removido) {
         return res.status(404).json({ sucesso: false, erro: 'Cliente não encontrado' });
       }
@@ -2248,28 +2178,26 @@ app.get('/validacao/municipios/:uf',
 );
 
 // ==================== ROTAS DE PRODUTOS ====================
-if (!USE_MONGODB) {
-  // Rotas similares para produtos
-  app.get('/produtos', authMiddleware.verificarAutenticacao(), async (req, res) => {
-    try {
-      const produtos = await database.listarProdutos(req.query);
-      res.json({ sucesso: true, produtos });
-    } catch (error) {
-      await logService.logErro('produtos_listar', error, { ip: req.ip });
-      res.status(500).json({ sucesso: false, erro: 'Erro ao listar produtos' });
-    }
-  });
+// Rotas para produtos (sistema JSON)
+app.get('/produtos', authMiddleware.verificarAutenticacao(), async (req, res) => {
+  try {
+    const produtos = await database.listarProdutos(req.query);
+    res.json({ sucesso: true, produtos });
+  } catch (error) {
+    await logService.logErro('produtos_listar', error, { ip: req.ip });
+    res.status(500).json({ sucesso: false, erro: 'Erro ao listar produtos' });
+  }
+});
 
-  app.post('/produtos', authMiddleware.verificarAutenticacao(), async (req, res) => {
-    try {
-      const produto = await database.criarProduto(req.body);
-      res.status(201).json({ sucesso: true, produto });
-    } catch (error) {
-      await logService.logErro('produto_criar', error, { ip: req.ip });
-      res.status(500).json({ sucesso: false, erro: 'Erro ao criar produto' });
-    }
-  });
-}
+app.post('/produtos', authMiddleware.verificarAutenticacao(), async (req, res) => {
+  try {
+    const produto = await database.criarProduto(req.body);
+    res.status(201).json({ sucesso: true, produto });
+  } catch (error) {
+    await logService.logErro('produto_criar', error, { ip: req.ip });
+    res.status(500).json({ sucesso: false, erro: 'Erro ao criar produto' });
+  }
+});
 
 // ==================== ROTAS ADMINISTRATIVAS ====================
 
@@ -2378,16 +2306,11 @@ app.get('/admin/usuarios',
   authMiddleware.verificarPermissao ? authMiddleware.verificarPermissao('admin') : (req, res, next) => next(),
   async (req, res) => {
     try {
-      let usuarios;
-      if (USE_MONGODB) {
-        usuarios = await Usuario.find({}).select('-senha').lean();
-      } else {
-        usuarios = await database.listarUsuarios();
-        usuarios = usuarios.map(u => {
-          const { senha, ...semSenha } = u;
-          return semSenha;
-        });
-      }
+      let usuarios = await database.listarUsuarios();
+      usuarios = usuarios.map(u => {
+        const { senha, ...semSenha } = u;
+        return semSenha;
+      });
       
       res.json({ sucesso: true, usuarios });
     } catch (error) {
@@ -2440,9 +2363,9 @@ app.get('/admin/usuarios',
  *                       enum: [development, production, test]
  *                       example: "development"
  *                     bancoDados:
- *                       type: string
- *                       enum: [MongoDB, "Arquivo JSON"]
- *                       example: "MongoDB"
+                       type: string
+                       enum: ["Arquivo JSON"]
+                       example: "Arquivo JSON"
  *                     conectado:
  *                       type: boolean
  *                       description: Status da conexão com o banco de dados
@@ -2481,7 +2404,7 @@ app.get('/admin/health',
         uptime: process.uptime(),
         versaoNode: process.version,
         ambiente: NODE_ENV,
-        bancoDados: USE_MONGODB ? 'MongoDB' : 'Arquivo JSON',
+        bancoDados: 'Arquivo JSON',
         conectado: database.isConnected ? database.isConnected() : true,
         simulacao: process.env.SIMULATION_MODE === 'true'
       };
@@ -2542,6 +2465,9 @@ app.get('/admin/health',
  */
 // Health check básico (público)
 app.get('/health', healthCheckHandler);
+
+// Rota alternativa para compatibilidade com frontend
+app.get('/api/health', healthCheckHandler);
 
 /**
  * @swagger
@@ -2605,8 +2531,8 @@ app.get('/health', healthCheckHandler);
  *                       type: boolean
  *                       example: true
  *                     type:
- *                       type: string
- *                       example: "MongoDB"
+                       type: string
+                       example: "Arquivo JSON"
  *                     responseTime:
  *                       type: number
  *                       description: Tempo de resposta em ms
@@ -3136,7 +3062,7 @@ app.get('/health', (req, res) => {
     uptime: process.uptime(),
     version: require('./package.json').version || '1.0.0',
     environment: NODE_ENV,
-    database: USE_MONGODB ? 'mongodb' : 'file',
+    database: 'file',
     memory: process.memoryUsage(),
     pid: process.pid
   });
@@ -3239,40 +3165,7 @@ async function iniciarServidor() {
       console.log('🔄 Servidor continuará sem banco de dados...');
     }
 
-    // Seed automático apenas em desenvolvimento
-    if (USE_MONGODB && NODE_ENV === 'development') {
-      try {
-        const adminEmail = process.env.SEED_ADMIN_EMAIL || 'admin@brandaocontador.com.br';
-        const adminExiste = await Usuario.findOne({ email: adminEmail }).lean();
-        
-        if (!adminExiste) {
-          await Usuario.create({
-            nome: 'Administrador',
-            email: adminEmail,
-            senha: process.env.SEED_ADMIN_SENHA || 'admin123',
-            tipoCliente: 'cnpj',
-            documento: '12345678000199',
-            telefone: '(11) 4000-0000',
-            razaoSocial: 'Brandão Contador LTDA',
-            nomeFantasia: 'Brandão Contador',
-            endereco: {
-              cep: '01001-000',
-              logradouro: 'Rua Exemplo',
-              numero: '100',
-              bairro: 'Centro',
-              cidade: 'São Paulo',
-              uf: 'SP'
-            },
-            permissoes: ['admin', 'admin_total', 'nfe_consultar', 'nfe_emitir'],
-            ativo: true,
-            status: 'ativo'
-          });
-          console.log(`🌱 Usuário admin criado: ${adminEmail}`);
-        }
-      } catch (seedError) {
-        console.warn('⚠️  Falha ao semear usuários padrão:', seedError.message);
-      }
-    }
+    // Seed automático removido - usando apenas arquivos JSON
 
     console.log('✅ Servidor configurado com sucesso!');
     
@@ -3330,12 +3223,10 @@ async function iniciarServidor() {
       console.log(`   - POST http://localhost:${PORT}/admin/alerts/test`);
       console.log(`   - GET  http://localhost:${PORT}/status/performance`);
       
-      if (!USE_MONGODB) {
-        console.log(`   - GET  http://localhost:${PORT}/clientes`);
-        console.log(`   - POST http://localhost:${PORT}/clientes`);
-        console.log(`   - GET  http://localhost:${PORT}/produtos`);
-        console.log(`   - POST http://localhost:${PORT}/produtos`);
-      }
+      console.log(`   - GET  http://localhost:${PORT}/clientes`);
+      console.log(`   - POST http://localhost:${PORT}/clientes`);
+      console.log(`   - GET  http://localhost:${PORT}/produtos`);
+      console.log(`   - POST http://localhost:${PORT}/produtos`);
       
       console.log('');
       const ambiente = process.env.AMBIENTE === "1" ? "PRODUÇÃO" : "HOMOLOGAÇÃO";

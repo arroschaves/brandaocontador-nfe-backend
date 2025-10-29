@@ -382,7 +382,7 @@ router.get('/dashboard',
 
       const resultado = await relatoriosService.gerarDadosDashboard({
         periodo,
-        usuario: req.user
+        usuario: req.usuario
       });
 
       res.json(resultado);
@@ -444,7 +444,7 @@ router.get('/historico',
       const historico = await relatoriosService.buscarHistorico({
         tipo,
         limite,
-        usuario: req.user
+        usuario: req.usuario
       });
 
       res.json({

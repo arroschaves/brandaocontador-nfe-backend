@@ -1,24 +1,16 @@
 // ==================== MIDDLEWARE DE AUTENTICAÇÃO CONSOLIDADO ====================
-// Combina funcionalidades de auth.js, auth-real.js e auth-simples.js
-// Auto-detecção de ambiente: MongoDB (produção) ou Arquivo JSON (desenvolvimento)
+// Sistema JSON puro - MongoDB removido
 
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const rateLimit = require('express-rate-limit');
 
-// Auto-detecção de ambiente
+// Configuração para sistema JSON
 const NODE_ENV = process.env.NODE_ENV || 'development';
-const USE_MONGODB = process.env.USE_MONGODB !== 'false' && NODE_ENV !== 'test';
 
 // Imports consolidados
-let Usuario;
 const database = require('../config/database');
-
-// Carregar modelo apenas se usando MongoDB
-if (USE_MONGODB) {
-  Usuario = require('../models/Usuario');
-}
 
 // Configurações JWT
 const JWT_SECRET = process.env.JWT_SECRET || 'nfe-secret-key-brandao-contador-2024';
@@ -77,13 +69,8 @@ class AuthMiddleware {
         });
       }
 
-      // Buscar usuário
-      let usuario;
-      if (USE_MONGODB) {
-        usuario = await Usuario.findOne({ email: email.toLowerCase() });
-      } else {
-        usuario = await database.buscarUsuarioPorEmail(email.toLowerCase());
-      }
+      // Buscar usuário (sistema JSON)
+      const usuario = await database.buscarUsuarioPorEmail(email.toLowerCase());
 
       if (!usuario) {
         return res.status(401).json({
@@ -115,19 +102,12 @@ class AuthMiddleware {
       // Gerar token JWT
       const token = this.gerarToken(usuario);
 
-      // Atualizar último login
+      // Atualizar último login (sistema JSON)
       const agora = new Date().toISOString();
-      if (USE_MONGODB) {
-        await Usuario.findByIdAndUpdate(usuario._id, { 
-          ultimoLogin: agora,
-          $inc: { totalLogins: 1 }
-        });
-      } else {
-        await database.atualizarUsuario(usuario.id, { 
-          ultimoLogin: agora,
-          totalLogins: (usuario.totalLogins || 0) + 1
-        });
-      }
+      await database.atualizarUsuario(usuario.id, { 
+        ultimoLogin: agora,
+        totalLogins: (usuario.totalLogins || 0) + 1
+      });
 
       // Resposta de sucesso
       const { senha: _, ...usuarioSemSenha } = usuario;
@@ -234,19 +214,9 @@ class AuthMiddleware {
         });
       }
 
-      // Verificar se usuário já existe
-      let usuarioExistente;
-      if (USE_MONGODB) {
-        usuarioExistente = await Usuario.findOne({ 
-          $or: [
-            { email: email.toLowerCase() },
-            { documento: documento.replace(/\D/g, '') }
-          ]
-        });
-      } else {
-        usuarioExistente = await database.buscarUsuarioPorEmail(email.toLowerCase()) ||
-                          await database.buscarUsuarioPorDocumento(documento.replace(/\D/g, ''));
-      }
+      // Verificar se usuário já existe (sistema JSON)
+      const usuarioExistente = await database.buscarUsuarioPorEmail(email.toLowerCase()) ||
+                               await database.buscarUsuarioPorDocumento(documento.replace(/\D/g, ''));
 
       if (usuarioExistente) {
         return res.status(409).json({
@@ -278,13 +248,8 @@ class AuthMiddleware {
         totalLogins: 0
       };
 
-      let novoUsuario;
-      if (USE_MONGODB) {
-        novoUsuario = await Usuario.create(dadosUsuario);
-        novoUsuario = novoUsuario.toObject();
-      } else {
-        novoUsuario = await database.criarUsuario(dadosUsuario);
-      }
+      // Criar usuário (sistema JSON)
+      const novoUsuario = await database.criarUsuario(dadosUsuario);
 
       // Gerar token para o novo usuário
       const token = this.gerarToken(novoUsuario);
@@ -311,83 +276,14 @@ class AuthMiddleware {
   }
 
   /**
-   * Login social (apenas para MongoDB)
+   * Login social removido - sistema JSON não suporta
    */
   async social(req, res) {
-    if (!USE_MONGODB) {
-      return res.status(501).json({
-        sucesso: false,
-        erro: 'Login social não disponível neste ambiente',
-        codigo: 'FUNCIONALIDADE_INDISPONIVEL'
-      });
-    }
-
-    try {
-      const { provider, providerId, email, nome, avatar } = req.body;
-
-      if (!provider || !providerId || !email) {
-        return res.status(400).json({
-          sucesso: false,
-          erro: 'Provider, providerId e email são obrigatórios',
-          codigo: 'DADOS_OBRIGATORIOS'
-        });
-      }
-
-      // Buscar usuário existente
-      let usuario = await Usuario.findOne({
-        $or: [
-          { email: email.toLowerCase() },
-          { [`social.${provider}.id`]: providerId }
-        ]
-      });
-
-      if (usuario) {
-        // Atualizar dados sociais se necessário
-        if (!usuario.social || !usuario.social[provider]) {
-          usuario.social = usuario.social || {};
-          usuario.social[provider] = { id: providerId, email, nome, avatar };
-          await usuario.save();
-        }
-      } else {
-        // Criar novo usuário
-        usuario = await Usuario.create({
-          nome: nome || email.split('@')[0],
-          email: email.toLowerCase(),
-          senha: await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 12),
-          tipoCliente: 'pf',
-          documento: '',
-          social: {
-            [provider]: { id: providerId, email, nome, avatar }
-          },
-          permissoes: ['nfe_consultar'],
-          ativo: true,
-          status: 'ativo',
-          criadoEm: new Date().toISOString()
-        });
-      }
-
-      // Gerar token
-      const token = this.gerarToken(usuario);
-
-      // Resposta
-      const { senha: _, ...usuarioSemSenha } = usuario.toObject();
-      res.json({
-        sucesso: true,
-        token,
-        usuario: usuarioSemSenha,
-        tipoAuth: 'social',
-        provider,
-        expiresIn: JWT_EXPIRES_IN
-      });
-
-    } catch (error) {
-      console.error('❌ Erro no login social:', error);
-      res.status(500).json({
-        sucesso: false,
-        erro: 'Erro interno no servidor',
-        codigo: 'ERRO_INTERNO'
-      });
-    }
+    return res.status(501).json({
+      sucesso: false,
+      erro: 'Login social não disponível - sistema JSON puro',
+      codigo: 'FUNCIONALIDADE_INDISPONIVEL'
+    });
   }
 
   // ==================== MIDDLEWARES DE VERIFICAÇÃO ====================
@@ -446,16 +342,11 @@ class AuthMiddleware {
         // Verificar e decodificar token
         const decoded = jwt.verify(token, JWT_SECRET);
 
-        // Buscar usuário
-        let usuario;
-        if (USE_MONGODB) {
-          usuario = await Usuario.findById(decoded.id).select('-senha');
-        } else {
-          usuario = await database.buscarUsuarioPorId(decoded.id);
-          if (usuario) {
-            const { senha, ...semSenha } = usuario;
-            usuario = semSenha;
-          }
+        // Buscar usuário (sistema JSON)
+        let usuario = await database.buscarUsuarioPorId(decoded.id);
+        if (usuario) {
+          const { senha, ...semSenha } = usuario;
+          usuario = semSenha;
         }
 
         if (!usuario) {
@@ -571,7 +462,11 @@ class AuthMiddleware {
         const permissoes = req.usuario.permissoes || [];
         
         // Admin tem todas as permissões
-        if (permissoes.includes('admin') || permissoes.includes('admin_total')) {
+        if (permissoes.includes('all') || 
+            permissoes.includes('admin') || 
+            permissoes.includes('admin_total') ||
+            req.usuario.isAdmin === true ||
+            req.usuario.accessLevel === 'full') {
           return next();
         }
 

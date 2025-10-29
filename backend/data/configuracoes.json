@@ -8,6 +8,7 @@
     "ambiente": "producao",
     "uf": "SP",
     "serie": 1,
-    "numeroInicial": 1
+    "numeroInicial": 1,
+    "numeracaoInicial": 2
   }
 }

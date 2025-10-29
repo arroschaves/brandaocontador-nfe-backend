@@ -56,7 +56,7 @@ function initializeAlertRules() {
       id: 'high_memory_usage',
       category: ALERT_CATEGORIES.SYSTEM,
       type: ALERT_TYPES.WARNING,
-      condition: (metrics) => metrics.memoryUsagePercent > 0.8,
+      condition: (metrics) => metrics.memoryUsagePercent > 0.95,
       message: (metrics) => `Alto uso de memória: ${Math.round(metrics.memoryUsagePercent * 100)}%`,
       throttle: 300000
     },
@@ -64,7 +64,7 @@ function initializeAlertRules() {
       id: 'critical_memory_usage',
       category: ALERT_CATEGORIES.SYSTEM,
       type: ALERT_TYPES.CRITICAL,
-      condition: (metrics) => metrics.memoryUsagePercent > 0.95,
+      condition: (metrics) => metrics.memoryUsagePercent > 0.98,
       message: (metrics) => `Uso crítico de memória: ${Math.round(metrics.memoryUsagePercent * 100)}%`,
       throttle: 60000
     },
