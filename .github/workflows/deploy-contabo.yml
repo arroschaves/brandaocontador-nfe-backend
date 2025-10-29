@@ -130,6 +130,7 @@ jobs:
           # Criar arquivo temporário com arquivos essenciais
           # CRÍTICO: Excluir pasta data/ para proteger dados de produção
           tar -czf backend-deploy.tar.gz \
+            --warning=no-file-changed \
             --exclude=node_modules \
             --exclude=logs \
             --exclude=coverage \
@@ -138,6 +139,13 @@ jobs:
             --exclude=data \
             --exclude=.git \
             --exclude=.github \
+            --exclude=*.log \
+            --exclude=*.tmp \
+            --exclude=npm-debug.log* \
+            --exclude=yarn-debug.log* \
+            --exclude=yarn-error.log* \
+            --exclude=.DS_Store \
+            --exclude=Thumbs.db \
             .
           
           echo "📊 Tamanho do arquivo de deploy:"
