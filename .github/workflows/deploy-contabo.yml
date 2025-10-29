@@ -192,6 +192,7 @@ jobs:
             echo "✅ PM2 encontrado: $(pm2 --version)"
             
             echo "✅ Ambiente verificado - todas as dependências estão disponíveis"
+            echo "🚀 Servidor Contabo configurado com Node.js v18.19.1, npm 9.2.0, PM2 6.0.13"
             
             # Criar backup antes do deploy
             BACKUP_DIR="/var/backups/brandaocontador-nfe-backend/$(date +%Y%m%d_%H%M%S)"
