@@ -55,24 +55,22 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
-          cache-dependency-path: backend/package-lock.json
+          cache-dependency-path: package-lock.json
           
       - name: 📦 Instalar dependências
         run: |
-          cd backend
           npm ci --only=production
           
       - name: 🔍 Verificar estrutura de arquivos
         run: |
           echo "🔍 Verificando arquivos essenciais..."
-          test -f backend/app.js || (echo "❌ app.js não encontrado" && exit 1)
-          test -f backend/package.json || (echo "❌ package.json não encontrado" && exit 1)
-          test -f ecosystem-production.config.js || (echo "❌ ecosystem-production.config.js não encontrado" && exit 1)
+          test -f app.js || (echo "❌ app.js não encontrado" && exit 1)
+          test -f package.json || (echo "❌ package.json não encontrado" && exit 1)
+          test -f ecosystem.config.js || (echo "❌ ecosystem.config.js não encontrado" && exit 1)
           echo "✅ Todos os arquivos essenciais encontrados"
           
       - name: 🧪 Executar testes básicos
         run: |
-          cd backend
           echo "🧪 Executando validações básicas..."
           node -c app.js || (echo "❌ Erro de sintaxe em app.js" && exit 1)
           echo "✅ Validação de sintaxe passou"
@@ -80,7 +78,6 @@ jobs:
       - name: 📊 Verificar estrutura JSON
         run: |
           echo "📊 Verificando estrutura de dados JSON..."
-          cd backend
           if [ -d "data" ]; then
             echo "✅ Diretório data encontrado"
             for file in data/*.json; do
@@ -111,56 +108,59 @@ jobs:
         run: |
           echo "🔧 Preparando ambiente..."
           mkdir -p ~/.ssh
+          echo "${{ secrets.CONTABO_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
           echo "Host ${{ env.SERVER_HOST }}" >> ~/.ssh/config
           echo "  HostName ${{ env.SERVER_HOST }}" >> ~/.ssh/config
           echo "  User ${{ env.SERVER_USER }}" >> ~/.ssh/config
           echo "  Port ${{ env.SERVER_PORT }}" >> ~/.ssh/config
+          echo "  IdentityFile ~/.ssh/id_rsa" >> ~/.ssh/config
           echo "  StrictHostKeyChecking no" >> ~/.ssh/config
           echo "  UserKnownHostsFile /dev/null" >> ~/.ssh/config
           chmod 600 ~/.ssh/config
           
-      - name: 🔐 Configurar autenticação SSH
-        run: |
-          echo "🔐 Configurando SSH..."
-          # Instalar sshpass para autenticação por senha
-          sudo apt-get update
-          sudo apt-get install -y sshpass
-          
       - name: 🌐 Testar conectividade com servidor
         run: |
           echo "🌐 Testando conectividade com CONTABO..."
-          sshpass -p "${{ secrets.CONTABO_SSH_PASSWORD }}" ssh -o ConnectTimeout=10 ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} "echo '✅ Conexão SSH estabelecida com sucesso na CONTABO'"
+          ssh -o ConnectTimeout=10 ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} "echo '✅ Conexão SSH estabelecida com sucesso na CONTABO'"
           
       - name: 📦 Preparar arquivos para deploy
         run: |
           echo "📦 Preparando arquivos para CONTABO..."
           # Criar arquivo temporário com arquivos essenciais
+          # CRÍTICO: Excluir pasta data/ para proteger dados de produção
           tar -czf backend-deploy.tar.gz \
-            backend/ \
-            ecosystem.config.js \
-            --exclude=backend/node_modules \
-            --exclude=backend/logs \
-            --exclude=backend/coverage \
-            --exclude=backend/.env \
-            --exclude=backend/certs \
-            --exclude=backend/data/logs.json
+            . \
+            --exclude=node_modules \
+            --exclude=logs \
+            --exclude=coverage \
+            --exclude=.env \
+            --exclude=certs \
+            --exclude=data \
+            --exclude=data/ \
+            --exclude=data/*.json
           
           echo "📊 Tamanho do arquivo de deploy:"
           ls -lh backend-deploy.tar.gz
           
       - name: 🚀 Transferir arquivos para servidor
-        run: |
-          echo "🚀 Transferindo arquivos para CONTABO..."
-          sshpass -p "${{ secrets.CONTABO_SSH_PASSWORD }}" scp -o ConnectTimeout=30 \
-            backend-deploy.tar.gz \
-            ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }}:/tmp/
-            
-          echo "✅ Arquivos transferidos com sucesso para CONTABO"
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ env.SERVER_HOST }}
+          username: ${{ env.SERVER_USER }}
+          key: ${{ secrets.CONTABO_SSH_PRIVATE_KEY }}
+          port: ${{ env.SERVER_PORT }}
+          source: "backend-deploy.tar.gz"
+          target: "/tmp/"
           
       - name: 🔄 Executar deploy no servidor
-        run: |
-          echo "🔄 Executando deploy na CONTABO..."
-          sshpass -p "${{ secrets.CONTABO_SSH_PASSWORD }}" ssh ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} << 'EOF'
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ env.SERVER_HOST }}
+          username: ${{ env.SERVER_USER }}
+          key: ${{ secrets.CONTABO_SSH_PRIVATE_KEY }}
+          port: ${{ env.SERVER_PORT }}
+          script: |
             set -e
             
             echo "🔄 Iniciando processo de deploy na CONTABO..."
@@ -175,9 +175,13 @@ jobs:
               echo "✅ Backup criado com sucesso"
             fi
             
-            # Parar aplicação atual
-            echo "⏹️ Parando aplicação atual..."
-            pm2 stop ${{ env.PM2_APP_NAME }} || echo "⚠️ Aplicação não estava rodando"
+            # Usar pm2 reload para zero downtime (ao invés de stop/start)
+            echo "🔄 Recarregando aplicação (zero downtime)..."
+            if pm2 list | grep -q "${{ env.PM2_APP_NAME }}"; then
+              pm2 reload ${{ env.PM2_APP_NAME }} || echo "⚠️ Reload falhou, tentando restart..."
+            else
+              echo "⚠️ Aplicação não estava rodando, será iniciada"
+            fi
             
             # Extrair novos arquivos
             echo "📦 Extraindo novos arquivos..."
@@ -187,10 +191,9 @@ jobs:
             # Criar diretório se não existir
             mkdir -p "${{ env.DEPLOY_PATH }}"
             
-            # Copiar arquivos
+            # Copiar arquivos (preservando data/ existente)
             echo "📁 Copiando arquivos..."
-            cp -r backend/* "${{ env.DEPLOY_PATH }}/"
-            cp ecosystem.config.js "${{ env.DEPLOY_PATH }}/"
+            cp -r . "${{ env.DEPLOY_PATH }}/"
             
             # Configurar permissões
             echo "🔐 Configurando permissões..."
@@ -201,33 +204,43 @@ jobs:
             cd "${{ env.DEPLOY_PATH }}"
             npm install --production --no-audit --no-fund
             
-            # Criar estrutura de dados JSON se não existir
+            # Criar estrutura de dados JSON APENAS se pasta data/ não existir
             echo "📊 Verificando estrutura de dados JSON..."
-            mkdir -p data
+            if [ ! -d "data" ]; then
+              echo "📁 Criando estrutura inicial de dados..."
+              mkdir -p data
+              
+              # Criar arquivos JSON se não existirem
+              for file in clientes.json configuracoes.json database.json logs.json nfes.json produtos.json usuarios.json; do
+                if [ ! -f "data/$file" ]; then
+                  echo "[]" | tee "data/$file" > /dev/null
+                  echo "✅ Criado: data/$file"
+                fi
+              done
+            else
+              echo "✅ Estrutura de dados existente preservada"
+            fi
             
-            # Criar arquivos JSON se não existirem
-            for file in clientes.json configuracoes.json database.json logs.json nfes.json produtos.json usuarios.json; do
-              if [ ! -f "data/$file" ]; then
-                echo "[]" | tee "data/$file" > /dev/null
-                echo "✅ Criado: data/$file"
-              fi
-            done
-            
-            # Iniciar aplicação
-            echo "🚀 Iniciando aplicação..."
-            pm2 start ecosystem.config.js --env production
-            pm2 save
+            # Iniciar aplicação se não estava rodando
+            if ! pm2 list | grep -q "${{ env.PM2_APP_NAME }}"; then
+              echo "🚀 Iniciando aplicação..."
+              pm2 start ecosystem.config.js --env production
+              pm2 save
+            fi
             
             # Aguardar inicialização
             sleep 5
             
             echo "✅ Deploy concluído com sucesso na CONTABO!"
-          EOF
-          
+            
       - name: 🏥 Verificar saúde da aplicação
-        run: |
-          echo "🏥 Verificando saúde da aplicação na CONTABO..."
-          sshpass -p "${{ secrets.CONTABO_SSH_PASSWORD }}" ssh ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} << 'EOF'
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ env.SERVER_HOST }}
+          username: ${{ env.SERVER_USER }}
+          key: ${{ secrets.CONTABO_SSH_PRIVATE_KEY }}
+          port: ${{ env.SERVER_PORT }}
+          script: |
             # Verificar se PM2 está rodando
             if pm2 list | grep -q "${{ env.PM2_APP_NAME }}"; then
               echo "✅ Aplicação está rodando no PM2"
@@ -261,15 +274,19 @@ jobs:
             ls -la ${{ env.DEPLOY_PATH }}/data/
             
             echo "🎉 Deploy verificado com sucesso na CONTABO!"
-          EOF
-          
+            
       - name: 🧹 Limpeza pós-deploy
         if: always()
-        run: |
-          echo "🧹 Limpando arquivos temporários na CONTABO..."
-          sshpass -p "${{ secrets.CONTABO_SSH_PASSWORD }}" ssh ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} \
-            "rm -f /tmp/backend-deploy.tar.gz"
-          echo "✅ Limpeza concluída na CONTABO"
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ env.SERVER_HOST }}
+          username: ${{ env.SERVER_USER }}
+          key: ${{ secrets.CONTABO_SSH_PRIVATE_KEY }}
+          port: ${{ env.SERVER_PORT }}
+          script: |
+            echo "🧹 Limpando arquivos temporários na CONTABO..."
+            rm -f /tmp/backend-deploy.tar.gz
+            echo "✅ Limpeza concluída na CONTABO"
 
   # ============================================================================
   # JOB 3: NOTIFICAÇÕES
