@@ -170,11 +170,28 @@ jobs:
             
             echo "🔄 Iniciando processo de deploy na CONTABO..."
             
-            # Verificação rápida de dependências (assumindo que já estão instaladas)
+            # Verificar se dependências estão disponíveis
             echo "🔧 Verificando ambiente..."
-            echo "Node.js: $(node --version 2>/dev/null || echo 'Não encontrado')"
-            echo "npm: $(npm --version 2>/dev/null || echo 'Não encontrado')"
-            echo "PM2: $(pm2 --version 2>/dev/null || echo 'Não encontrado')"
+            
+            if ! command -v node &> /dev/null; then
+              echo "❌ Node.js não encontrado no servidor. Por favor, instale Node.js primeiro."
+              exit 1
+            fi
+            echo "✅ Node.js encontrado: $(node --version)"
+            
+            if ! command -v npm &> /dev/null; then
+              echo "❌ npm não encontrado no servidor. Por favor, instale npm primeiro."
+              exit 1
+            fi
+            echo "✅ npm encontrado: $(npm --version)"
+            
+            if ! command -v pm2 &> /dev/null; then
+              echo "❌ PM2 não encontrado no servidor. Por favor, instale PM2 primeiro."
+              exit 1
+            fi
+            echo "✅ PM2 encontrado: $(pm2 --version)"
+            
+            echo "✅ Ambiente verificado - todas as dependências estão disponíveis"
             
             # Criar backup antes do deploy
             BACKUP_DIR="/var/backups/brandaocontador-nfe-backend/$(date +%Y%m%d_%H%M%S)"
