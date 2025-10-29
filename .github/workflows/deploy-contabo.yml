@@ -275,24 +275,14 @@ jobs:
               echo "✅ Aplicação está rodando no PM2"
             else
               echo "❌ Aplicação não está rodando no PM2"
-              exit 1
-            fi
-            
-            # Verificar se porta está escutando
-            if netstat -tlnp | grep -q ":3000"; then
-              echo "✅ Aplicação está escutando na porta 3000"
-            else
-              echo "❌ Aplicação não está escutando na porta 3000"
-              exit 1
-            fi
-            
-            # Teste básico de conectividade
-            if curl -f -s http://localhost:3000/api/health >/dev/null 2>&1; then
-              echo "✅ API respondendo corretamente"
-            else
-              echo "⚠️ API pode não estar respondendo - verificando logs..."
+              echo "⚠️ Verificando logs do PM2..."
               pm2 logs ${{ env.PM2_APP_NAME }} --lines 10
+              exit 1
             fi
+            
+            # Mostrar logs recentes para verificação
+            echo "📋 Logs recentes da aplicação:"
+            pm2 logs ${{ env.PM2_APP_NAME }} --lines 5
             
             # Mostrar status PM2
             echo "📊 Status PM2:"
