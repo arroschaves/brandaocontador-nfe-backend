@@ -127,28 +127,26 @@ jobs:
       - name: 📦 Preparar arquivos para deploy
         run: |
           echo "📦 Preparando arquivos para CONTABO..."
-          # Criar arquivo temporário com arquivos essenciais
-          # CRÍTICO: Excluir pasta data/ para proteger dados de produção
+          echo "📁 Conteúdo do diretório atual:"
+          ls -la
+          
+          echo "🔍 Verificando se diretórios existem:"
+          [ -d "node_modules" ] && echo "✅ node_modules existe" || echo "❌ node_modules não existe"
+          [ -d "data" ] && echo "✅ data existe" || echo "❌ data não existe"
+          [ -d ".git" ] && echo "✅ .git existe" || echo "❌ .git não existe"
+          [ -d ".github" ] && echo "✅ .github existe" || echo "❌ .github não existe"
+          
+          # Comando tar simplificado e mais robusto
+          echo "📦 Criando arquivo tar..."
           tar -czf backend-deploy.tar.gz \
-            --warning=no-file-changed \
             --exclude=node_modules \
-            --exclude=logs \
-            --exclude=coverage \
-            --exclude=.env \
-            --exclude=certs \
             --exclude=data \
             --exclude=.git \
             --exclude=.github \
             --exclude=*.log \
-            --exclude=*.tmp \
-            --exclude=npm-debug.log* \
-            --exclude=yarn-debug.log* \
-            --exclude=yarn-error.log* \
-            --exclude=.DS_Store \
-            --exclude=Thumbs.db \
-            .
+            . || { echo "❌ Erro no comando tar"; exit 1; }
           
-          echo "📊 Tamanho do arquivo de deploy:"
+          echo "📊 Arquivo criado com sucesso:"
           ls -lh backend-deploy.tar.gz
           
       - name: 🚀 Transferir arquivos para servidor
