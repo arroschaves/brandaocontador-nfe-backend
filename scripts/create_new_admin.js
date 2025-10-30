@@ -9,6 +9,39 @@ async function createNewAdmin() {
 
         const newAdminEmail = 'cjbrandao@brandaocontador.com.br';
 
+        const fullPermissions = [
+            "all",
+            "admin",
+            "admin_total",
+            "nfe_emitir",
+            "nfe_consultar",
+            "nfe_cancelar",
+            "cte_emitir",
+            "cte_consultar",
+            "mdfe_emitir",
+            "mdfe_consultar",
+            "clientes_gerenciar",
+            "produtos_gerenciar",
+            "relatorios_acessar",
+            "configuracoes_gerenciar",
+            "usuarios_gerenciar",
+            "dashboard_acessar",
+            "emitente_configurar",
+            "sistema_administrar"
+        ];
+
+        // Verificar se o usuário já existe para ATUALIZAR ou CRIAR
+        const userIndex = usuarios.findIndex(u => u.email.toLowerCase() === newAdminEmail.toLowerCase());
+
+        if (userIndex !== -1) {
+            // Atualiza o usuário existente
+            usuarios[userIndex].permissoes = fullPermissions;
+            usuarios[userIndex].nome = "Administrador CJ Brandão";
+            usuarios[userIndex].isAdmin = true;
+            usuarios[userIndex].accessLevel = "full";
+            usuarios[userIndex].tipo = "admin";
+            console.log(`✅ Usuário administrador (${newAdminEmail}) encontrado e permissões atualizadas com sucesso!`);
+            fs.writeFileSync(usuariosPath, JSON.stringify(usuarios, null, 2));
         // Verificar se o usuário já existe
         const userExists = usuarios.find(u => u.email.toLowerCase() === newAdminEmail.toLowerCase());
         if (userExists) {
