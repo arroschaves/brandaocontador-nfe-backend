@@ -52,6 +52,7 @@ async function addAdmin() {
             ],
             "ativo": true,
             "isAdmin": true,
+            "tipo": "admin",
             "accessLevel": "full",
             "criadoEm": new Date().toISOString(),
             "dataAtualizacao": new Date().toISOString(),
