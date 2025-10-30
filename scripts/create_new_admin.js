@@ -42,6 +42,10 @@ async function createNewAdmin() {
             usuarios[userIndex].tipo = "admin";
             console.log(`✅ Usuário administrador (${newAdminEmail}) encontrado e permissões atualizadas com sucesso!`);
             fs.writeFileSync(usuariosPath, JSON.stringify(usuarios, null, 2));
+        // Verificar se o usuário já existe
+        const userExists = usuarios.find(u => u.email.toLowerCase() === newAdminEmail.toLowerCase());
+        if (userExists) {
+            console.log(`❌ O usuário administrador com o email ${newAdminEmail} já existe.`);
             return;
         }
 
