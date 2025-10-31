@@ -45,29 +45,7 @@
     "criadoEm": "2025-01-01T00:00:00.000Z",
     "dataAtualizacao": "2025-01-01T00:00:00.000Z",
     "ultimoLogin": "2025-01-01T00:00:00.000Z",
-    "totalLogins": 0
-  },
-  {
-    "id": "be8b6d32-f3be-496e-a16f-edd683394b57",
-    "nome": "Cliente Teste",
-    "email": "cliente.teste@exemplo.com",
-    "senha": "$2b$10$nyWztI6RZGBuJrzE4gvDmOB2jzpy1b8lcLqJwyBaTxOAAumQ1MLfO",
-    "documento": "12345678000199",
-    "tipoCliente": "cnpj",
-    "telefone": "(11) 99999-9999",
-    "permissoes": [
-      "nfe_emitir",
-      "nfe_consultar",
-      "cte_emitir",
-      "cte_consultar",
-      "mdfe_emitir",
-      "mdfe_consultar"
-    ],
-    "perfil": "usuario",
-    "ativo": true,
-    "criadoEm": "2025-10-31T14:05:58.158Z",
-    "atualizadoEm": "2025-10-31T14:05:58.158Z",
-    "ultimoAcesso": null,
-    "totalLogins": 0
+    "totalLogins": 0,
+    "tipo": "admin"
   }
 ]
