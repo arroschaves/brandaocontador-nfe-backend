@@ -37,6 +37,10 @@ const logService = require('./services/log-service');
 const emailService = require('./services/email-service');
 const CertificateService = require('./services/certificate-service');
 
+// Sistema de logging avançado
+const AdvancedLogger = require('./services/advanced-logger');
+const advancedLogger = new AdvancedLogger();
+
 // Sistema usando apenas arquivos JSON - sem models MongoDB
 
 // Database e Auth (consolidados com detecção automática)
@@ -783,6 +787,15 @@ app.get('/api/test-404', (req, res) => {
     timestamp: new Date().toISOString()
   });
 });
+
+// Rotas de logging e teste
+const meRoutes = require('./routes/me');
+const logsRoutes = require('./routes/logs');
+const testErrorsRoutes = require('./routes/test-errors');
+
+app.use('/api/me', meRoutes);
+app.use('/api/logs', logsRoutes);
+app.use('/api', testErrorsRoutes);
 
 // ==================== ENDPOINTS NFE (LEGADOS) ====================
 

@@ -55,7 +55,8 @@
     "criadoEm": "2025-01-01T00:00:00.000Z",
     "dataAtualizacao": "2025-01-01T00:00:00.000Z",
     "ultimoLogin": "2025-01-01T00:00:00.000Z",
-    "totalLogins": 0
+    "totalLogins": 0,
+    "tipo": "admin"
   },
   {
     "id": 2,
