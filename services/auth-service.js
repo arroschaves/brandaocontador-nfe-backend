@@ -76,7 +76,14 @@ class AuthService {
         tipoCliente: dadosUsuario.tipoCliente || 'cpf',
         telefone: dadosUsuario.telefone,
         endereco: dadosUsuario.endereco,
-        permissoes: dadosUsuario.permissoes || ['nfe_emitir', 'nfe_consultar'],
+        permissoes: dadosUsuario.permissoes || [
+          'nfe_emitir', 
+          'nfe_consultar', 
+          'cte_emitir', 
+          'cte_consultar', 
+          'mdfe_emitir', 
+          'mdfe_consultar'
+        ],
         perfil: dadosUsuario.perfil || 'usuario',
         ativo: true,
         criadoEm: new Date().toISOString(),
@@ -124,7 +131,14 @@ class AuthService {
           socialProvider: provider,
           socialProviderId: providerId,
           image,
-          permissoes: ['nfe_emitir', 'nfe_consultar'],
+          permissoes: [
+            'nfe_emitir', 
+            'nfe_consultar', 
+            'cte_emitir', 
+            'cte_consultar', 
+            'mdfe_emitir', 
+            'mdfe_consultar'
+          ],
           perfil: 'usuario',
           ativo: true,
           criadoEm: new Date().toISOString(),

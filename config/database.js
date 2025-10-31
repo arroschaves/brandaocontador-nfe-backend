@@ -7,7 +7,7 @@ const path = require('path');
 
 // Auto-detecção de ambiente
 const NODE_ENV = process.env.NODE_ENV || 'development';
-const USE_MONGODB = process.env.USE_MONGODB !== 'false' && NODE_ENV !== 'test';
+const USE_MONGODB = process.env.USE_MONGODB === 'true' && NODE_ENV !== 'test';
 
 // Imports condicionais baseados no ambiente
 let mongoose;
