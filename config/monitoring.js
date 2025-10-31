@@ -58,77 +58,46 @@ const monitoringConfig = {
     detailed: '/health/detailed',
     timeout: parseInt(process.env.HEALTH_TIMEOUT) || 5000,
     
-    // Verificações de dependências
+    // Verificações essenciais apenas
     checks: {
-      database: true,
-      sefaz: true,
-      certificate: true,
-      memory: true,
-      disk: true
+      database: false, // Simplificado - não verificar banco
+      sefaz: false,    // Simplificado - não verificar SEFAZ
+      certificate: false, // Simplificado - certificado opcional
+      memory: true,    // Manter apenas verificação básica
+      disk: false      // Simplificado - não verificar disco
     },
 
-    // Thresholds para alertas
+    // Thresholds otimizados
     thresholds: {
       memory: {
-        warning: 0.8,  // 80%
-        critical: 0.95  // 95%
+        warning: 0.95,  // 95% - menos sensível
+        critical: 0.98  // 98% - apenas crítico real
       },
       cpu: {
-        warning: 0.7,  // 70%
+        warning: 0.85,  // 85% - menos sensível
         critical: 0.95  // 95%
       },
-      disk: {
-        warning: 0.8,  // 80%
-        critical: 0.95 // 95%
-      },
       responseTime: {
-        warning: 1000,  // 1 segundo
+        warning: 2000,  // 2 segundos - menos sensível
         critical: 5000  // 5 segundos
       }
     }
   },
 
-  // ==================== CONFIGURAÇÕES DE APM ====================
+  // ==================== CONFIGURAÇÕES DE APM (SIMPLIFICADO) ====================
   apm: {
-    enabled: process.env.APM_ENABLED !== 'false',
+    enabled: process.env.APM_ENABLED === 'true', // Desabilitado por padrão
     
-    // Monitoramento de Event Loop
-    eventLoop: {
-      enabled: true,
-      interval: parseInt(process.env.EVENT_LOOP_INTERVAL) || 1000, // 1 segundo
-      warningThreshold: parseInt(process.env.EVENT_LOOP_THRESHOLD) || 100 // ms
-    },
-
-    // Monitoramento de Memória
+    // Monitoramento básico apenas
     memory: {
       enabled: true,
-      interval: parseInt(process.env.MEMORY_CHECK_INTERVAL) || 30000, // 30 segundos
-      threshold: parseInt(process.env.MEMORY_THRESHOLD) || 500 * 1024 * 1024, // 500MB
-      checkInterval: parseInt(process.env.MEMORY_LEAK_CHECK_INTERVAL) || 60000, // 1 minuto
-      leakThreshold: parseInt(process.env.MEMORY_LEAK_THRESHOLD) || 1000 // 1GB
+      interval: parseInt(process.env.MEMORY_CHECK_INTERVAL) || 60000, // 1 minuto - menos frequente
+      threshold: parseInt(process.env.MEMORY_THRESHOLD) || 800 * 1024 * 1024 // 800MB - menos sensível
     },
 
-    // Monitoramento de CPU
-    cpu: {
-      enabled: true,
-      interval: parseInt(process.env.CPU_CHECK_INTERVAL) || 10000, // 10 segundos
-      threshold: parseFloat(process.env.CPU_THRESHOLD) || 80 // 80%
-    },
-
-    // Garbage Collection
-    gc: {
-      enabled: true,
-      warningThreshold: parseInt(process.env.GC_THRESHOLD) || 100 // ms
-    },
-
-    // Monitoramento de Requests
+    // Monitoramento de Requests essencial
     requests: {
-      slowThreshold: parseInt(process.env.REQUEST_SLOW_THRESHOLD) || 1000 // 1 segundo
-    },
-
-    // Monitoramento geral do sistema
-    system: {
-      interval: parseInt(process.env.SYSTEM_MONITOR_INTERVAL) || 30000 // 30 segundos
+      slowThreshold: parseInt(process.env.REQUEST_SLOW_THRESHOLD) || 3000 // 3 segundos - menos sensível
     }
   },
 

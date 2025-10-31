@@ -26,11 +26,11 @@ class CertificateService {
   }
 
   /**
-   * Faz upload e processa certificado digital
+   * Instala certificado digital (método principal para upload)
    */
-  async uploadCertificado(userId, arquivo, senha) {
+  async installCertificate(userId, buffer, senha, originalname) {
     try {
-      if (!arquivo || !arquivo.buffer) {
+      if (!buffer) {
         throw new Error('Arquivo de certificado não fornecido');
       }
 
@@ -40,14 +40,14 @@ class CertificateService {
 
       // Valida tipo de arquivo
       const extensoesPermitidas = ['.pfx', '.p12'];
-      const extensao = path.extname(arquivo.originalname).toLowerCase();
+      const extensao = path.extname(originalname).toLowerCase();
       
       if (!extensoesPermitidas.includes(extensao)) {
         throw new Error('Tipo de arquivo não suportado. Use .pfx ou .p12');
       }
 
       // Valida tamanho do arquivo (máximo 5MB)
-      if (arquivo.size > 5 * 1024 * 1024) {
+      if (buffer.length > 5 * 1024 * 1024) {
         throw new Error('Arquivo muito grande. Máximo 5MB');
       }
 
@@ -57,7 +57,7 @@ class CertificateService {
       const caminhoArquivo = path.join(this.certificatesPath, nomeArquivo);
 
       // Salva o arquivo
-      await fs.writeFile(caminhoArquivo, arquivo.buffer);
+      await fs.writeFile(caminhoArquivo, buffer);
 
       // Valida o certificado
       const dadosCertificado = await this.validarCertificado(caminhoArquivo, senha);
@@ -76,13 +76,12 @@ class CertificateService {
 
       this.certificates.set(userId, certificadoInfo);
 
-      // Remove dados sensíveis do retorno
-      const { senha: _, ...certificadoSeguro } = certificadoInfo;
-
+      // Retorna informações do certificado
       return {
-        success: true,
-        data: certificadoSeguro,
-        message: 'Certificado carregado com sucesso'
+        titular: dadosCertificado.titular,
+        cnpj: dadosCertificado.cnpj,
+        dataVencimento: dadosCertificado.dataVencimento,
+        emissor: dadosCertificado.emissor
       };
 
     } catch (error) {
@@ -254,6 +253,43 @@ class CertificateService {
     } catch (error) {
       console.error('❌ Erro ao verificar status do certificado:', error.message);
       throw new Error(`Falha ao verificar status do certificado: ${error.message}`);
+    }
+  }
+
+  /**
+   * Verifica status do certificado (método alternativo)
+   */
+  async getCertificateStatus() {
+    try {
+      const certificate = await this.loadCertificate(true); // Modo opcional
+      
+      if (!certificate) {
+        return {
+          status: 'not_configured',
+          info: null,
+          message: 'Certificado digital não configurado - Cliente deve importar via interface'
+        };
+      }
+      
+      const info = this.getCertificateInfo(certificate);
+      
+      return {
+        status: 'valid',
+        info,
+        message: 'Certificado carregado e válido'
+      };
+    } catch (error) {
+      return {
+        status: 'error',
+        info: null,
+        message: error.message,
+        suggestions: [
+          'Verifique se o arquivo do certificado existe',
+          'Confirme se a senha do certificado está correta',
+          'Verifique se o certificado não expirou',
+          'Certifique-se de que o arquivo é um certificado PFX válido'
+        ]
+      };
     }
   }
 

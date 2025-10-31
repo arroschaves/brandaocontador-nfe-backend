@@ -67,23 +67,30 @@ class NFeService {
         this.CERT_PATH = dbPath;
         this.CERT_PASS = dbPass;
       } else {
-        // Fallback para variáveis de ambiente e caminhos padrão
-        certificate = await this.certificateService.loadCertificate();
-        info = this.certificateService.getCertificateInfo(certificate);
-        this.CERT_PATH = (certificate && certificate.path) ? certificate.path : this.CERT_PATH;
-        this.CERT_PASS = process.env.CERT_PASS || this.CERT_PASS;
+        // Fallback para variáveis de ambiente e caminhos padrão (modo opcional)
+        certificate = await this.certificateService.loadCertificate(true);
+        if (certificate) {
+          info = this.certificateService.getCertificateInfo(certificate);
+          this.CERT_PATH = certificate.path;
+          this.CERT_PASS = process.env.CERT_PASS || this.CERT_PASS;
+        }
       }
       
-      this.chavePrivada = certificate.privateKey;
-      this.certificado = certificate.certificate;
-      
-      console.log("✅ Certificado carregado com sucesso:", {
-        subject: info.subject.commonName,
-        issuer: info.issuer.commonName,
-        expiresAt: info.validity.notAfter,
-        path: info.path
-      });
-      this.certificadoCarregado = true;
+      if (certificate) {
+        this.chavePrivada = certificate.privateKey;
+        this.certificado = certificate.certificate;
+        
+        console.log("✅ Certificado carregado com sucesso:", {
+          subject: info.subject.commonName,
+          issuer: info.issuer.commonName,
+          expiresAt: info.validity.notAfter,
+          path: info.path
+        });
+        this.certificadoCarregado = true;
+      } else {
+        console.log("ℹ️ Certificado não configurado - Cliente deve importar via interface");
+        this.certificadoCarregado = false;
+      }
     } catch (error) {
       console.warn("⚠️ Certificado não carregado:", error.message);
       this.certificadoCarregado = false;

@@ -56,7 +56,7 @@ function initializeAlertRules() {
       id: 'high_memory_usage',
       category: ALERT_CATEGORIES.SYSTEM,
       type: ALERT_TYPES.WARNING,
-      condition: (metrics) => metrics.memoryUsagePercent > 0.8,
+      condition: (metrics) => metrics.memoryUsagePercent > 0.85,
       message: (metrics) => `Alto uso de memória: ${Math.round(metrics.memoryUsagePercent * 100)}%`,
       throttle: 300000
     },

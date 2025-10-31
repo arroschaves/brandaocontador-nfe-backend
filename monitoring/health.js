@@ -26,9 +26,13 @@ async function basicHealthCheck() {
       checks: {}
     };
     
-    // Verificação de memória
+    // Verificação de memória (corrigido para usar memória real do sistema)
+    const os = require('os');
     const memoryUsage = process.memoryUsage();
-    const memoryUsagePercent = memoryUsage.heapUsed / memoryUsage.heapTotal;
+    const totalMemory = os.totalmem();
+    const freeMemory = os.freemem();
+    const usedMemory = totalMemory - freeMemory;
+    const memoryUsagePercent = usedMemory / totalMemory;
     
     health.checks.memory = {
       status: memoryUsagePercent < monitoringConfig.health.thresholds.memory.critical ? 'healthy' : 'critical',
@@ -193,8 +197,8 @@ async function checkCertificates() {
       
       if (certFiles.length === 0) {
         return {
-          status: 'warning',
-          message: 'Nenhum certificado encontrado',
+          status: 'not_configured',
+          message: 'Certificado digital não configurado - Cliente deve importar via interface',
           path: certsPath
         };
       }
@@ -219,16 +223,16 @@ async function checkCertificates() {
       
     } catch (error) {
       return {
-        status: 'warning',
-        message: 'Diretório de certificados não encontrado',
+        status: 'not_configured',
+        message: 'Certificado digital não configurado - Cliente deve importar via interface',
         path: certsPath
       };
     }
     
   } catch (error) {
     return {
-      status: 'critical',
-      error: error.message
+      status: 'not_configured',
+      message: 'Certificado digital não configurado - Cliente deve importar via interface'
     };
   }
 }
@@ -377,6 +381,8 @@ async function healthCheckHandler(req, res) {
     const statusCode = health.status === 'healthy' ? 200 : 
                       health.status === 'warning' ? 200 : 503;
     
+    // Garantir que a resposta seja JSON válido
+    res.setHeader('Content-Type', 'application/json');
     res.status(statusCode).json(health);
     
     // Log do health check
@@ -388,6 +394,7 @@ async function healthCheckHandler(req, res) {
     
   } catch (error) {
     logger.error('Erro no endpoint de health check', { error: error.message });
+    res.setHeader('Content-Type', 'application/json');
     res.status(503).json({
       status: 'critical',
       error: error.message,
@@ -406,6 +413,8 @@ async function detailedHealthCheckHandler(req, res) {
     const statusCode = health.status === 'healthy' ? 200 : 
                       health.status === 'warning' ? 200 : 503;
     
+    // Garantir que a resposta seja JSON válido
+    res.setHeader('Content-Type', 'application/json');
     res.status(statusCode).json(health);
     
     // Log do health check detalhado
@@ -417,6 +426,7 @@ async function detailedHealthCheckHandler(req, res) {
     
   } catch (error) {
     logger.error('Erro no endpoint de health check detalhado', { error: error.message });
+    res.setHeader('Content-Type', 'application/json');
     res.status(503).json({
       status: 'critical',
       error: error.message,

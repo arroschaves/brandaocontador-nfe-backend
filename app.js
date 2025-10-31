@@ -3103,44 +3103,7 @@ app.use(advancedLogger.globalErrorHandler());
  *                   type: string
  *                   example: "1.0.0"
  */
-app.get('/health', (req, res) => {
-  res.json({
-    status: 'healthy',
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
-    version: require('./package.json').version || '1.0.0',
-    environment: NODE_ENV,
-    database: 'file',
-    memory: process.memoryUsage(),
-    pid: process.pid
-  });
-});
-
-/**
- * @swagger
- * /health/detailed:
- *   get:
- *     summary: Health check detalhado
- *     description: Verifica todos os componentes do sistema
- *     tags: [Health]
- *     responses:
- *       200:
- *         description: Status detalhado do sistema
- */
-app.get('/health/detailed', async (req, res) => {
-  try {
-    const HealthCheck = require('./scripts/health-check');
-    const healthCheck = new HealthCheck();
-    const resultado = await healthCheck.executarHealthCheck();
-    res.json(resultado);
-  } catch (error) {
-    res.status(500).json({
-      status: 'error',
-      error: error.message,
-      timestamp: new Date().toISOString()
-    });
-  }
-});
+// Health check routes are defined above using proper handlers from monitoring/health.js
 
 // ==================== CONFIGURAÇÕES DE PRODUÇÃO ====================
 // Configurar compressão para produção
