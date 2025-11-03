@@ -303,11 +303,11 @@ router.get('/historico', authMiddleware.verificarAutenticacao(), async (req, res
       situacao: req.query.situacao
     };
     
-    const resultado = await nfeService.listarNfes(filtros, req.user);
+    const resultado = await nfeService.listarNfes(req.user.id, filtros);
     
     res.json({
       sucesso: true,
-      ...resultado
+      data: resultado
     });
     
   } catch (error) {
@@ -486,7 +486,7 @@ router.get('/status', authMiddleware.verificarAutenticacao(), async (req, res) =
     });
 
     // Obter estatísticas das NFes do usuário
-    const status = await nfeService.obterStatusNfes(req.user);
+    const status = await nfeService.obterStatusNfes(req.user.id);
     
     advancedLogger.logInfo('nfe', 'Status das NFes retornado com sucesso', req, {
       userId: req.user.id,
