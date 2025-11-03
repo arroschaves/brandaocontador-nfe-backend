@@ -332,6 +332,48 @@ class AdminService {
   }
 
   /**
+   * Alterar status do usuário
+   */
+  static async alterarStatusUsuario(usuarioId, novoStatus, adminId) {
+    try {
+      const usuario = await database.buscarUsuarioPorId(usuarioId);
+      if (!usuario) {
+        return {
+          sucesso: false,
+          erros: ['Usuário não encontrado']
+        };
+      }
+
+      if (!['ativo', 'inativo', 'bloqueado'].includes(novoStatus)) {
+        return {
+          sucesso: false,
+          erros: ['Status inválido']
+        };
+      }
+
+      const usuarioAtualizado = await database.atualizarUsuario(usuarioId, {
+        status: novoStatus,
+        atualizadoEm: new Date().toISOString(),
+        atualizadoPor: adminId
+      });
+
+      delete usuarioAtualizado.senha;
+
+      return {
+        sucesso: true,
+        usuario: usuarioAtualizado
+      };
+
+    } catch (error) {
+      console.error('❌ Erro ao alterar status do usuário:', error);
+      return {
+        sucesso: false,
+        erros: ['Erro interno do servidor']
+      };
+    }
+  }
+
+  /**
    * Validar dados do usuário
    */
   static validarDadosUsuario(dados, isUpdate = false) {

@@ -150,8 +150,90 @@ router.put('/usuarios/:id', async (req, res) => {
 });
 
 /**
+ * @route   PATCH /api/admin/usuarios/:id
+ * @desc    Atualizar usuário (PATCH)
+ * @access  Admin
+ */
+router.patch('/usuarios/:id', async (req, res) => {
+  try {
+    const resultado = await AdminService.atualizarUsuario(
+      req.params.id, 
+      req.body, 
+      req.usuario.id
+    );
+    
+    if (!resultado.sucesso) {
+      return res.status(400).json({
+        sucesso: false,
+        erros: resultado.erros,
+        avisos: resultado.avisos
+      });
+    }
+
+    res.json({
+      sucesso: true,
+      usuario: resultado.usuario,
+      mensagem: 'Usuário atualizado com sucesso'
+    });
+
+  } catch (error) {
+    console.error('❌ Erro na rota PATCH /admin/usuarios/:id:', error.message);
+    res.status(500).json({
+      sucesso: false,
+      erro: 'Erro interno do servidor',
+      detalhes: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+/**
+ * @route   PATCH /api/admin/usuarios/:id/status
+ * @desc    Alterar status do usuário
+ * @access  Admin
+ */
+router.patch('/usuarios/:id/status', async (req, res) => {
+  try {
+    const { status } = req.body;
+    
+    if (!['ativo', 'inativo', 'bloqueado'].includes(status)) {
+      return res.status(400).json({
+        sucesso: false,
+        erros: ['Status inválido. Use: ativo, inativo ou bloqueado']
+      });
+    }
+
+    const resultado = await AdminService.atualizarUsuario(
+      req.params.id,
+      { status },
+      req.usuario.id
+    );
+    
+    if (!resultado.sucesso) {
+      return res.status(400).json({
+        sucesso: false,
+        erros: resultado.erros
+      });
+    }
+
+    res.json({
+      sucesso: true,
+      usuario: resultado.usuario,
+      mensagem: `Status alterado para ${status}`
+    });
+
+  } catch (error) {
+    console.error('❌ Erro na rota PATCH /admin/usuarios/:id/status:', error.message);
+    res.status(500).json({
+      sucesso: false,
+      erro: 'Erro interno do servidor',
+      detalhes: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+/**
  * @route   DELETE /api/admin/usuarios/:id
- * @desc    Desativar usuário (soft delete)
+ * @desc    Deletar usuário
  * @access  Admin
  */
 router.delete('/usuarios/:id', async (req, res) => {
@@ -168,7 +250,7 @@ router.delete('/usuarios/:id', async (req, res) => {
     res.json({
       sucesso: true,
       usuario: resultado.usuario,
-      mensagem: 'Usuário desativado com sucesso'
+      mensagem: 'Usuário excluído com sucesso'
     });
 
   } catch (error) {

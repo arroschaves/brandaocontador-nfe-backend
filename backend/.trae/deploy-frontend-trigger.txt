@@ -1,0 +1,3 @@
+Trigger manual de deploy do frontend via backend workflow
+Data/Hora: 2025-10-20 15:34
+Motivo: Vercel não atualizou automaticamente após push no repo do frontend

@@ -298,8 +298,8 @@ app.use(morgan('combined', {
 // Detecção de ameaças
 app.use(securityMiddleware.detectarAmeacas());
 
-// Rate limiting global - TEMPORARIAMENTE DESABILITADO
-// app.use(securityMiddleware.configurarRateLimitingGlobal());
+// Rate limiting global
+app.use(securityMiddleware.configurarRateLimitingGlobal());
 
 // Slow down progressivo
 app.use(securityMiddleware.configurarSlowDown());
@@ -307,25 +307,20 @@ app.use(securityMiddleware.configurarSlowDown());
 // CORS configurado dinamicamente
 app.use(securityMiddleware.configurarCORS());
 
-// Sanitização de entrada (XSS, NoSQL injection, validação) - TEMPORARIAMENTE DESABILITADO
-// const sanitizationMiddlewares = securityMiddleware.configurarSanitizacao();
-// sanitizationMiddlewares.forEach(middleware => app.use(middleware));
+// Sanitização de entrada (XSS, NoSQL injection, validação)
+const sanitizationMiddlewares = securityMiddleware.configurarSanitizacao();
+sanitizationMiddlewares.forEach(middleware => app.use(middleware));
 
-// Rate limiting específico para autenticação - TEMPORARIAMENTE DESABILITADO
-// app.use('/auth/login', securityMiddleware.configurarRateLimitingAuth());
-// app.use('/auth/register', securityMiddleware.configurarRateLimitingAuth());
+// Rate limiting específico para autenticação
+app.use('/auth/login', securityMiddleware.configurarRateLimitingAuth());
+app.use('/auth/register', securityMiddleware.configurarRateLimitingAuth());
 
-// Rate limiting para APIs - TEMPORARIAMENTE DESABILITADO
-// app.use('/api', securityMiddleware.configurarRateLimitingAPI());
+// Rate limiting para APIs
+app.use('/api', securityMiddleware.configurarRateLimitingAPI());
 
-// 8. Middleware para parsing JSON padrão
-app.use(express.json({ limit: '50mb' }));
-
-// Middleware padrão para outras rotas
-app.use(express.json({ 
-    limit: '10mb'
-}));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+// Middleware para parsing JSON com limite ajustado
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '5mb' }));
 
 // 9. Sanitização de entrada já aplicada acima
 

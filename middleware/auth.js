@@ -12,9 +12,22 @@ const NODE_ENV = process.env.NODE_ENV || 'development';
 // Imports consolidados
 const database = require('../config/database');
 
-// Configurações JWT
-const JWT_SECRET = process.env.JWT_SECRET || 'nfe-secret-key-brandao-contador-2024';
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
+// Configurações JWT - OBRIGATÓRIO uso de variáveis de ambiente
+const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '4h'; // Reduzido de 24h para 4h
+
+// Validação de JWT_SECRET
+if (!JWT_SECRET) {
+  throw new Error('❌ ERRO CRÍTICO: JWT_SECRET não está configurado nas variáveis de ambiente!');
+}
+
+if (JWT_SECRET.length < 32) {
+  throw new Error('❌ ERRO CRÍTICO: JWT_SECRET deve ter pelo menos 32 caracteres!');
+}
+
+if (JWT_SECRET === 'nfe-secret-key-brandao-contador-2024' || JWT_SECRET === 'encryption-key-brandao-contador-2024-super-seguro') {
+  throw new Error('❌ ERRO CRÍTICO: JWT_SECRET não pode usar valores de exemplo! Gere um secret forte com: openssl rand -base64 32');
+}
 
 // Rate limiting para autenticação
 const authRateLimit = rateLimit({
@@ -39,10 +52,20 @@ class AuthMiddleware {
     this.apiKeys = new Set();
     this.blacklistedTokens = new Set();
     
-    // Gerar API keys padrão em desenvolvimento
-    if (NODE_ENV === 'development') {
-      this.apiKeys.add('nfe-dev-key-2024');
-      this.apiKeys.add('nfe-admin-key-2024');
+    // API Keys devem ser carregadas de variáveis de ambiente
+    // REMOVIDO: Hardcoded API keys em desenvolvimento
+    if (process.env.API_KEYS) {
+      const keys = process.env.API_KEYS.split(',');
+      keys.forEach(key => {
+        if (key.trim().length >= 32) {
+          this.apiKeys.add(key.trim());
+        }
+      });
+    }
+    
+    // Avisar se rodando em produção sem API keys
+    if (NODE_ENV === 'production' && this.apiKeys.size === 0) {
+      console.warn('⚠️  AVISO: Nenhuma API key configurada em produção!');
     }
   }
 
@@ -250,6 +273,11 @@ class AuthMiddleware {
 
       // Criar usuário (sistema JSON)
       const novoUsuario = await database.criarUsuario(dadosUsuario);
+
+      // Garantir que o usuário retornado tem um ID válido
+      if (!novoUsuario || !novoUsuario.id) {
+        throw new Error('Falha ao criar usuário - ID inválido');
+      }
 
       // Gerar token para o novo usuário
       const token = this.gerarToken(novoUsuario);

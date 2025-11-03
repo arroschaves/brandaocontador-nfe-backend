@@ -170,6 +170,9 @@ class SecurityMiddleware {
       );
     }
     
+    // Adicionar origens específicas para Contabo
+    origens.push('https://nfe.brandaocontador.com.br');
+    
     return [...new Set(origens)]; // Remove duplicatas
   }
 

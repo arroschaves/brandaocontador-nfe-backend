@@ -209,7 +209,51 @@ class DatabaseManager {
 
   async buscarUsuarioPorId(id) {
     const usuarios = await this.buscarUsuarios();
-    return usuarios.find(u => u.id === parseInt(id));
+    // Suporta tanto IDs numéricos quanto string
+    const numId = parseInt(id);
+    return usuarios.find(u => u.id === numId || u.id === id);
+  }
+
+  async listarUsuarios(filtros = {}) {
+    const usuarios = await this.buscarUsuarios();
+    
+    // Aplicar filtros se fornecidos
+    let usuariosFiltrados = usuarios;
+    
+    if (filtros.ativo !== undefined) {
+      usuariosFiltrados = usuariosFiltrados.filter(u => u.ativo === filtros.ativo);
+    }
+    
+    if (filtros.perfil) {
+      usuariosFiltrados = usuariosFiltrados.filter(u => u.perfil === filtros.perfil);
+    }
+    
+    if (filtros.busca) {
+      const busca = filtros.busca.toLowerCase();
+      usuariosFiltrados = usuariosFiltrados.filter(u => 
+        u.nome.toLowerCase().includes(busca) || 
+        u.email.toLowerCase().includes(busca)
+      );
+    }
+    
+    // Paginação
+    const pagina = parseInt(filtros.pagina) || 1;
+    const limite = parseInt(filtros.limite) || 10;
+    const inicio = (pagina - 1) * limite;
+    const fim = inicio + limite;
+    
+    const total = usuariosFiltrados.length;
+    const dados = usuariosFiltrados.slice(inicio, fim);
+    
+    return {
+      dados,
+      paginacao: {
+        pagina,
+        limite,
+        total,
+        totalPaginas: Math.ceil(total / limite)
+      }
+    };
   }
 
   async criarUsuario(dadosUsuario) {

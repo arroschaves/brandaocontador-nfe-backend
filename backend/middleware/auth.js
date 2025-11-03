@@ -367,6 +367,7 @@ class AuthMiddleware {
         }
 
         req.usuario = usuario;
+        req.user = usuario; // Compatibilidade com código existente
         req.tipoAuth = 'jwt';
         next();
 

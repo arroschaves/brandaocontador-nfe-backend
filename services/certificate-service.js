@@ -1,11 +1,13 @@
 /**
  * Serviço de certificados digitais
  * Gerencia upload, validação e armazenamento de certificados A1/A3
+ * SEGURANÇA: Usa criptografia AES-256-GCM para armazenar certificados e senhas
  */
 
 const fs = require('fs').promises;
 const path = require('path');
 const crypto = require('crypto');
+const encryptionService = require('./encryption-service');
 
 class CertificateService {
   constructor() {
@@ -56,11 +58,15 @@ class CertificateService {
       const nomeArquivo = `cert_${userId}_${timestamp}${extensao}`;
       const caminhoArquivo = path.join(this.certificatesPath, nomeArquivo);
 
-      // Salva o arquivo
-      await fs.writeFile(caminhoArquivo, buffer);
+      // SEGURANÇA: Criptografa o certificado antes de salvar no disco
+      const certificadoCriptografado = encryptionService.encryptBuffer(buffer);
+      await fs.writeFile(caminhoArquivo, certificadoCriptografado, 'utf8');
 
-      // Valida o certificado
-      const dadosCertificado = await this.validarCertificado(caminhoArquivo, senha);
+      // Valida o certificado (usando buffer original)
+      const dadosCertificado = await this.validarCertificado(buffer, senha);
+
+      // SEGURANÇA: Criptografa a senha antes de armazenar
+      const senhaCriptografada = encryptionService.encrypt(senha);
 
       // Armazena informações do certificado
       const certificadoInfo = {
@@ -68,7 +74,7 @@ class CertificateService {
         userId,
         nomeArquivo,
         caminhoArquivo,
-        senha, // Em produção, criptografar a senha
+        senha: senhaCriptografada, // Senha criptografada
         dadosCertificado,
         dataUpload: new Date().toISOString(),
         ativo: true
@@ -92,11 +98,19 @@ class CertificateService {
 
   /**
    * Valida certificado digital
+   * @param {Buffer|string} certificado - Buffer do certificado ou caminho do arquivo
+   * @param {string} senha - Senha do certificado
    */
-  async validarCertificado(caminhoArquivo, senha) {
+  async validarCertificado(certificado, senha) {
     try {
-      // Lê o arquivo do certificado
-      const certificadoBuffer = await fs.readFile(caminhoArquivo);
+      // Se recebeu caminho, lê e descriptografa o arquivo
+      let certificadoBuffer;
+      if (typeof certificado === 'string') {
+        const encrypted = await fs.readFile(certificado, 'utf8');
+        certificadoBuffer = encryptionService.decryptBuffer(encrypted);
+      } else {
+        certificadoBuffer = certificado;
+      }
 
       // Simula validação do certificado (em produção, usar biblioteca específica)
       // Por exemplo: node-forge, pkcs12, etc.

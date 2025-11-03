@@ -120,46 +120,40 @@ class SefazClient {
         console.log(`⚠️ Falha com certificados do sistema: ${systemError.message}`);
         lastError = systemError;
         
-        // Estratégia 3: SSL relaxado para produção (último recurso)
-        try {
-          console.log(`🔄 Tentando configuração SSL relaxada para produção...`);
-          wsdlOptions.strictSSL = false;
-          wsdlOptions.rejectUnauthorized = false;
-          delete wsdlOptions.ca; // Remover CA personalizado
-          
-          this.client = await soap.createClientAsync(wsdlUrl, wsdlOptions);
-          console.log(`⚠️ Conexão estabelecida com SSL relaxado (modo produção)`);
-          sslSuccess = true;
-        } catch (fallbackError) {
-          console.error(`❌ Falha total na conexão SSL: ${fallbackError.message}`);
-          lastError = fallbackError;
-        }
+        // SEGURANÇA: NÃO usar SSL relaxado - falhar se certificados não forem válidos
+        console.error(`❌ Falha na validação SSL com SEFAZ. Verifique:`);
+        console.error(`  1. Certificados CA estão atualizados`);
+        console.error(`  2. Certificado digital está válido e não expirou`);
+        console.error(`  3. Conexão não está sendo interceptada (MITM)`);
+        console.error(`  4. Arquivo certs/ca-bundle.pem existe e está atualizado`);
+        
+        throw new Error(`Falha na validação SSL/TLS com SEFAZ: ${systemError.message}. Sistema recusa conexões inseguras.`);
       }
     }
 
     if (!sslSuccess) {
-      throw new Error(`Não foi possível estabelecer conexão SSL com SEFAZ: ${lastError.message}`);
+      throw new Error(`Não foi possível estabelecer conexão SSL segura com SEFAZ: ${lastError.message}`);
     }
 
-    // SSL Security - configurar baseado no sucesso da conexão
-    let securityOptions;
-    if (sslSuccess && wsdlOptions.strictSSL !== false) {
-      // Usar configuração segura se SSL funcionou
-      securityOptions = {
-        strictSSL: true,
-        rejectUnauthorized: true,
-        ca: this.caCerts.length > 0 ? this.caCerts : undefined,
-        secureProtocol: 'TLSv1_2_method',
-        ciphers: 'ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-SHA256:ECDHE-RSA-AES256-SHA384'
-      };
-    } else {
-      // Usar configuração relaxada se necessário
-      securityOptions = {
-        strictSSL: false,
-        rejectUnauthorized: false,
-        secureProtocol: 'TLSv1_2_method'
-      };
-    }
+    // SSL Security - SEMPRE usar configuração segura
+    const securityOptions = {
+      strictSSL: true,
+      rejectUnauthorized: true,
+      ca: this.caCerts.length > 0 ? this.caCerts : undefined,
+      secureProtocol: 'TLSv1_2_method',
+      minVersion: 'TLSv1.2',
+      ciphers: [
+        'ECDHE-ECDSA-AES128-GCM-SHA256',
+        'ECDHE-RSA-AES128-GCM-SHA256',
+        'ECDHE-ECDSA-AES256-GCM-SHA384',
+        'ECDHE-RSA-AES256-GCM-SHA384',
+        'ECDHE-ECDSA-CHACHA20-POLY1305',
+        'ECDHE-RSA-CHACHA20-POLY1305',
+        'DHE-RSA-AES128-GCM-SHA256',
+        'DHE-RSA-AES256-GCM-SHA384'
+      ].join(':'),
+      honorCipherOrder: true
+    };
 
     const security = new soap.ClientSSLSecurity(this.pfxData, this.certPass, securityOptions);
     this.client.setSecurity(security);

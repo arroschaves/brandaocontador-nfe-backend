@@ -4,11 +4,33 @@
 
 const express = require('express');
 const router = express.Router();
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 const ConfiguracoesService = require('../services/configuracoes');
 const authMiddleware = require('../middleware/auth');
 const { body, query, validationResult } = require('express-validator');
 
 const configService = new ConfiguracoesService();
+
+// Configuração do multer para upload de certificados
+const storage = multer.memoryStorage();
+const upload = multer({
+  storage: storage,
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB
+  },
+  fileFilter: (req, file, cb) => {
+    const allowedExtensions = ['.pfx', '.p12'];
+    const fileExtension = path.extname(file.originalname).toLowerCase();
+    
+    if (allowedExtensions.includes(fileExtension)) {
+      return cb(null, true);
+    }
+    
+    return cb(new Error('Formato de certificado inválido (use .pfx ou .p12)'));
+  }
+});
 
 /**
  * @swagger
@@ -49,6 +71,81 @@ const configService = new ConfiguracoesService();
  *         manual:
  *           type: object
  */
+
+/**
+ * @swagger
+ * /api/configuracoes:
+ *   get:
+ *     summary: Obter resumo de todas as configurações
+ *     tags: [Configurações]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Resumo das configurações obtido com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 sucesso:
+ *                   type: boolean
+ *                 configuracoes:
+ *                   type: object
+ *                   properties:
+ *                     empresa:
+ *                       type: object
+ *                     sefaz:
+ *                       type: object
+ *                     certificado:
+ *                       type: object
+ *                     backup:
+ *                       type: object
+ *                     logs:
+ *                       type: object
+ */
+router.get('/', 
+  authMiddleware.verificarAutenticacao(),
+  async (req, res) => {
+    try {
+      // Obter todas as configurações
+      const [empresa, sefaz, backup, logs] = await Promise.allSettled([
+        configService.obterConfigEmpresa(req.usuario),
+        configService.obterConfigSefaz(req.usuario),
+        configService.obterConfigBackup(req.usuario),
+        configService.obterConfigLogs(req.usuario)
+      ]);
+
+      // Verificar se tem certificado (simulação - implementar conforme necessário)
+      const certificado = {
+        instalado: false,
+        valido: false,
+        dataVencimento: null,
+        titular: null
+      };
+
+      const configuracoes = {
+        empresa: empresa.status === 'fulfilled' ? empresa.value : null,
+        sefaz: sefaz.status === 'fulfilled' ? sefaz.value : null,
+        certificado: certificado,
+        backup: backup.status === 'fulfilled' ? backup.value : null,
+        logs: logs.status === 'fulfilled' ? logs.value : null
+      };
+
+      res.json({
+        sucesso: true,
+        configuracoes
+      });
+
+    } catch (error) {
+      console.error('Erro ao obter configurações gerais:', error);
+      res.status(500).json({
+        sucesso: false,
+        erro: error.message
+      });
+    }
+  }
+);
 
 /**
  * @swagger
@@ -708,6 +805,208 @@ router.post('/reset',
       res.status(500).json({
         sucesso: false,
         erro: error.message
+      });
+    }
+  }
+);
+
+/**
+ * @swagger
+ * /api/configuracoes/certificado:
+ *   get:
+ *     summary: Obter informações do certificado digital
+ *     tags: [Configurações]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Informações do certificado obtidas com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 sucesso:
+ *                   type: boolean
+ *                 certificado:
+ *                   type: object
+ *                   properties:
+ *                     instalado:
+ *                       type: boolean
+ *                     valido:
+ *                       type: boolean
+ *                     dataVencimento:
+ *                       type: string
+ *                       format: date
+ *                     titular:
+ *                       type: string
+ *                     cnpj:
+ *                       type: string
+ */
+router.get('/certificado', 
+  authMiddleware.verificarAutenticacao(),
+  async (req, res) => {
+    try {
+      // Verificar se existe certificado instalado
+      const certificadoPath = path.join(__dirname, '../data/certificados', `${req.usuario.id}.pfx`);
+      const certificadoExists = fs.existsSync(certificadoPath);
+
+      let certificadoInfo = {
+        instalado: certificadoExists,
+        valido: false,
+        dataVencimento: null,
+        titular: null,
+        cnpj: null
+      };
+
+      if (certificadoExists) {
+        // Aqui você pode implementar a leitura das informações do certificado
+        // Por enquanto, vamos simular
+        certificadoInfo.valido = true;
+        certificadoInfo.titular = "Certificado Instalado";
+        certificadoInfo.dataVencimento = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      }
+
+      res.json({
+        sucesso: true,
+        certificado: certificadoInfo
+      });
+
+    } catch (error) {
+      console.error('Erro ao obter informações do certificado:', error);
+      res.status(500).json({
+        sucesso: false,
+        erro: error.message
+      });
+    }
+  }
+);
+
+/**
+ * @swagger
+ * /api/configuracoes/certificado:
+ *   post:
+ *     summary: Upload de certificado digital
+ *     tags: [Configurações]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               certificado:
+ *                 type: string
+ *                 format: binary
+ *                 description: Arquivo do certificado (.pfx ou .p12)
+ *               senha:
+ *                 type: string
+ *                 description: Senha do certificado
+ *             required:
+ *               - certificado
+ *               - senha
+ *     responses:
+ *       200:
+ *         description: Certificado instalado com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 sucesso:
+ *                   type: boolean
+ *                 mensagem:
+ *                   type: string
+ *                 certificado:
+ *                   type: object
+ *       400:
+ *         description: Dados inválidos
+ *       500:
+ *         description: Erro interno do servidor
+ */
+router.post('/certificado', 
+  authMiddleware.verificarAutenticacao(),
+  upload.single('certificado'),
+  [
+    body('senha').notEmpty().withMessage('Senha do certificado é obrigatória')
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          sucesso: false,
+          erro: 'Dados inválidos',
+          detalhes: errors.array()
+        });
+      }
+
+      // Verificar se o arquivo foi enviado
+      if (!req.file) {
+        return res.status(400).json({
+          sucesso: false,
+          erro: 'Arquivo de certificado é obrigatório',
+          codigo: 'CERTIFICATE_FILE_REQUIRED'
+        });
+      }
+
+      // Verificar se a senha foi fornecida
+      if (!req.body.senha) {
+        return res.status(400).json({
+          sucesso: false,
+          erro: 'Senha do certificado é obrigatória',
+          codigo: 'CERTIFICATE_PASSWORD_REQUIRED'
+        });
+      }
+
+      // Criar diretório de certificados se não existir
+      const certificadosDir = path.join(__dirname, '../data/certificados');
+      if (!fs.existsSync(certificadosDir)) {
+        fs.mkdirSync(certificadosDir, { recursive: true });
+      }
+
+      // Salvar o certificado
+      const certificadoPath = path.join(certificadosDir, `${req.usuario.id}.pfx`);
+      fs.writeFileSync(certificadoPath, req.file.buffer);
+
+      // Salvar a senha (em produção, use criptografia adequada)
+      const senhaPath = path.join(certificadosDir, `${req.usuario.id}.key`);
+      fs.writeFileSync(senhaPath, req.body.senha);
+
+      // Aqui você pode implementar a validação do certificado
+      // Por enquanto, vamos simular sucesso
+      const certificadoInfo = {
+        instalado: true,
+        valido: true,
+        dataVencimento: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        titular: "Certificado Instalado",
+        arquivo: req.file.originalname
+      };
+
+      res.json({
+        sucesso: true,
+        mensagem: 'Certificado instalado com sucesso',
+        certificado: certificadoInfo
+      });
+
+    } catch (error) {
+      console.error('Erro ao processar certificado:', error);
+      
+      // Tratar erros específicos
+      if (error.message.includes('Formato de certificado inválido')) {
+        return res.status(400).json({
+          sucesso: false,
+          erro: 'Formato de certificado inválido',
+          codigo: 'INVALID_CERTIFICATE_FORMAT'
+        });
+      }
+
+      res.status(500).json({
+        sucesso: false,
+        erro: 'Erro ao processar certificado: ' + error.message,
+        codigo: 'CERTIFICATE_PROCESSING_ERROR'
       });
     }
   }
