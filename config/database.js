@@ -229,6 +229,20 @@ class DatabaseManager {
     return novoUsuario;
   }
 
+  async atualizarUsuario(id, dadosAtualizacao) {
+    const usuarios = await this.buscarUsuarios();
+    const indice = usuarios.findIndex(u => u.id === parseInt(id));
+    
+    if (indice === -1) {
+      throw new Error('Usuário não encontrado');
+    }
+
+    usuarios[indice] = { ...usuarios[indice], ...dadosAtualizacao };
+    await this.salvarUsuarios(usuarios);
+    
+    return usuarios[indice];
+  }
+
   async adicionarLog(log) {
     const logs = await this.config.lerArquivo('logs');
     logs.push({
@@ -241,6 +255,10 @@ class DatabaseManager {
 
   // Métodos para clientes
   async buscarClientes() {
+    return await this.config.lerArquivo('clientes');
+  }
+
+  async listarClientes() {
     return await this.config.lerArquivo('clientes');
   }
 

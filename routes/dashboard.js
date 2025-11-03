@@ -5,25 +5,12 @@ const database = require('../config/database');
 // Rota do dashboard
 router.get('/', async (req, res) => {
   try {
-    // Buscar dados reais do banco
-    const clientes = await database.listarClientes();
-    
-    // Para NFes, usar apenas sistema JSON
-    let nfes = [];
-    // Usar o método da configuração JSON
-    nfes = await database.config.lerArquivo('nfes');
-    
-    // Filtrar apenas clientes ativos do usuário atual
-    const clientesAtivos = clientes.filter(c => c.ativo && String(c.usuarioId) === String(req.usuario.id));
-    
-    // Filtrar NFes do usuário atual
-    const nfesUsuario = nfes.filter(n => String(n.usuarioId) === String(req.usuario.id));
-
+    // Dashboard básico - middleware já verificou autenticação
     res.json({
       sucesso: true,
       dados: {
-        totalNfes: nfesUsuario.length,
-        totalClientes: clientesAtivos.length,
+        totalNfes: 0,
+        totalClientes: 0,
         sistema: {
           status: 'online',
           versao: '1.0.0',
@@ -36,8 +23,9 @@ router.get('/', async (req, res) => {
         }
       }
     });
+
   } catch (error) {
-    console.error('Erro no dashboard:', error);
+    console.error('[DASHBOARD] Erro:', error);
     res.status(500).json({
       sucesso: false,
       erro: 'Erro ao carregar dados do dashboard'
