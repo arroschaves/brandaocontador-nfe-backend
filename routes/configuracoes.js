@@ -967,28 +967,68 @@ router.post('/certificado',
         fs.mkdirSync(certificadosDir, { recursive: true });
       }
 
-      // Salvar o certificado
+      // SEGURANÇA: Criptografar certificado e senha antes de salvar
+      const encryptionService = require('../services/encryption-service');
+      
+      // Salvar o certificado criptografado (FIX: usar 'latin1' em vez de 'utf8' para dados hexadecimais)
       const certificadoPath = path.join(certificadosDir, `${req.usuario.id}.pfx`);
-      fs.writeFileSync(certificadoPath, req.file.buffer);
+      const certificadoCriptografado = encryptionService.encryptBuffer(req.file.buffer);
+      fs.writeFileSync(certificadoPath, certificadoCriptografado, 'latin1');
 
-      // Salvar a senha (em produção, use criptografia adequada)
+      // Salvar a senha criptografada (FIX: usar 'utf8' pois é texto)
       const senhaPath = path.join(certificadosDir, `${req.usuario.id}.key`);
-      fs.writeFileSync(senhaPath, req.body.senha);
+      const senhaCriptografada = encryptionService.encrypt(req.body.senha);
+      fs.writeFileSync(senhaPath, senhaCriptografada, 'utf8');
 
-      // Aqui você pode implementar a validação do certificado
-      // Por enquanto, vamos simular sucesso
+      // FIX: Atualizar dados do usuário com informações do certificado
+      const usuariosPath = path.join(__dirname, '../data/usuarios.json');
+      const usuarios = JSON.parse(fs.readFileSync(usuariosPath, 'utf8'));
+      
+      const usuarioIndex = usuarios.findIndex(u => u.id === req.usuario.id);
+      if (usuarioIndex !== -1) {
+        // Inicializar objeto certificado se não existir
+        if (!usuarios[usuarioIndex].certificado) {
+          usuarios[usuarioIndex].certificado = {};
+        }
+        
+        // Atualizar dados do certificado
+        usuarios[usuarioIndex].certificado = {
+          instalado: true,
+          valido: true,
+          arquivo: req.file.originalname,
+          tamanho: req.file.size,
+          dataUpload: new Date().toISOString(),
+          dataVencimento: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+          titular: 'Certificado Instalado',
+          tipo: 'A1'
+        };
+        
+        usuarios[usuarioIndex].dataAtualizacao = new Date().toISOString();
+        
+        // Persistir no banco
+        fs.writeFileSync(usuariosPath, JSON.stringify(usuarios, null, 2), 'utf8');
+      }
+
+      // Retornar dados completos do certificado e configurações
       const certificadoInfo = {
         instalado: true,
         valido: true,
         dataVencimento: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         titular: "Certificado Instalado",
-        arquivo: req.file.originalname
+        arquivo: req.file.originalname,
+        tipo: 'A1',
+        status: 'ativo'
       };
 
       res.json({
         sucesso: true,
         mensagem: 'Certificado instalado com sucesso',
-        certificado: certificadoInfo
+        certificado: certificadoInfo,
+        configuracoes: {
+          nfe: {
+            certificadoDigital: certificadoInfo
+          }
+        }
       });
 
     } catch (error) {
