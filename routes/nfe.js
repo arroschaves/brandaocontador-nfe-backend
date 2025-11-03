@@ -415,4 +415,101 @@ router.post('/validar-dados', authMiddleware.verificarAutenticacao(), async (req
   }
 });
 
+/**
+ * @swagger
+ * /api/nfe/status:
+ *   get:
+ *     summary: Obter status geral das NFes do usuário
+ *     tags: [NFe]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Status das NFes
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 sucesso:
+ *                   type: boolean
+ *                   example: true
+ *                 dados:
+ *                   type: object
+ *                   properties:
+ *                     total:
+ *                       type: integer
+ *                       example: 150
+ *                     autorizadas:
+ *                       type: integer
+ *                       example: 140
+ *                     canceladas:
+ *                       type: integer
+ *                       example: 5
+ *                     rejeitadas:
+ *                       type: integer
+ *                       example: 3
+ *                     pendentes:
+ *                       type: integer
+ *                       example: 2
+ *                     ultimasNfes:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           chave:
+ *                             type: string
+ *                           numero:
+ *                             type: integer
+ *                           dataEmissao:
+ *                             type: string
+ *                             format: date-time
+ *                           situacao:
+ *                             type: string
+ *                           valorTotal:
+ *                             type: number
+ *                     valorTotalMes:
+ *                       type: number
+ *                       example: 25000.50
+ *       401:
+ *         description: Token inválido ou expirado
+ *       500:
+ *         description: Erro interno do servidor
+ */
+router.get('/status', authMiddleware.verificarAutenticacao(), async (req, res) => {
+  try {
+    const advancedLogger = req.app.get('advancedLogger');
+    
+    // Log da requisição
+    advancedLogger.logInfo('nfe', 'Solicitação de status das NFes', req, {
+      userId: req.user.id
+    });
+
+    // Obter estatísticas das NFes do usuário
+    const status = await nfeService.obterStatusNfes(req.user);
+    
+    advancedLogger.logInfo('nfe', 'Status das NFes retornado com sucesso', req, {
+      userId: req.user.id,
+      totalNfes: status.total
+    });
+
+    res.json({
+      sucesso: true,
+      dados: status
+    });
+    
+  } catch (error) {
+    const advancedLogger = req.app.get('advancedLogger');
+    advancedLogger.logError('nfe', 'Erro ao obter status das NFes', req, error, {
+      userId: req.user?.id
+    });
+
+    res.status(500).json({
+      sucesso: false,
+      erro: 'Erro interno do servidor',
+      codigo: 'INTERNAL_ERROR'
+    });
+  }
+});
+
 module.exports = router;

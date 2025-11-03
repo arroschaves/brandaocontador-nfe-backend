@@ -1,0 +1,134 @@
+{
+  "info": {
+    "name": "NFe Brandão Contador",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Coleção Postman com variáveis de ambiente e exemplos mínimos de request para os principais endpoints da API."
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      { "key": "token", "value": "{{jwtToken}}", "type": "string" }
+    ]
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "https://nfe.brandaocontador.com.br/api" },
+    { "key": "jwtToken", "value": "" },
+    { "key": "idNFe", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "request": { "method": "GET", "url": "{{baseUrl}}/health" }
+    },
+    {
+      "name": "Login",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{ \"email\":\"admin@example.com\", \"senha\":\"SenhaForte123\" }" },
+        "url": "{{baseUrl}}/auth/login"
+      }
+    },
+    {
+      "name": "Register",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{ \"nome\":\"Cliente\", \"email\":\"cliente@example.com\", \"senha\":\"Senha123\", \"tipoCliente\":\"CPF\", \"documento\":\"12345678901\" }" },
+        "url": "{{baseUrl}}/auth/register"
+      }
+    },
+    {
+      "name": "NFe Status",
+      "request": { "method": "GET", "url": "{{baseUrl}}/nfe/status" }
+    },
+    {
+      "name": "Validar NFe",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{ \"modo\":\"validacao\", \"emitente\": {\"cnpj\":\"12345678000199\"}, \"destinatario\": {\"cpf\":\"12345678901\"}, \"itens\":[{\"descricao\":\"Produto\",\"cfop\":\"5102\",\"ncm\":\"12345678\",\"quantidade\":1,\"valorUnitario\":10}] }" },
+        "url": "{{baseUrl}}/nfe/validar"
+      }
+    },
+    {
+      "name": "Emitir NFe",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{ \"emitente\": {\"cnpj\":\"12345678000199\"}, \"destinatario\": {\"cpf\":\"12345678901\"}, \"itens\":[{\"descricao\":\"Produto\",\"cfop\":\"5102\",\"ncm\":\"12345678\",\"quantidade\":1,\"valorUnitario\":10}], \"pagamento\": {\"forma\":\"01\"} }" },
+        "url": "{{baseUrl}}/nfe/emitir"
+      }
+    },
+    {
+      "name": "Histórico NFe",
+      "request": { "method": "GET", "url": "{{baseUrl}}/nfe/historico" }
+    },
+    {
+      "name": "Download XML",
+      "request": { "method": "GET", "url": "{{baseUrl}}/nfe/download?id={{idNFe}}" }
+    },
+    {
+      "name": "Cancelar NFe",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{ \"id\":\"{{idNFe}}\", \"justificativa\":\"Erro de preenchimento\" }" },
+        "url": "{{baseUrl}}/nfe/cancelar"
+      }
+    },
+    {
+      "name": "Inutilizar Numeração",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{ \"serie\":\"1\", \"numeroInicial\":100, \"numeroFinal\":100, \"justificativa\":\"Sequência não utilizada\" }" },
+        "url": "{{baseUrl}}/nfe/inutilizar"
+      }
+    },
+    {
+      "name": "Configurações (GET)",
+      "request": { "method": "GET", "url": "{{baseUrl}}/configuracoes" }
+    },
+    {
+      "name": "NFe Config (PATCH)",
+      "request": {
+        "method": "PATCH",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{ \"ambiente\":2, \"seriePadrao\":\"1\", \"numeroInicial\":1000, \"emailEnvio\":\"financeiro@example.com\" }" },
+        "url": "{{baseUrl}}/configuracoes/nfe"
+      }
+    },
+    {
+      "name": "Notificações (PATCH)",
+      "request": {
+        "method": "PATCH",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{ \"emailNFeEmitida\":\"emitida@example.com\", \"emailNFeCancelada\":\"cancelada@example.com\", \"whatsappNotificacoes\":false }" },
+        "url": "{{baseUrl}}/configuracoes/notificacoes"
+      }
+    },
+    {
+      "name": "Upload Certificado (Admin)",
+      "request": {
+        "method": "POST",
+        "body": { "mode": "formdata", "formdata": [
+          { "key": "certificado", "type": "file", "src": "" },
+          { "key": "senha", "type": "text", "value": "123456" }
+        ] },
+        "url": "{{baseUrl}}/configuracoes/certificado"
+      }
+    },
+    {
+      "name": "Upload Certificado (Cliente)",
+      "request": {
+        "method": "POST",
+        "body": { "mode": "formdata", "formdata": [
+          { "key": "certificado", "type": "file", "src": "" },
+          { "key": "senha", "type": "text", "value": "123456" }
+        ] },
+        "url": "{{baseUrl}}/me/certificado"
+      }
+    }
+  ]
+}

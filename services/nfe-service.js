@@ -1194,6 +1194,187 @@ class NFeService {
       throw error;
     }
   }
+
+  /**
+   * Lista NFes do usuário com filtros e paginação
+   */
+  async listarNfes(userId, filtros = {}) {
+    try {
+      // Simulação para desenvolvimento - retorna dados mock
+      console.log(`📋 Listando NFes para usuário ${userId} com filtros:`, filtros);
+      
+      // Parâmetros de paginação
+      const page = parseInt(filtros.page) || 1;
+      const limit = parseInt(filtros.limit) || 20;
+      
+      // Dados mock para desenvolvimento
+      const nfesMock = [
+        {
+          id: 1,
+          numero: 1001,
+          serie: 1,
+          chave_acesso: '35210812345678000123550010000010011234567890',
+          status: 'autorizada',
+          valor_total: 1500.00,
+          data_emissao: new Date().toISOString(),
+          data_criacao: new Date().toISOString(),
+          destinatario_nome: 'Cliente Teste LTDA',
+          destinatario_documento: '12345678000123',
+          observacoes: 'NFe de teste',
+          protocolo_autorizacao: '135210000000001',
+          data_autorizacao: new Date().toISOString()
+        },
+        {
+          id: 2,
+          numero: 1002,
+          serie: 1,
+          chave_acesso: '35210812345678000123550010000010021234567890',
+          status: 'pendente',
+          valor_total: 2500.00,
+          data_emissao: new Date().toISOString(),
+          data_criacao: new Date().toISOString(),
+          destinatario_nome: 'Outro Cliente LTDA',
+          destinatario_documento: '98765432000123',
+          observacoes: 'NFe de teste 2',
+          protocolo_autorizacao: null,
+          data_autorizacao: null
+        }
+      ];
+      
+      // Simula filtros
+      let nfesFiltradas = nfesMock;
+      if (filtros.status) {
+        nfesFiltradas = nfesFiltradas.filter(nfe => nfe.status === filtros.status);
+      }
+      
+      const total = nfesFiltradas.length;
+      const totalPages = Math.ceil(total / limit);
+      const hasNext = page < totalPages;
+      const hasPrev = page > 1;
+      
+      return {
+        nfes: nfesFiltradas || [],
+        pagination: {
+          currentPage: page,
+          totalPages,
+          totalItems: total,
+          itemsPerPage: limit,
+          hasNext,
+          hasPrev
+        },
+        filtros: filtros
+      };
+      
+    } catch (error) {
+      console.error('❌ Erro ao listar NFes:', error.message);
+      throw new Error(`Falha ao listar NFes: ${error.message}`);
+    }
+  }
+
+  /**
+   * Obtém status geral das NFes do usuário
+   */
+  async obterStatusNfes(userId) {
+    try {
+      console.log(`📊 Obtendo status das NFes para usuário ${userId}`);
+      
+      // Dados mock para desenvolvimento
+      const stats = {
+        total: 2,
+        autorizadas: 1,
+        rejeitadas: 0,
+        canceladas: 0,
+        pendentes: 1,
+        processando: 0,
+        valor_total_autorizado: 1500.00,
+        valor_total_geral: 4000.00,
+        ultima_emissao: new Date().toISOString(),
+        primeira_emissao: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+      };
+      
+      const recentes = [
+        {
+          id: 1,
+          numero: 1001,
+          serie: 1,
+          chave_acesso: '35210812345678000123550010000010011234567890',
+          status: 'autorizada',
+          valor_total: 1500.00,
+          data_emissao: new Date().toISOString(),
+          destinatario_nome: 'Cliente Teste LTDA',
+          protocolo_autorizacao: '135210000000001'
+        }
+      ];
+      
+      const porMes = [
+        {
+          mes: new Date().toISOString().substring(0, 7),
+          quantidade: 2,
+          valor_autorizado: 1500.00,
+          autorizadas: 1,
+          rejeitadas: 0
+        }
+      ];
+      
+      // Query para status de serviços da SEFAZ (simulado - você pode integrar com API real)
+      const statusServicos = {
+        sefaz: {
+          status: 'online',
+          ultima_verificacao: new Date().toISOString(),
+          tempo_resposta: '1.2s'
+        },
+        receita: {
+          status: 'online',
+          ultima_verificacao: new Date().toISOString(),
+          tempo_resposta: '0.8s'
+        },
+        contingencia: {
+          ativo: false,
+          motivo: null
+        }
+      };
+      
+      // Calcular percentuais
+      const total = stats.total || 0;
+      const percentuais = {
+        autorizadas: total > 0 ? ((stats.autorizadas / total) * 100).toFixed(1) : 0,
+        rejeitadas: total > 0 ? ((stats.rejeitadas / total) * 100).toFixed(1) : 0,
+        canceladas: total > 0 ? ((stats.canceladas / total) * 100).toFixed(1) : 0,
+        pendentes: total > 0 ? ((stats.pendentes / total) * 100).toFixed(1) : 0
+      };
+      
+      return {
+        resumo: {
+          total: stats.total || 0,
+          autorizadas: stats.autorizadas || 0,
+          rejeitadas: stats.rejeitadas || 0,
+          canceladas: stats.canceladas || 0,
+          pendentes: stats.pendentes || 0,
+          processando: stats.processando || 0,
+          percentuais
+        },
+        valores: {
+          total_geral: parseFloat(stats.valor_total_geral || 0),
+          total_autorizado: parseFloat(stats.valor_total_autorizado || 0),
+          media_por_nfe: total > 0 ? parseFloat((stats.valor_total_geral / total).toFixed(2)) : 0
+        },
+        periodo: {
+          primeira_emissao: stats.primeira_emissao,
+          ultima_emissao: stats.ultima_emissao,
+          dias_ativo: stats.primeira_emissao ? 
+            Math.ceil((new Date() - new Date(stats.primeira_emissao)) / (1000 * 60 * 60 * 24)) : 0
+        },
+        recentes: recentes || [],
+        por_mes: porMes || [],
+        servicos: statusServicos,
+        ultima_atualizacao: new Date().toISOString()
+      };
+      
+    } catch (error) {
+      console.error('❌ Erro ao obter status das NFes:', error.message);
+      throw new Error(`Falha ao obter status das NFes: ${error.message}`);
+    }
+  }
 }
 
 module.exports = new NFeService();
