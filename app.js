@@ -55,6 +55,7 @@ const eventosRoutes = require('./routes/eventos');
 const relatoriosRoutes = require('./routes/relatorios');
 const configuracoesRoutes = require('./routes/configuracoes');
 const dashboardRoutes = require('./routes/dashboard');
+const meRoutes = require('./routes/me');
 
 // Middlewares de segurança
 const {
@@ -77,8 +78,8 @@ const PORT = process.env.PORT || 3000;
 // Inicializar serviços
 const validationExternalService = new ValidationExternalService();
 
-// Configurar trust proxy para obter IPs corretos
-app.set('trust proxy', true);
+ // Configurar trust proxy para obter IPs corretos (apenas de proxies confiáveis)
+app.set('trust proxy', 1);
 
 // ==================== CONFIGURAÇÃO DO SWAGGER ====================
 const swaggerOptions = {
@@ -687,7 +688,6 @@ app.post('/me/certificado',
 // Usar as rotas modernas organizadas em arquivos separados
 app.use('/api/auth', authRoutes);
 app.use('/api/clientes', clientesRoutes);
-app.use('/api/auth', authRoutes);
 app.use('/api/produtos', produtosRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/nfe', nfeRoutes);
@@ -697,6 +697,7 @@ app.use('/api/eventos', eventosRoutes);
 app.use('/api/relatorios', relatoriosRoutes);
 app.use('/api/configuracoes', configuracoesRoutes);
 app.use('/api/dashboard', authMiddleware.verificarAutenticacao(), dashboardRoutes);
+app.use('/api/me', meRoutes);
 
 // ==================== ENDPOINTS NFE (LEGADOS) ====================
 
