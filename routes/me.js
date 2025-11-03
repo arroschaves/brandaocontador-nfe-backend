@@ -110,9 +110,13 @@ router.get('/', authMiddleware.verificarAutenticacao(), async (req, res) => {
 
   } catch (error) {
     const advancedLogger = req.app.get('advancedLogger');
-    advancedLogger.logError('auth', 'Erro ao obter dados do usuário', req, error, {
-      userId: req.user?.id
-    });
+    if (advancedLogger) {
+      advancedLogger.logError('auth', 'Erro ao obter dados do usuário', req, error, {
+        userId: req.user?.id
+      });
+    } else {
+      console.error('Erro ao obter dados do usuário:', error);
+    }
 
     res.status(500).json({
       sucesso: false,
@@ -268,9 +272,13 @@ router.patch('/', authMiddleware.verificarAutenticacao(), async (req, res) => {
 
   } catch (error) {
     const advancedLogger = req.app.get('advancedLogger');
-    advancedLogger.logError('auth', 'Erro ao atualizar dados do usuário', req, error, {
-      userId: req.user?.id
-    });
+    if (advancedLogger) {
+      advancedLogger.logError('auth', 'Erro ao atualizar dados do usuário', req, error, {
+        userId: req.user?.id
+      });
+    } else {
+      console.error('Erro ao atualizar dados do usuário:', error);
+    }
 
     res.status(500).json({
       sucesso: false,
