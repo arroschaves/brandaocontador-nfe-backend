@@ -501,7 +501,7 @@ class AuthMiddleware {
     const payload = {
       id: usuario._id || usuario.id,
       email: usuario.email,
-      tipo: usuario.tipo || usuario.tipoCliente,
+      tipo: usuario.tipoCliente || usuario.tipo,
       permissoes: usuario.permissoes || []
     };
 

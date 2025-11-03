@@ -166,8 +166,7 @@ class SecurityMiddleware {
       origens.push(
         'https://brandaocontador.com.br',
         'https://www.brandaocontador.com.br',
-        'https://nfe.brandaocontador.com.br',
-        'https://brandaocontador-nfe-frontend-bk1otunwd.vercel.app'
+        'https://nfe.brandaocontador.com.br'
       );
     }
     
