@@ -60,20 +60,24 @@ const upload = multer({
 router.get('/', authMiddleware.verificarAutenticacao(), async (req, res) => {
   try {
     const advancedLogger = req.app.get('advancedLogger');
-    
+
     // Log da requisição
-    advancedLogger.logInfo('auth', 'Solicitação de dados do usuário', req, {
-      userId: req.user.id
-    });
+    if (advancedLogger) {
+      advancedLogger.logInfo('auth', 'Solicitação de dados do usuário', req, {
+        userId: req.user.id
+      });
+    }
 
     // Buscar dados do usuário usando o UserService
     const userResult = await UserService.obterUsuario(req.user.id);
-    
+
     if (!userResult.success) {
-      advancedLogger.logError('auth', 'Usuário não encontrado', req, null, {
-        userId: req.user.id
-      });
-      
+      if (advancedLogger) {
+        advancedLogger.logError('auth', 'Usuário não encontrado', req, null, {
+          userId: req.user.id
+        });
+      }
+
       return res.status(404).json({
         sucesso: false,
         erro: 'Usuário não encontrado',
@@ -87,7 +91,7 @@ router.get('/', authMiddleware.verificarAutenticacao(), async (req, res) => {
     const certificateService = new CertificateService();
     const certificadoResult = await certificateService.obterCertificado(req.user.id);
     const certificadoInfo = certificadoResult.success ? certificadoResult.data : null;
-    
+
     const dadosCompletos = {
       ...dadosUsuario,
       certificado: certificadoInfo ? {
@@ -98,10 +102,12 @@ router.get('/', authMiddleware.verificarAutenticacao(), async (req, res) => {
       } : null
     };
 
-    advancedLogger.logInfo('auth', 'Dados do usuário retornados com sucesso', req, {
-      userId: req.user.id,
-      temCertificado: !!certificadoInfo
-    });
+    if (advancedLogger) {
+      advancedLogger.logInfo('auth', 'Dados do usuário retornados com sucesso', req, {
+        userId: req.user.id,
+        temCertificado: !!certificadoInfo
+      });
+    }
 
     res.json({
       sucesso: true,
@@ -202,12 +208,14 @@ router.patch('/', authMiddleware.verificarAutenticacao(), async (req, res) => {
   try {
     const advancedLogger = req.app.get('advancedLogger');
     const { nome, telefone, endereco } = req.body;
-    
+
     // Log da requisição
-    advancedLogger.logInfo('auth', 'Solicitação de atualização de dados do usuário', req, {
-      userId: req.user.id,
-      camposAtualizados: Object.keys(req.body)
-    });
+    if (advancedLogger) {
+      advancedLogger.logInfo('auth', 'Solicitação de atualização de dados do usuário', req, {
+        userId: req.user.id,
+        camposAtualizados: Object.keys(req.body)
+      });
+    }
 
     // Validações básicas
     if (nome && (typeof nome !== 'string' || nome.trim().length < 2)) {
@@ -243,13 +251,15 @@ router.patch('/', authMiddleware.verificarAutenticacao(), async (req, res) => {
 
     // Atualizar usuário usando UserService
     const updateResult = await UserService.atualizarUsuario(req.user.id, dadosAtualizados);
-    
+
     if (!updateResult.success) {
-      advancedLogger.logError('auth', 'Erro ao atualizar usuário', req, null, {
-        userId: req.user.id,
-        erro: updateResult.message
-      });
-      
+      if (advancedLogger) {
+        advancedLogger.logError('auth', 'Erro ao atualizar usuário', req, null, {
+          userId: req.user.id,
+          erro: updateResult.message
+        });
+      }
+
       return res.status(404).json({
         sucesso: false,
         erro: updateResult.message || 'Usuário não encontrado',
@@ -259,10 +269,12 @@ router.patch('/', authMiddleware.verificarAutenticacao(), async (req, res) => {
 
     const dadosUsuario = updateResult.data;
 
-    advancedLogger.logInfo('auth', 'Dados do usuário atualizados com sucesso', req, {
-      userId: req.user.id,
-      dadosAtualizados
-    });
+    if (advancedLogger) {
+      advancedLogger.logInfo('auth', 'Dados do usuário atualizados com sucesso', req, {
+        userId: req.user.id,
+        dadosAtualizados
+      });
+    }
 
     res.json({
       sucesso: true,
@@ -361,12 +373,14 @@ router.post('/certificado', authMiddleware.verificarAutenticacao(), upload.singl
   try {
     const advancedLogger = req.app.get('advancedLogger');
     const { senha } = req.body;
-    
+
     // Log da requisição
-    advancedLogger.logInfo('certificados', 'Solicitação de upload de certificado', req, {
-      userId: req.user.id,
-      nomeArquivo: req.file?.originalname
-    });
+    if (advancedLogger) {
+      advancedLogger.logInfo('certificados', 'Solicitação de upload de certificado', req, {
+        userId: req.user.id,
+        nomeArquivo: req.file?.originalname
+      });
+    }
 
     if (!req.file) {
       return res.status(400).json({
@@ -386,7 +400,7 @@ router.post('/certificado', authMiddleware.verificarAutenticacao(), upload.singl
 
     // Processar certificado
     const certificateService = new CertificateService();
-    
+
     try {
       const resultado = await certificateService.installCertificate(
         req.user.id,
@@ -395,12 +409,14 @@ router.post('/certificado', authMiddleware.verificarAutenticacao(), upload.singl
         req.file.originalname
       );
 
-      advancedLogger.logInfo('certificados', 'Certificado instalado com sucesso', req, {
-        userId: req.user.id,
-        titular: resultado.titular,
-        cnpj: resultado.cnpj,
-        dataVencimento: resultado.dataVencimento
-      });
+      if (advancedLogger) {
+        advancedLogger.logInfo('certificados', 'Certificado instalado com sucesso', req, {
+          userId: req.user.id,
+          titular: resultado.titular,
+          cnpj: resultado.cnpj,
+          dataVencimento: resultado.dataVencimento
+        });
+      }
 
       res.json({
         sucesso: true,
@@ -409,10 +425,12 @@ router.post('/certificado', authMiddleware.verificarAutenticacao(), upload.singl
       });
 
     } catch (certError) {
-      advancedLogger.logError('certificados', 'Erro ao processar certificado', req, certError, {
-        userId: req.user.id,
-        nomeArquivo: req.file.originalname
-      });
+      if (advancedLogger) {
+        advancedLogger.logError('certificados', 'Erro ao processar certificado', req, certError, {
+          userId: req.user.id,
+          nomeArquivo: req.file.originalname
+        });
+      }
 
       if (certError.message.includes('senha')) {
         return res.status(400).json({
@@ -439,9 +457,13 @@ router.post('/certificado', authMiddleware.verificarAutenticacao(), upload.singl
 
   } catch (error) {
     const advancedLogger = req.app.get('advancedLogger');
-    advancedLogger.logError('certificados', 'Erro interno no upload de certificado', req, error, {
-      userId: req.user?.id
-    });
+    if (advancedLogger) {
+      advancedLogger.logError('certificados', 'Erro interno no upload de certificado', req, error, {
+        userId: req.user?.id
+      });
+    } else {
+      console.error('Erro interno no upload de certificado:', error);
+    }
 
     res.status(500).json({
       sucesso: false,
