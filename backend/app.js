@@ -77,8 +77,8 @@ const PORT = process.env.PORT || 3000;
 // Inicializar serviços
 const validationExternalService = new ValidationExternalService();
 
-// Configurar trust proxy para obter IPs corretos
-app.set('trust proxy', true);
+ // Configurar trust proxy para obter IPs corretos (apenas de proxies confiáveis)
+app.set('trust proxy', 1);
 
 // ==================== CONFIGURAÇÃO DO SWAGGER ====================
 const swaggerOptions = {
