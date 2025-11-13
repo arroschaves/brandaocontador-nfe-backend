@@ -11,30 +11,30 @@ graph TD
     B --> F[API Services Layer]
     F --> G[Backend API]
     F --> H[External Services]
-    
+
     subgraph "Frontend Layer"
         B
         C
         D
         E
     end
-    
+
     subgraph "Service Layer"
         F
     end
-    
+
     subgraph "Backend Services"
         G
         H
     end
-    
+
     subgraph "External Integrations"
         I[SEFAZ APIs]
         J[CEP Services]
         K[CNPJ Services]
         L[Banking APIs]
     end
-    
+
     H --> I
     H --> J
     H --> K
@@ -57,35 +57,36 @@ graph TD
 
 ## 3. Route definitions
 
-| Route | Purpose |
-|-------|---------|
-| `/` | Redirect to dashboard or login |
-| `/login` | User authentication page |
-| `/cadastro` | User registration page |
-| `/dashboard` | Executive dashboard with metrics and overview |
-| `/emitir-nfe` | NFe emission wizard |
-| `/emitir-cte` | CTe emission wizard |
-| `/emitir-mdfe` | MDFe emission wizard |
-| `/emitir-nfce` | NFCe emission wizard |
-| `/consultar/:tipo/:numero` | Document consultation and details |
-| `/historico` | Document history with filters and search |
-| `/relatorios` | Advanced reports and analytics |
-| `/relatorios/executivo` | Executive dashboard reports |
-| `/relatorios/fiscal` | Fiscal reports and compliance |
-| `/clientes` | Customer management |
-| `/produtos` | Product/service catalog |
-| `/configuracoes` | System settings and preferences |
-| `/configuracoes/empresa` | Company profile settings |
-| `/configuracoes/certificado` | Digital certificate management |
-| `/configuracoes/usuarios` | User management (admin only) |
-| `/status` | System status and health monitoring |
-| `/ajuda` | Help and documentation |
+| Route                        | Purpose                                       |
+| ---------------------------- | --------------------------------------------- |
+| `/`                          | Redirect to dashboard or login                |
+| `/login`                     | User authentication page                      |
+| `/cadastro`                  | User registration page                        |
+| `/dashboard`                 | Executive dashboard with metrics and overview |
+| `/emitir-nfe`                | NFe emission wizard                           |
+| `/emitir-cte`                | CTe emission wizard                           |
+| `/emitir-mdfe`               | MDFe emission wizard                          |
+| `/emitir-nfce`               | NFCe emission wizard                          |
+| `/consultar/:tipo/:numero`   | Document consultation and details             |
+| `/historico`                 | Document history with filters and search      |
+| `/relatorios`                | Advanced reports and analytics                |
+| `/relatorios/executivo`      | Executive dashboard reports                   |
+| `/relatorios/fiscal`         | Fiscal reports and compliance                 |
+| `/clientes`                  | Customer management                           |
+| `/produtos`                  | Product/service catalog                       |
+| `/configuracoes`             | System settings and preferences               |
+| `/configuracoes/empresa`     | Company profile settings                      |
+| `/configuracoes/certificado` | Digital certificate management                |
+| `/configuracoes/usuarios`    | User management (admin only)                  |
+| `/status`                    | System status and health monitoring           |
+| `/ajuda`                     | Help and documentation                        |
 
 ## 4. API definitions
 
 ### 4.1 Core API
 
 **Authentication**
+
 ```
 POST /api/auth/login
 ```
@@ -104,6 +105,7 @@ Response:
 | permissions | string[] | User permissions array |
 
 **NFe Emission**
+
 ```
 POST /api/nfe/emitir
 ```
@@ -126,6 +128,7 @@ Response:
 | pdf | string | DANFE PDF URL |
 
 **Dashboard Metrics**
+
 ```
 GET /api/dashboard/metrics
 ```
@@ -139,6 +142,7 @@ Response:
 | taxaSucesso | number | Success rate percentage |
 
 Example:
+
 ```json
 {
   "email": "usuario@empresa.com",
@@ -156,15 +160,15 @@ graph TD
     B --> E[CTe Service]
     B --> F[Reports Service]
     B --> G[Dashboard Service]
-    
+
     subgraph "Frontend Layer"
         A
     end
-    
+
     subgraph "API Layer"
         B
     end
-    
+
     subgraph "Business Services"
         C
         D
@@ -172,28 +176,28 @@ graph TD
         F
         G
     end
-    
+
     subgraph "Data Layer"
         H[(MongoDB)]
         I[(Redis Cache)]
     end
-    
+
     subgraph "External Services"
         J[SEFAZ]
         K[Receita Federal]
         L[Correios CEP]
     end
-    
+
     C --> H
     D --> H
     E --> H
     F --> H
     G --> H
-    
+
     D --> I
     E --> I
     F --> I
-    
+
     D --> J
     E --> J
     C --> K
@@ -211,7 +215,7 @@ erDiagram
     USER ||--o{ MDFE : creates
     COMPANY ||--o{ USER : employs
     COMPANY ||--o{ CERTIFICATE : owns
-    
+
     USER {
         string id PK
         string email
@@ -221,7 +225,7 @@ erDiagram
         date createdAt
         date updatedAt
     }
-    
+
     COMPANY {
         string id PK
         string cnpj
@@ -231,7 +235,7 @@ erDiagram
         string certificateId FK
         date createdAt
     }
-    
+
     NFE {
         string id PK
         string numero
@@ -246,7 +250,7 @@ erDiagram
         json xmlData
         string pdfUrl
     }
-    
+
     CTE {
         string id PK
         string numero
@@ -260,7 +264,7 @@ erDiagram
         string userId FK
         string companyId FK
     }
-    
+
     MDFE {
         string id PK
         string numero
@@ -271,7 +275,7 @@ erDiagram
         string userId FK
         string companyId FK
     }
-    
+
     CERTIFICATE {
         string id PK
         string nome
@@ -286,6 +290,7 @@ erDiagram
 ### 6.2 Data Definition Language
 
 **User Table (users)**
+
 ```sql
 -- create table
 CREATE TABLE users (
@@ -308,6 +313,7 @@ CREATE INDEX idx_users_role ON users(role);
 ```
 
 **Company Table (companies)**
+
 ```sql
 -- create table
 CREATE TABLE companies (
@@ -332,6 +338,7 @@ CREATE INDEX idx_companies_active ON companies(is_active);
 ```
 
 **NFe Table (nfes)**
+
 ```sql
 -- create table
 CREATE TABLE nfes (
@@ -370,6 +377,7 @@ CREATE INDEX idx_nfes_destinatario_cnpj ON nfes USING GIN ((destinatario->>'cnpj
 ```
 
 **CTe Table (ctes)**
+
 ```sql
 -- create table
 CREATE TABLE ctes (
@@ -410,6 +418,7 @@ CREATE INDEX idx_ctes_company_id ON ctes(company_id);
 ```
 
 **Certificates Table (certificates)**
+
 ```sql
 -- create table
 CREATE TABLE certificates (
@@ -435,18 +444,19 @@ CREATE INDEX idx_certificates_active ON certificates(is_active);
 ```
 
 **Dashboard Metrics View**
+
 ```sql
 -- create view for dashboard metrics
 CREATE OR REPLACE VIEW dashboard_metrics AS
-SELECT 
+SELECT
     c.id as company_id,
     COUNT(CASE WHEN n.data_emissao::date = CURRENT_DATE THEN 1 END) as nfes_hoje,
     COUNT(CASE WHEN n.data_emissao >= date_trunc('month', CURRENT_DATE) THEN 1 END) as nfes_mes,
     SUM(CASE WHEN n.data_emissao >= date_trunc('month', CURRENT_DATE) THEN n.valor_total ELSE 0 END) as faturamento_mes,
     COUNT(CASE WHEN n.status = 'rascunho' THEN 1 END) as pendentes,
     ROUND(
-        COUNT(CASE WHEN n.status = 'autorizada' THEN 1 END) * 100.0 / 
-        NULLIF(COUNT(CASE WHEN n.status != 'rascunho' THEN 1 END), 0), 
+        COUNT(CASE WHEN n.status = 'autorizada' THEN 1 END) * 100.0 /
+        NULLIF(COUNT(CASE WHEN n.status != 'rascunho' THEN 1 END), 0),
         2
     ) as taxa_sucesso
 FROM companies c
@@ -456,15 +466,16 @@ GROUP BY c.id;
 ```
 
 **Initial Data**
+
 ```sql
 -- init data
 INSERT INTO companies (cnpj, razao_social, nome_fantasia, endereco, regime_tributario) VALUES
-('12345678000195', 'Empresa Exemplo LTDA', 'Exemplo', 
+('12345678000195', 'Empresa Exemplo LTDA', 'Exemplo',
  '{"logradouro": "Rua Exemplo, 123", "bairro": "Centro", "cidade": "São Paulo", "uf": "SP", "cep": "01000000"}',
  'simples_nacional');
 
 INSERT INTO users (email, password_hash, name, role, company_id) VALUES
-('admin@exemplo.com', '$2b$10$hash_example', 'Administrador', 'admin', 
+('admin@exemplo.com', '$2b$10$hash_example', 'Administrador', 'admin',
  (SELECT id FROM companies WHERE cnpj = '12345678000195'));
 ```
 

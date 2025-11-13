@@ -3,6 +3,7 @@
 ## 📋 Informações do Servidor
 
 **Servidor Contabo:**
+
 - **Host:** 147.93.186.214
 - **Porta:** 22
 - **Usuário:** root
@@ -12,6 +13,7 @@
 - **Memória:** 2% usado
 
 **Domínios:**
+
 - api.brandaocontador.com.br
 - nfe.brandaocontador.com.br
 
@@ -20,6 +22,7 @@
 ## 🎯 Objetivo da Migração
 
 Migrar o sistema NFe local para o servidor Contabo, mantendo:
+
 - ✅ Sistema 100% JSON (sem banco de dados)
 - ✅ Todas as configurações atuais
 - ✅ Performance otimizada
@@ -31,18 +34,23 @@ Migrar o sistema NFe local para o servidor Contabo, mantendo:
 ## 📁 Arquivos de Migração Criados
 
 ### 1. **setup-contabo.sh**
+
 Script para configurar o servidor Ubuntu com todas as dependências necessárias.
 
 ### 2. **migrate-to-contabo.ps1**
+
 Script PowerShell para automatizar a migração completa do sistema local para o servidor.
 
 ### 3. **nginx-nfe.conf**
+
 Configuração otimizada do Nginx para produção com SSL, cache e segurança.
 
 ### 4. **ecosystem-production.config.js**
+
 Configuração PM2 para cluster mode, monitoramento e logs estruturados.
 
 ### 5. **deploy-production.sh**
+
 Script de deploy no servidor para instalar e configurar a aplicação.
 
 ---
@@ -52,6 +60,7 @@ Script de deploy no servidor para instalar e configurar a aplicação.
 ### **FASE 1: Preparação Local**
 
 #### 1.1 Verificar Sistema Local
+
 ```powershell
 # Verificar se o sistema está funcionando
 cd E:\PROJETOS\brandaocontador-nfe\backend
@@ -63,6 +72,7 @@ curl http://localhost:3000/api/empresas
 ```
 
 #### 1.2 Backup Local
+
 ```powershell
 # Criar backup completo
 $backupDate = Get-Date -Format "yyyyMMdd_HHmmss"
@@ -79,6 +89,7 @@ Copy-Item "E:\PROJETOS\brandaocontador-nfe\backend\.env" -Destination "$backupPa
 ### **FASE 2: Configuração do Servidor**
 
 #### 2.1 Conectar ao Servidor
+
 ```bash
 # Via SSH (Linux/Mac) ou PuTTY (Windows)
 ssh root@147.93.186.214
@@ -86,6 +97,7 @@ ssh root@147.93.186.214
 ```
 
 #### 2.2 Executar Script de Configuração
+
 ```bash
 # Fazer upload do script
 scp setup-contabo.sh root@147.93.186.214:/root/
@@ -97,6 +109,7 @@ chmod +x setup-contabo.sh
 ```
 
 **O script irá:**
+
 - ✅ Atualizar Ubuntu 24.04
 - ✅ Instalar Node.js 22.x
 - ✅ Instalar PM2, Nginx, Git
@@ -110,6 +123,7 @@ chmod +x setup-contabo.sh
 ### **FASE 3: Migração Automática**
 
 #### 3.1 Executar Script de Migração
+
 ```powershell
 # No Windows, executar o PowerShell como Administrador
 cd E:\PROJETOS\brandaocontador-nfe
@@ -117,6 +131,7 @@ cd E:\PROJETOS\brandaocontador-nfe
 ```
 
 **O script irá:**
+
 - ✅ Compactar sistema local
 - ✅ Transferir via SCP para servidor
 - ✅ Executar configuração remota
@@ -130,6 +145,7 @@ cd E:\PROJETOS\brandaocontador-nfe
 ### **FASE 4: Configuração de Produção**
 
 #### 4.1 Configurar Nginx
+
 ```bash
 # Copiar configuração
 sudo cp nginx-nfe.conf /etc/nginx/sites-available/nfe
@@ -139,6 +155,7 @@ sudo systemctl reload nginx
 ```
 
 #### 4.2 Configurar SSL com Certbot
+
 ```bash
 # Instalar certificados SSL
 sudo certbot --nginx -d api.brandaocontador.com.br -d nfe.brandaocontador.com.br
@@ -148,7 +165,9 @@ sudo certbot renew --dry-run
 ```
 
 #### 4.3 Configurar DNS
+
 **No painel do seu provedor de DNS:**
+
 ```
 Tipo: A
 Nome: api.brandaocontador.com.br
@@ -166,6 +185,7 @@ TTL: 300
 ### **FASE 5: Verificação e Testes**
 
 #### 5.1 Verificar Serviços
+
 ```bash
 # Status do PM2
 sudo -u nfeapp pm2 list
@@ -182,6 +202,7 @@ sudo netstat -tlnp | grep :3000
 ```
 
 #### 5.2 Testes de Conectividade
+
 ```bash
 # Teste local
 curl http://localhost:3000/health
@@ -193,6 +214,7 @@ curl https://nfe.brandaocontador.com.br/health
 ```
 
 #### 5.3 Verificar Logs
+
 ```bash
 # Logs da aplicação
 tail -f /var/log/nfe/pm2-combined.log
@@ -207,6 +229,7 @@ tail -f /var/log/nginx/error.log
 ## 🔍 TROUBLESHOOTING
 
 ### **Problema: Aplicação não inicia**
+
 ```bash
 # Verificar logs
 sudo -u nfeapp pm2 logs nfe-api
@@ -221,6 +244,7 @@ sudo -u nfeapp npm install
 ```
 
 ### **Problema: Nginx não funciona**
+
 ```bash
 # Verificar configuração
 sudo nginx -t
@@ -233,6 +257,7 @@ sudo systemctl restart nginx
 ```
 
 ### **Problema: SSL não funciona**
+
 ```bash
 # Verificar certificados
 sudo certbot certificates
@@ -245,6 +270,7 @@ sudo nginx -t
 ```
 
 ### **Problema: DNS não resolve**
+
 ```bash
 # Verificar DNS
 nslookup api.brandaocontador.com.br
@@ -258,6 +284,7 @@ dig api.brandaocontador.com.br
 ## 📊 MONITORAMENTO
 
 ### **Comandos Úteis**
+
 ```bash
 # Status geral do sistema
 htop
@@ -279,6 +306,7 @@ sudo -u nfeapp pm2 reload nfe-api
 ```
 
 ### **Backup Automático**
+
 ```bash
 # Criar script de backup diário
 sudo crontab -e
@@ -292,18 +320,21 @@ sudo crontab -e
 ## 🚨 COMANDOS DE EMERGÊNCIA
 
 ### **Parar Tudo**
+
 ```bash
 sudo -u nfeapp pm2 stop all
 sudo systemctl stop nginx
 ```
 
 ### **Reiniciar Tudo**
+
 ```bash
 sudo systemctl restart nginx
 sudo -u nfeapp pm2 restart all
 ```
 
 ### **Restaurar Backup**
+
 ```bash
 # Parar aplicação
 sudo -u nfeapp pm2 stop nfe-api
@@ -320,12 +351,14 @@ sudo -u nfeapp pm2 start nfe-api
 ## ✅ CHECKLIST FINAL
 
 ### **Antes da Migração:**
+
 - [ ] Backup local criado
 - [ ] Sistema local funcionando
 - [ ] Credenciais do servidor confirmadas
 - [ ] Scripts de migração preparados
 
 ### **Durante a Migração:**
+
 - [ ] Servidor configurado com setup-contabo.sh
 - [ ] Aplicação transferida com migrate-to-contabo.ps1
 - [ ] Nginx configurado
@@ -333,6 +366,7 @@ sudo -u nfeapp pm2 start nfe-api
 - [ ] SSL configurado
 
 ### **Após a Migração:**
+
 - [ ] DNS configurado e propagado
 - [ ] HTTPS funcionando
 - [ ] Todos os endpoints testados
@@ -345,6 +379,7 @@ sudo -u nfeapp pm2 start nfe-api
 ## 📞 SUPORTE
 
 **Em caso de problemas:**
+
 1. Verificar logs: `/var/log/nfe/`
 2. Verificar status: `pm2 list`
 3. Verificar conectividade: `curl localhost:3000/health`
@@ -356,6 +391,7 @@ sudo -u nfeapp pm2 start nfe-api
 ## 🎉 CONCLUSÃO
 
 Após seguir este guia, você terá:
+
 - ✅ Sistema NFe rodando no servidor Contabo
 - ✅ HTTPS configurado e funcionando
 - ✅ Monitoramento com PM2

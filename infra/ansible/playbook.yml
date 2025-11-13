@@ -1,0 +1,31 @@
+---
+- hosts: all
+  become: yes
+  tasks:
+    - name: Update packages
+      apt:
+        update_cache: yes
+        upgrade: dist
+    - name: Ensure users
+      user:
+        name: appuser
+        state: present
+    - name: Configure UFW
+      ufw:
+        state: enabled
+        policy: allow
+    - name: Allow SSH
+      ufw:
+        rule: allow
+        port: 22
+        proto: tcp
+    - name: Install Node.js
+      apt:
+        name: nodejs
+        state: present
+    - name: Install PM2
+      npm:
+        name: pm2
+        global: yes
+    - name: Verify installation
+      command: pm2 -v

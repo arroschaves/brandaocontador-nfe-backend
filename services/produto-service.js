@@ -1,5 +1,5 @@
-const database = require('../config/database');
-const validationService = require('./validation-service');
+const database = require("../config/database");
+const validationService = require("./validation-service");
 
 class ProdutoService {
   /**
@@ -12,16 +12,18 @@ class ProdutoService {
       if (!validacao.valido) {
         return {
           sucesso: false,
-          erros: validacao.erros
+          erros: validacao.erros,
         };
       }
 
       // Verificar se já existe produto com o mesmo código
-      const produtoExistente = await database.buscarProdutoPorCodigo(dadosProduto.codigo);
+      const produtoExistente = await database.buscarProdutoPorCodigo(
+        dadosProduto.codigo,
+      );
       if (produtoExistente) {
         return {
           sucesso: false,
-          erros: ['Já existe um produto com este código']
+          erros: ["Já existe um produto com este código"],
         };
       }
 
@@ -30,21 +32,20 @@ class ProdutoService {
         ...dadosProduto,
         ativo: true,
         criadoEm: new Date().toISOString(),
-        criadoPor: usuarioId
+        criadoPor: usuarioId,
       };
 
       const produtoCriado = await database.criarProduto(produto);
 
       return {
         sucesso: true,
-        produto: produtoCriado
+        produto: produtoCriado,
       };
-
     } catch (error) {
-      console.error('❌ Erro ao criar produto:', error);
+      console.error("❌ Erro ao criar produto:", error);
       return {
         sucesso: false,
-        erros: ['Erro interno do servidor']
+        erros: ["Erro interno do servidor"],
       };
     }
   }
@@ -55,18 +56,17 @@ class ProdutoService {
   static async listarProdutos(filtros, usuarioId) {
     try {
       const produtos = await database.listarProdutos(filtros);
-      
+
       return {
         sucesso: true,
         produtos: produtos.dados,
-        paginacao: produtos.paginacao
+        paginacao: produtos.paginacao,
       };
-
     } catch (error) {
-      console.error('❌ Erro ao listar produtos:', error);
+      console.error("❌ Erro ao listar produtos:", error);
       return {
         sucesso: false,
-        erros: ['Erro interno do servidor']
+        erros: ["Erro interno do servidor"],
       };
     }
   }
@@ -77,24 +77,23 @@ class ProdutoService {
   static async buscarProdutoPorId(produtoId, usuarioId) {
     try {
       const produto = await database.buscarProdutoPorId(produtoId);
-      
+
       if (!produto) {
         return {
           sucesso: false,
-          erros: ['Produto não encontrado']
+          erros: ["Produto não encontrado"],
         };
       }
 
       return {
         sucesso: true,
-        produto
+        produto,
       };
-
     } catch (error) {
-      console.error('❌ Erro ao buscar produto:', error);
+      console.error("❌ Erro ao buscar produto:", error);
       return {
         sucesso: false,
-        erros: ['Erro interno do servidor']
+        erros: ["Erro interno do servidor"],
       };
     }
   }
@@ -105,24 +104,23 @@ class ProdutoService {
   static async buscarProdutoPorCodigo(codigo, usuarioId) {
     try {
       const produto = await database.buscarProdutoPorCodigo(codigo);
-      
+
       if (!produto) {
         return {
           sucesso: false,
-          erros: ['Produto não encontrado']
+          erros: ["Produto não encontrado"],
         };
       }
 
       return {
         sucesso: true,
-        produto
+        produto,
       };
-
     } catch (error) {
-      console.error('❌ Erro ao buscar produto por código:', error);
+      console.error("❌ Erro ao buscar produto por código:", error);
       return {
         sucesso: false,
-        erros: ['Erro interno do servidor']
+        erros: ["Erro interno do servidor"],
       };
     }
   }
@@ -137,7 +135,7 @@ class ProdutoService {
       if (!produtoExistente) {
         return {
           sucesso: false,
-          erros: ['Produto não encontrado']
+          erros: ["Produto não encontrado"],
         };
       }
 
@@ -146,7 +144,7 @@ class ProdutoService {
       if (!validacao.valido) {
         return {
           sucesso: false,
-          erros: validacao.erros
+          erros: validacao.erros,
         };
       }
 
@@ -154,21 +152,23 @@ class ProdutoService {
       const dadosCompletos = {
         ...dadosAtualizacao,
         atualizadoEm: new Date().toISOString(),
-        atualizadoPor: usuarioId
+        atualizadoPor: usuarioId,
       };
 
-      const produtoAtualizado = await database.atualizarProduto(produtoId, dadosCompletos);
+      const produtoAtualizado = await database.atualizarProduto(
+        produtoId,
+        dadosCompletos,
+      );
 
       return {
         sucesso: true,
-        produto: produtoAtualizado
+        produto: produtoAtualizado,
       };
-
     } catch (error) {
-      console.error('❌ Erro ao atualizar produto:', error);
+      console.error("❌ Erro ao atualizar produto:", error);
       return {
         sucesso: false,
-        erros: ['Erro interno do servidor']
+        erros: ["Erro interno do servidor"],
       };
     }
   }
@@ -182,26 +182,25 @@ class ProdutoService {
       if (!produto) {
         return {
           sucesso: false,
-          erros: ['Produto não encontrado']
+          erros: ["Produto não encontrado"],
         };
       }
 
       const produtoDesativado = await database.atualizarProduto(produtoId, {
         ativo: false,
         desativadoEm: new Date().toISOString(),
-        desativadoPor: usuarioId
+        desativadoPor: usuarioId,
       });
 
       return {
         sucesso: true,
-        produto: produtoDesativado
+        produto: produtoDesativado,
       };
-
     } catch (error) {
-      console.error('❌ Erro ao desativar produto:', error);
+      console.error("❌ Erro ao desativar produto:", error);
       return {
         sucesso: false,
-        erros: ['Erro interno do servidor']
+        erros: ["Erro interno do servidor"],
       };
     }
   }
@@ -213,20 +212,19 @@ class ProdutoService {
     try {
       const produtos = await database.listarProdutos({
         ...filtros,
-        categoria: filtros.categoria
+        categoria: filtros.categoria,
       });
-      
+
       return {
         sucesso: true,
         produtos: produtos.dados,
-        paginacao: produtos.paginacao
+        paginacao: produtos.paginacao,
       };
-
     } catch (error) {
-      console.error('❌ Erro ao buscar produtos por categoria:', error);
+      console.error("❌ Erro ao buscar produtos por categoria:", error);
       return {
         sucesso: false,
-        erros: ['Erro interno do servidor']
+        erros: ["Erro interno do servidor"],
       };
     }
   }
@@ -239,29 +237,29 @@ class ProdutoService {
 
     if (!isUpdate || dados.nome !== undefined) {
       if (!dados.nome || dados.nome.trim().length < 2) {
-        erros.push('Nome do produto deve ter pelo menos 2 caracteres');
+        erros.push("Nome do produto deve ter pelo menos 2 caracteres");
       }
     }
 
     if (!isUpdate || dados.codigo !== undefined) {
       if (!dados.codigo || dados.codigo.trim().length < 1) {
-        erros.push('Código do produto é obrigatório');
+        erros.push("Código do produto é obrigatório");
       }
     }
 
     if (!isUpdate || dados.preco !== undefined) {
       if (!dados.preco || dados.preco <= 0) {
-        erros.push('Preço deve ser maior que zero');
+        erros.push("Preço deve ser maior que zero");
       }
     }
 
     if (dados.ncm && dados.ncm.length !== 8) {
-      erros.push('NCM deve ter 8 dígitos');
+      erros.push("NCM deve ter 8 dígitos");
     }
 
     return {
       valido: erros.length === 0,
-      erros
+      erros,
     };
   }
 }

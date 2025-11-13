@@ -1,8 +1,8 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const cteService = require('../services/cte-service');
-const validationService = require('../services/validation-service');
-const authMiddleware = require('../middleware/auth');
+const cteService = require("../services/cte-service");
+const validationService = require("../services/validation-service");
+const authMiddleware = require("../middleware/auth");
 
 /**
  * @swagger
@@ -192,47 +192,50 @@ const authMiddleware = require('../middleware/auth');
  *                   type: string
  *                   format: date-time
  */
-router.post('/emitir', authMiddleware.verificarAutenticacao(), async (req, res) => {
-  try {
-    const dadosCte = req.body;
-    
-    // Validar dados de entrada
-    const validacao = await validationService.validarDadosCte(dadosCte);
-    if (!validacao.valido) {
-      return res.status(400).json({
-        sucesso: false,
-        erro: 'Dados inválidos',
-        detalhes: validacao.erros
-      });
-    }
+router.post(
+  "/emitir",
+  authMiddleware.verificarAutenticacao(),
+  async (req, res) => {
+    try {
+      const dadosCte = req.body;
 
-    // Validar prazos específicos do CTe
-    const validacaoPrazos = await cteService.validarPrazos(dadosCte);
-    if (!validacaoPrazos.valido) {
-      return res.status(400).json({
+      // Validar dados de entrada
+      const validacao = await validationService.validarDadosCte(dadosCte);
+      if (!validacao.valido) {
+        return res.status(400).json({
+          sucesso: false,
+          erro: "Dados inválidos",
+          detalhes: validacao.erros,
+        });
+      }
+
+      // Validar prazos específicos do CTe
+      const validacaoPrazos = await cteService.validarPrazos(dadosCte);
+      if (!validacaoPrazos.valido) {
+        return res.status(400).json({
+          sucesso: false,
+          erro: "Prazos inválidos",
+          detalhes: validacaoPrazos.erros,
+        });
+      }
+
+      // Emitir CTe
+      const resultado = await cteService.emitirCte(dadosCte, req.user);
+
+      res.json({
+        sucesso: true,
+        ...resultado,
+      });
+    } catch (error) {
+      console.error("Erro ao emitir CTe:", error);
+      res.status(500).json({
         sucesso: false,
-        erro: 'Prazos inválidos',
-        detalhes: validacaoPrazos.erros
+        erro: "Erro interno do servidor",
+        detalhes: error.message,
       });
     }
-    
-    // Emitir CTe
-    const resultado = await cteService.emitirCte(dadosCte, req.user);
-    
-    res.json({
-      sucesso: true,
-      ...resultado
-    });
-    
-  } catch (error) {
-    console.error('Erro ao emitir CTe:', error);
-    res.status(500).json({
-      sucesso: false,
-      erro: 'Erro interno do servidor',
-      detalhes: error.message
-    });
-  }
-});
+  },
+);
 
 /**
  * @swagger
@@ -255,33 +258,36 @@ router.post('/emitir', authMiddleware.verificarAutenticacao(), async (req, res) 
  *       404:
  *         description: CTe não encontrado
  */
-router.get('/consultar/:chave', authMiddleware.verificarAutenticacao(), async (req, res) => {
-  try {
-    const { chave } = req.params;
-    
-    const cte = await cteService.consultarCte(chave, req.user);
-    
-    if (!cte) {
-      return res.status(404).json({
+router.get(
+  "/consultar/:chave",
+  authMiddleware.verificarAutenticacao(),
+  async (req, res) => {
+    try {
+      const { chave } = req.params;
+
+      const cte = await cteService.consultarCte(chave, req.user);
+
+      if (!cte) {
+        return res.status(404).json({
+          sucesso: false,
+          erro: "CTe não encontrado",
+        });
+      }
+
+      res.json({
+        sucesso: true,
+        cte,
+      });
+    } catch (error) {
+      console.error("Erro ao consultar CTe:", error);
+      res.status(500).json({
         sucesso: false,
-        erro: 'CTe não encontrado'
+        erro: "Erro interno do servidor",
+        detalhes: error.message,
       });
     }
-    
-    res.json({
-      sucesso: true,
-      cte
-    });
-    
-  } catch (error) {
-    console.error('Erro ao consultar CTe:', error);
-    res.status(500).json({
-      sucesso: false,
-      erro: 'Erro interno do servidor',
-      detalhes: error.message
-    });
-  }
-});
+  },
+);
 
 /**
  * @swagger
@@ -326,32 +332,35 @@ router.get('/consultar/:chave', authMiddleware.verificarAutenticacao(), async (r
  *       200:
  *         description: Lista de CTes
  */
-router.get('/historico', authMiddleware.verificarAutenticacao(), async (req, res) => {
-  try {
-    const filtros = {
-      page: parseInt(req.query.page) || 1,
-      limit: parseInt(req.query.limit) || 20,
-      dataInicio: req.query.dataInicio,
-      dataFim: req.query.dataFim,
-      situacao: req.query.situacao
-    };
-    
-    const resultado = await cteService.listarCtes(filtros, req.user);
-    
-    res.json({
-      sucesso: true,
-      ...resultado
-    });
-    
-  } catch (error) {
-    console.error('Erro ao listar CTes:', error);
-    res.status(500).json({
-      sucesso: false,
-      erro: 'Erro interno do servidor',
-      detalhes: error.message
-    });
-  }
-});
+router.get(
+  "/historico",
+  authMiddleware.verificarAutenticacao(),
+  async (req, res) => {
+    try {
+      const filtros = {
+        page: parseInt(req.query.page) || 1,
+        limit: parseInt(req.query.limit) || 20,
+        dataInicio: req.query.dataInicio,
+        dataFim: req.query.dataFim,
+        situacao: req.query.situacao,
+      };
+
+      const resultado = await cteService.listarCtes(filtros, req.user);
+
+      res.json({
+        sucesso: true,
+        ...resultado,
+      });
+    } catch (error) {
+      console.error("Erro ao listar CTes:", error);
+      res.status(500).json({
+        sucesso: false,
+        erro: "Erro interno do servidor",
+        detalhes: error.message,
+      });
+    }
+  },
+);
 
 /**
  * @swagger
@@ -380,26 +389,33 @@ router.get('/historico', authMiddleware.verificarAutenticacao(), async (req, res
  *       200:
  *         description: Validação de vínculos realizada
  */
-router.post('/validar-vinculos', authMiddleware.verificarAutenticacao(), async (req, res) => {
-  try {
-    const { chavesCte, chaveMdfe } = req.body;
-    
-    const validacao = await cteService.validarVinculos(chavesCte, chaveMdfe, req.user);
-    
-    res.json({
-      sucesso: true,
-      validacao
-    });
-    
-  } catch (error) {
-    console.error('Erro ao validar vínculos:', error);
-    res.status(500).json({
-      sucesso: false,
-      erro: 'Erro interno do servidor',
-      detalhes: error.message
-    });
-  }
-});
+router.post(
+  "/validar-vinculos",
+  authMiddleware.verificarAutenticacao(),
+  async (req, res) => {
+    try {
+      const { chavesCte, chaveMdfe } = req.body;
+
+      const validacao = await cteService.validarVinculos(
+        chavesCte,
+        chaveMdfe,
+        req.user,
+      );
+
+      res.json({
+        sucesso: true,
+        validacao,
+      });
+    } catch (error) {
+      console.error("Erro ao validar vínculos:", error);
+      res.status(500).json({
+        sucesso: false,
+        erro: "Erro interno do servidor",
+        detalhes: error.message,
+      });
+    }
+  },
+);
 
 /**
  * @swagger
@@ -448,25 +464,28 @@ router.post('/validar-vinculos', authMiddleware.verificarAutenticacao(), async (
  *       200:
  *         description: Cálculo de frete realizado
  */
-router.post('/calcular-frete', authMiddleware.verificarAutenticacao(), async (req, res) => {
-  try {
-    const dadosCalculo = req.body;
-    
-    const calculo = await cteService.calcularFrete(dadosCalculo);
-    
-    res.json({
-      sucesso: true,
-      calculo
-    });
-    
-  } catch (error) {
-    console.error('Erro ao calcular frete:', error);
-    res.status(500).json({
-      sucesso: false,
-      erro: 'Erro interno do servidor',
-      detalhes: error.message
-    });
-  }
-});
+router.post(
+  "/calcular-frete",
+  authMiddleware.verificarAutenticacao(),
+  async (req, res) => {
+    try {
+      const dadosCalculo = req.body;
+
+      const calculo = await cteService.calcularFrete(dadosCalculo);
+
+      res.json({
+        sucesso: true,
+        calculo,
+      });
+    } catch (error) {
+      console.error("Erro ao calcular frete:", error);
+      res.status(500).json({
+        sucesso: false,
+        erro: "Erro interno do servidor",
+        detalhes: error.message,
+      });
+    }
+  },
+);
 
 module.exports = router;

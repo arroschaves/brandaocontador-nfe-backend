@@ -5,6 +5,7 @@
 ### 1.1 Variáveis de Ambiente
 
 #### Frontend (.env.local)
+
 ```bash
 # Autenticação
 NEXTAUTH_URL=https://nfe.brandaocontador.com.br
@@ -26,6 +27,7 @@ NEXT_PUBLIC_SENTRY_DSN=https://xxx@xxx.ingest.sentry.io/xxx
 ```
 
 #### Backend (.env)
+
 ```bash
 # Servidor
 PORT=3001
@@ -91,6 +93,7 @@ SENTRY_DSN=https://xxx@xxx.ingest.sentry.io/xxx
 ### 1.2 Configuração do Banco de Dados
 
 #### Instalação PostgreSQL (Ubuntu)
+
 ```bash
 # Instalar PostgreSQL
 sudo apt update
@@ -122,6 +125,7 @@ sudo systemctl restart postgresql
 ```
 
 #### Executar Migrations
+
 ```bash
 # No diretório do backend
 npm run migrate:up
@@ -133,6 +137,7 @@ psql -U brandao_user -d brandao_contador_nfe -f migrations/001_initial_schema.sq
 ### 1.3 Configuração do Nginx
 
 #### Arquivo de configuração completo
+
 ```nginx
 # /etc/nginx/sites-available/api.brandaocontador.com.br
 server {
@@ -144,7 +149,7 @@ server {
 server {
     listen 443 ssl http2;
     server_name api.brandaocontador.com.br;
-    
+
     # SSL Configuration
     ssl_certificate /etc/letsencrypt/live/api.brandaocontador.com.br/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/api.brandaocontador.com.br/privkey.pem;
@@ -153,32 +158,32 @@ server {
     ssl_prefer_server_ciphers off;
     ssl_session_cache shared:SSL:10m;
     ssl_session_timeout 10m;
-    
+
     # Security Headers
     add_header X-Frame-Options DENY;
     add_header X-Content-Type-Options nosniff;
     add_header X-XSS-Protection "1; mode=block";
     add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
     add_header Referrer-Policy "strict-origin-when-cross-origin";
-    
+
     # Rate Limiting
     limit_req_zone $binary_remote_addr zone=api:10m rate=10r/s;
     limit_req zone=api burst=20 nodelay;
-    
+
     # File upload limit
     client_max_body_size 10M;
-    
+
     # Timeouts
     proxy_connect_timeout 60s;
     proxy_send_timeout 60s;
     proxy_read_timeout 60s;
-    
+
     # Compression
     gzip on;
     gzip_vary on;
     gzip_min_length 1024;
     gzip_types text/plain text/css text/xml text/javascript application/javascript application/xml+rss application/json;
-    
+
     # Main application
     location / {
         proxy_pass http://localhost:3001;
@@ -191,20 +196,20 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
         proxy_cache_bypass $http_upgrade;
     }
-    
+
     # Health check endpoint
     location /health {
         access_log off;
         proxy_pass http://localhost:3001/health;
     }
-    
+
     # Static files (se houver)
     location /static/ {
         alias /var/www/brandao-contador-api/public/;
         expires 1y;
         add_header Cache-Control "public, immutable";
     }
-    
+
     # Logs
     access_log /var/log/nginx/api.brandaocontador.com.br.access.log;
     error_log /var/log/nginx/api.brandaocontador.com.br.error.log;
@@ -218,11 +223,13 @@ server {
 #### Erro: "Failed to fetch" ou "Network Error"
 
 **Sintomas**:
+
 - Requests para API falham
 - Console mostra erros de CORS
 - Páginas não carregam dados
 
 **Diagnóstico**:
+
 ```bash
 # Verificar se backend está rodando
 curl -I https://api.brandaocontador.com.br/health
@@ -236,6 +243,7 @@ curl -H "Origin: https://nfe.brandaocontador.com.br" \
 ```
 
 **Soluções**:
+
 1. Verificar variável `NEXT_PUBLIC_BACKEND_URL`
 2. Confirmar configuração CORS no backend
 3. Verificar certificado SSL
@@ -244,18 +252,24 @@ curl -H "Origin: https://nfe.brandaocontador.com.br" \
 #### Erro: "Authentication failed"
 
 **Sintomas**:
+
 - Login não funciona
 - Sessão expira rapidamente
 - Redirecionamentos incorretos
 
 **Diagnóstico**:
+
 ```javascript
 // Adicionar logs temporários
-console.log('NEXTAUTH_URL:', process.env.NEXTAUTH_URL);
-console.log('NEXTAUTH_SECRET:', process.env.NEXTAUTH_SECRET ? 'SET' : 'NOT SET');
+console.log("NEXTAUTH_URL:", process.env.NEXTAUTH_URL);
+console.log(
+  "NEXTAUTH_SECRET:",
+  process.env.NEXTAUTH_SECRET ? "SET" : "NOT SET",
+);
 ```
 
 **Soluções**:
+
 1. Verificar `NEXTAUTH_URL` e `NEXTAUTH_SECRET`
 2. Confirmar configuração de cookies
 3. Verificar timezone do servidor
@@ -266,11 +280,13 @@ console.log('NEXTAUTH_SECRET:', process.env.NEXTAUTH_SECRET ? 'SET' : 'NOT SET')
 #### Erro: "Database connection failed"
 
 **Sintomas**:
+
 - API retorna erro 500
 - Logs mostram erro de conexão
 - Aplicação não inicia
 
 **Diagnóstico**:
+
 ```bash
 # Testar conexão direta
 psql -U brandao_user -d brandao_contador_nfe -h localhost
@@ -283,6 +299,7 @@ sudo tail -f /var/log/postgresql/postgresql-14-main.log
 ```
 
 **Soluções**:
+
 1. Verificar credenciais do banco
 2. Confirmar que PostgreSQL está rodando
 3. Verificar configuração de firewall
@@ -291,11 +308,13 @@ sudo tail -f /var/log/postgresql/postgresql-14-main.log
 #### Erro: "Certificate not found" ou "Invalid certificate"
 
 **Sintomas**:
+
 - Emissão de NFe falha
 - Erro de assinatura digital
 - SEFAZ rejeita requisições
 
 **Diagnóstico**:
+
 ```bash
 # Verificar certificados
 ls -la /var/www/certificates/
@@ -308,6 +327,7 @@ ls -la /var/www/certificates/
 ```
 
 **Soluções**:
+
 1. Verificar caminho do certificado
 2. Confirmar senha do certificado
 3. Verificar validade do certificado
@@ -318,6 +338,7 @@ ls -la /var/www/certificates/
 #### Frontend lento
 
 **Diagnóstico**:
+
 ```bash
 # Analisar bundle
 npm run analyze
@@ -327,6 +348,7 @@ lighthouse https://nfe.brandaocontador.com.br --output html --output-path ./ligh
 ```
 
 **Soluções**:
+
 1. Implementar lazy loading
 2. Otimizar imagens
 3. Reduzir bundle size
@@ -335,6 +357,7 @@ lighthouse https://nfe.brandaocontador.com.br --output html --output-path ./ligh
 #### Backend lento
 
 **Diagnóstico**:
+
 ```bash
 # Monitorar recursos
 top
@@ -347,6 +370,7 @@ SELECT query, mean_time, calls FROM pg_stat_statements ORDER BY mean_time DESC L
 ```
 
 **Soluções**:
+
 1. Otimizar queries SQL
 2. Adicionar índices
 3. Implementar cache
@@ -547,14 +571,14 @@ DISK_THRESHOLD=90
 send_alert() {
     local message="$1"
     local severity="$2"
-    
+
     echo "[$(date)] ALERT [$severity]: $message"
-    
+
     # Enviar para Slack
     curl -X POST -H 'Content-type: application/json' \
         --data "{\"text\":\"🚨 [$severity] $message\"}" \
         $SLACK_WEBHOOK
-    
+
     # Enviar email (se configurado)
     echo "$message" | mail -s "[BRANDÃO CONTADOR] Alert [$severity]" $ALERT_EMAIL
 }

@@ -1,11 +1,11 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const authMiddleware = require('../middleware/auth');
-const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
-const CertificateService = require('../services/certificate-service');
-const UserService = require('../services/user-service');
+const authMiddleware = require("../middleware/auth");
+const multer = require("multer");
+const path = require("path");
+const fs = require("fs");
+const CertificateService = require("../services/certificate-service");
+const UserService = require("../services/user-service");
 
 // Configuração do multer para upload de certificados
 const storage = multer.memoryStorage();
@@ -14,11 +14,13 @@ const upload = multer({
   limits: { fileSize: 15 * 1024 * 1024 }, // 15MB
   fileFilter: (req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
-    if (!['.pfx', '.p12'].includes(ext)) {
-      return cb(new Error('Formato de certificado inválido (use .pfx ou .p12)'));
+    if (![".pfx", ".p12"].includes(ext)) {
+      return cb(
+        new Error("Formato de certificado inválido (use .pfx ou .p12)"),
+      );
     }
     cb(null, true);
-  }
+  },
 });
 
 /**
@@ -57,31 +59,27 @@ const upload = multer({
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.get('/', authMiddleware.verificarAutenticacao(), async (req, res) => {
+router.get("/", authMiddleware.verificarAutenticacao(), async (req, res) => {
   try {
-    const advancedLogger = req.app.get('advancedLogger');
+    const advancedLogger = req.app.get("advancedLogger");
 
     // Log da requisição
-    if (advancedLogger) {
-      advancedLogger.logInfo('auth', 'Solicitação de dados do usuário', req, {
-        userId: req.user.id
-      });
-    }
+    advancedLogger.logInfo("auth", "Solicitação de dados do usuário", req, {
+      userId: req.user.id,
+    });
 
     // Buscar dados do usuário usando o UserService
     const userResult = await UserService.obterUsuario(req.user.id);
 
     if (!userResult.success) {
-      if (advancedLogger) {
-        advancedLogger.logError('auth', 'Usuário não encontrado', req, null, {
-          userId: req.user.id
-        });
-      }
+      advancedLogger.logError("auth", "Usuário não encontrado", req, null, {
+        userId: req.user.id,
+      });
 
       return res.status(404).json({
         sucesso: false,
-        erro: 'Usuário não encontrado',
-        codigo: 'USER_NOT_FOUND'
+        erro: "Usuário não encontrado",
+        codigo: "USER_NOT_FOUND",
       });
     }
 
@@ -89,45 +87,55 @@ router.get('/', authMiddleware.verificarAutenticacao(), async (req, res) => {
 
     // Verificar se tem certificado digital
     const certificateService = new CertificateService();
-    const certificadoResult = await certificateService.obterCertificado(req.user.id);
-    const certificadoInfo = certificadoResult.success ? certificadoResult.data : null;
+    const certificadoResult = await certificateService.obterCertificado(
+      req.user.id,
+    );
+    const certificadoInfo = certificadoResult.success
+      ? certificadoResult.data
+      : null;
 
     const dadosCompletos = {
       ...dadosUsuario,
-      certificado: certificadoInfo ? {
-        valido: certificadoInfo.dadosCertificado?.valido || true,
-        dataVencimento: certificadoInfo.dadosCertificado?.dataVencimento,
-        titular: certificadoInfo.dadosCertificado?.titular,
-        cnpj: certificadoInfo.dadosCertificado?.cnpj
-      } : null
+      certificado: certificadoInfo
+        ? {
+            valido: certificadoInfo.dadosCertificado?.valido || true,
+            dataVencimento: certificadoInfo.dadosCertificado?.dataVencimento,
+            titular: certificadoInfo.dadosCertificado?.titular,
+            cnpj: certificadoInfo.dadosCertificado?.cnpj,
+          }
+        : null,
     };
 
-    if (advancedLogger) {
-      advancedLogger.logInfo('auth', 'Dados do usuário retornados com sucesso', req, {
+    advancedLogger.logInfo(
+      "auth",
+      "Dados do usuário retornados com sucesso",
+      req,
+      {
         userId: req.user.id,
-        temCertificado: !!certificadoInfo
-      });
-    }
+        temCertificado: !!certificadoInfo,
+      },
+    );
 
     res.json({
       sucesso: true,
-      dados: dadosCompletos
+      dados: dadosCompletos,
     });
-
   } catch (error) {
-    const advancedLogger = req.app.get('advancedLogger');
-    if (advancedLogger) {
-      advancedLogger.logError('auth', 'Erro ao obter dados do usuário', req, error, {
-        userId: req.user?.id
-      });
-    } else {
-      console.error('Erro ao obter dados do usuário:', error);
-    }
+    const advancedLogger = req.app.get("advancedLogger");
+    advancedLogger.logError(
+      "auth",
+      "Erro ao obter dados do usuário",
+      req,
+      error,
+      {
+        userId: req.user?.id,
+      },
+    );
 
     res.status(500).json({
       sucesso: false,
-      erro: 'Erro interno do servidor',
-      codigo: 'INTERNAL_ERROR'
+      erro: "Erro interno do servidor",
+      codigo: "INTERNAL_ERROR",
     });
   }
 });
@@ -204,33 +212,39 @@ router.get('/', authMiddleware.verificarAutenticacao(), async (req, res) => {
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.patch('/', authMiddleware.verificarAutenticacao(), async (req, res) => {
+router.patch("/", authMiddleware.verificarAutenticacao(), async (req, res) => {
   try {
-    const advancedLogger = req.app.get('advancedLogger');
+    const advancedLogger = req.app.get("advancedLogger");
     const { nome, telefone, endereco } = req.body;
 
     // Log da requisição
-    if (advancedLogger) {
-      advancedLogger.logInfo('auth', 'Solicitação de atualização de dados do usuário', req, {
+    advancedLogger.logInfo(
+      "auth",
+      "Solicitação de atualização de dados do usuário",
+      req,
+      {
         userId: req.user.id,
-        camposAtualizados: Object.keys(req.body)
-      });
-    }
+        camposAtualizados: Object.keys(req.body),
+      },
+    );
 
     // Validações básicas
-    if (nome && (typeof nome !== 'string' || nome.trim().length < 2)) {
+    if (nome && (typeof nome !== "string" || nome.trim().length < 2)) {
       return res.status(400).json({
         sucesso: false,
-        erro: 'Nome deve ter pelo menos 2 caracteres',
-        codigo: 'INVALID_NAME'
+        erro: "Nome deve ter pelo menos 2 caracteres",
+        codigo: "INVALID_NAME",
       });
     }
 
-    if (telefone && (typeof telefone !== 'string' || telefone.trim().length < 10)) {
+    if (
+      telefone &&
+      (typeof telefone !== "string" || telefone.trim().length < 10)
+    ) {
       return res.status(400).json({
         sucesso: false,
-        erro: 'Telefone deve ter pelo menos 10 caracteres',
-        codigo: 'INVALID_PHONE'
+        erro: "Telefone deve ter pelo menos 10 caracteres",
+        codigo: "INVALID_PHONE",
       });
     }
 
@@ -250,52 +264,57 @@ router.patch('/', authMiddleware.verificarAutenticacao(), async (req, res) => {
     }
 
     // Atualizar usuário usando UserService
-    const updateResult = await UserService.atualizarUsuario(req.user.id, dadosAtualizados);
+    const updateResult = await UserService.atualizarUsuario(
+      req.user.id,
+      dadosAtualizados,
+    );
 
     if (!updateResult.success) {
-      if (advancedLogger) {
-        advancedLogger.logError('auth', 'Erro ao atualizar usuário', req, null, {
-          userId: req.user.id,
-          erro: updateResult.message
-        });
-      }
+      advancedLogger.logError("auth", "Erro ao atualizar usuário", req, null, {
+        userId: req.user.id,
+        erro: updateResult.message,
+      });
 
       return res.status(404).json({
         sucesso: false,
-        erro: updateResult.message || 'Usuário não encontrado',
-        codigo: 'USER_UPDATE_ERROR'
+        erro: updateResult.message || "Usuário não encontrado",
+        codigo: "USER_UPDATE_ERROR",
       });
     }
 
     const dadosUsuario = updateResult.data;
 
-    if (advancedLogger) {
-      advancedLogger.logInfo('auth', 'Dados do usuário atualizados com sucesso', req, {
+    advancedLogger.logInfo(
+      "auth",
+      "Dados do usuário atualizados com sucesso",
+      req,
+      {
         userId: req.user.id,
-        dadosAtualizados
-      });
-    }
+        dadosAtualizados,
+      },
+    );
 
     res.json({
       sucesso: true,
       dados: dadosUsuario,
-      mensagem: 'Dados atualizados com sucesso'
+      mensagem: "Dados atualizados com sucesso",
     });
-
   } catch (error) {
-    const advancedLogger = req.app.get('advancedLogger');
-    if (advancedLogger) {
-      advancedLogger.logError('auth', 'Erro ao atualizar dados do usuário', req, error, {
-        userId: req.user?.id
-      });
-    } else {
-      console.error('Erro ao atualizar dados do usuário:', error);
-    }
+    const advancedLogger = req.app.get("advancedLogger");
+    advancedLogger.logError(
+      "auth",
+      "Erro ao atualizar dados do usuário",
+      req,
+      error,
+      {
+        userId: req.user?.id,
+      },
+    );
 
     res.status(500).json({
       sucesso: false,
-      erro: 'Erro interno do servidor',
-      codigo: 'INTERNAL_ERROR'
+      erro: "Erro interno do servidor",
+      codigo: "INTERNAL_ERROR",
     });
   }
 });
@@ -369,108 +388,123 @@ router.patch('/', authMiddleware.verificarAutenticacao(), async (req, res) => {
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.post('/certificado', authMiddleware.verificarAutenticacao(), upload.single('certificado'), async (req, res) => {
-  try {
-    const advancedLogger = req.app.get('advancedLogger');
-    const { senha } = req.body;
-
-    // Log da requisição
-    if (advancedLogger) {
-      advancedLogger.logInfo('certificados', 'Solicitação de upload de certificado', req, {
-        userId: req.user.id,
-        nomeArquivo: req.file?.originalname
-      });
-    }
-
-    if (!req.file) {
-      return res.status(400).json({
-        sucesso: false,
-        erro: 'Arquivo de certificado é obrigatório',
-        codigo: 'MISSING_CERTIFICATE_FILE'
-      });
-    }
-
-    if (!senha) {
-      return res.status(400).json({
-        sucesso: false,
-        erro: 'Senha do certificado é obrigatória',
-        codigo: 'MISSING_CERTIFICATE_PASSWORD'
-      });
-    }
-
-    // Processar certificado
-    const certificateService = new CertificateService();
-
+router.post(
+  "/certificado",
+  authMiddleware.verificarAutenticacao(),
+  upload.single("certificado"),
+  async (req, res) => {
     try {
-      const resultado = await certificateService.installCertificate(
-        req.user.id,
-        req.file.buffer,
-        senha,
-        req.file.originalname
+      const advancedLogger = req.app.get("advancedLogger");
+      const { senha } = req.body;
+
+      // Log da requisição
+      advancedLogger.logInfo(
+        "certificados",
+        "Solicitação de upload de certificado",
+        req,
+        {
+          userId: req.user.id,
+          nomeArquivo: req.file?.originalname,
+        },
       );
 
-      if (advancedLogger) {
-        advancedLogger.logInfo('certificados', 'Certificado instalado com sucesso', req, {
-          userId: req.user.id,
-          titular: resultado.titular,
-          cnpj: resultado.cnpj,
-          dataVencimento: resultado.dataVencimento
-        });
-      }
-
-      res.json({
-        sucesso: true,
-        dados: resultado,
-        mensagem: 'Certificado instalado com sucesso'
-      });
-
-    } catch (certError) {
-      if (advancedLogger) {
-        advancedLogger.logError('certificados', 'Erro ao processar certificado', req, certError, {
-          userId: req.user.id,
-          nomeArquivo: req.file.originalname
-        });
-      }
-
-      if (certError.message.includes('senha')) {
+      if (!req.file) {
         return res.status(400).json({
           sucesso: false,
-          erro: 'Senha do certificado incorreta',
-          codigo: 'INVALID_CERTIFICATE_PASSWORD'
+          erro: "Arquivo de certificado é obrigatório",
+          codigo: "MISSING_CERTIFICATE_FILE",
         });
       }
 
-      if (certError.message.includes('formato')) {
+      if (!senha) {
         return res.status(400).json({
           sucesso: false,
-          erro: 'Formato de certificado inválido',
-          codigo: 'INVALID_CERTIFICATE_FORMAT'
+          erro: "Senha do certificado é obrigatória",
+          codigo: "MISSING_CERTIFICATE_PASSWORD",
         });
       }
 
-      return res.status(400).json({
+      // Processar certificado
+      const certificateService = new CertificateService();
+
+      try {
+        const resultado = await certificateService.installCertificate(
+          req.user.id,
+          req.file.buffer,
+          senha,
+          req.file.originalname,
+        );
+
+        advancedLogger.logInfo(
+          "certificados",
+          "Certificado instalado com sucesso",
+          req,
+          {
+            userId: req.user.id,
+            titular: resultado.titular,
+            cnpj: resultado.cnpj,
+            dataVencimento: resultado.dataVencimento,
+          },
+        );
+
+        res.json({
+          sucesso: true,
+          dados: resultado,
+          mensagem: "Certificado instalado com sucesso",
+        });
+      } catch (certError) {
+        advancedLogger.logError(
+          "certificados",
+          "Erro ao processar certificado",
+          req,
+          certError,
+          {
+            userId: req.user.id,
+            nomeArquivo: req.file.originalname,
+          },
+        );
+
+        if (certError.message.includes("senha")) {
+          return res.status(400).json({
+            sucesso: false,
+            erro: "Senha do certificado incorreta",
+            codigo: "INVALID_CERTIFICATE_PASSWORD",
+          });
+        }
+
+        if (certError.message.includes("formato")) {
+          return res.status(400).json({
+            sucesso: false,
+            erro: "Formato de certificado inválido",
+            codigo: "INVALID_CERTIFICATE_FORMAT",
+          });
+        }
+
+        return res.status(400).json({
+          sucesso: false,
+          erro: "Erro ao processar certificado: " + certError.message,
+          codigo: "CERTIFICATE_PROCESSING_ERROR",
+        });
+      }
+    } catch (error) {
+      const advancedLogger = req.app.get("advancedLogger");
+      advancedLogger.logError(
+        "certificados",
+        "Erro interno no upload de certificado",
+        req,
+        error,
+        {
+          userId: req.user?.id,
+        },
+      );
+
+      res.status(500).json({
         sucesso: false,
-        erro: 'Erro ao processar certificado: ' + certError.message,
-        codigo: 'CERTIFICATE_PROCESSING_ERROR'
+        erro: "Erro interno do servidor",
+        codigo: "INTERNAL_ERROR",
       });
     }
-
-  } catch (error) {
-    const advancedLogger = req.app.get('advancedLogger');
-    if (advancedLogger) {
-      advancedLogger.logError('certificados', 'Erro interno no upload de certificado', req, error, {
-        userId: req.user?.id
-      });
-    } else {
-      console.error('Erro interno no upload de certificado:', error);
-    }
-
-    res.status(500).json({
-      sucesso: false,
-      erro: 'Erro interno do servidor',
-      codigo: 'INTERNAL_ERROR'
-    });
-  }
-});
+  },
+);
 
 module.exports = router;

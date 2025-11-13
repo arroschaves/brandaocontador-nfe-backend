@@ -1,5 +1,5 @@
-const database = require('../config/database');
-const bcrypt = require('bcrypt');
+const database = require("../config/database");
+const bcrypt = require("bcryptjs");
 
 class AdminService {
   /**
@@ -12,16 +12,18 @@ class AdminService {
       if (!validacao.valido) {
         return {
           sucesso: false,
-          erros: validacao.erros
+          erros: validacao.erros,
         };
       }
 
       // Verificar se já existe usuário com o mesmo email
-      const usuarioExistente = await database.buscarUsuarioPorEmail(dadosUsuario.email);
+      const usuarioExistente = await database.buscarUsuarioPorEmail(
+        dadosUsuario.email,
+      );
       if (usuarioExistente) {
         return {
           sucesso: false,
-          erros: ['Já existe um usuário com este email']
+          erros: ["Já existe um usuário com este email"],
         };
       }
 
@@ -33,13 +35,13 @@ class AdminService {
         nome: dadosUsuario.nome,
         email: dadosUsuario.email,
         senha: senhaHash,
-        perfil: dadosUsuario.perfil || 'usuario',
-        permissoes: dadosUsuario.permissoes || ['nfe_consultar', 'nfe_emitir'],
+        perfil: dadosUsuario.perfil || "usuario",
+        permissoes: dadosUsuario.permissoes || ["nfe_consultar", "nfe_emitir"],
         ativo: true,
-        isAdmin: dadosUsuario.perfil === 'admin',
-        accessLevel: dadosUsuario.perfil === 'admin' ? 'full' : 'basic',
+        isAdmin: dadosUsuario.perfil === "admin",
+        accessLevel: dadosUsuario.perfil === "admin" ? "full" : "basic",
         criadoEm: new Date().toISOString(),
-        criadoPor: adminId
+        criadoPor: adminId,
       };
 
       const usuarioCriado = await database.criarUsuario(usuario);
@@ -49,14 +51,13 @@ class AdminService {
 
       return {
         sucesso: true,
-        usuario: usuarioCriado
+        usuario: usuarioCriado,
       };
-
     } catch (error) {
-      console.error('❌ Erro ao criar usuário:', error);
+      console.error("❌ Erro ao criar usuário:", error);
       return {
         sucesso: false,
-        erros: ['Erro interno do servidor']
+        erros: ["Erro interno do servidor"],
       };
     }
   }
@@ -67,23 +68,22 @@ class AdminService {
   static async listarUsuarios(filtros, adminId) {
     try {
       const usuarios = await database.listarUsuarios(filtros);
-      
+
       // Remover senhas dos usuários
-      usuarios.dados.forEach(usuario => {
+      usuarios.dados.forEach((usuario) => {
         delete usuario.senha;
       });
 
       return {
         sucesso: true,
         usuarios: usuarios.dados,
-        paginacao: usuarios.paginacao
+        paginacao: usuarios.paginacao,
       };
-
     } catch (error) {
-      console.error('❌ Erro ao listar usuários:', error);
+      console.error("❌ Erro ao listar usuários:", error);
       return {
         sucesso: false,
-        erros: ['Erro interno do servidor']
+        erros: ["Erro interno do servidor"],
       };
     }
   }
@@ -94,11 +94,11 @@ class AdminService {
   static async buscarUsuarioPorId(usuarioId, adminId) {
     try {
       const usuario = await database.buscarUsuarioPorId(usuarioId);
-      
+
       if (!usuario) {
         return {
           sucesso: false,
-          erros: ['Usuário não encontrado']
+          erros: ["Usuário não encontrado"],
         };
       }
 
@@ -107,14 +107,13 @@ class AdminService {
 
       return {
         sucesso: true,
-        usuario
+        usuario,
       };
-
     } catch (error) {
-      console.error('❌ Erro ao buscar usuário:', error);
+      console.error("❌ Erro ao buscar usuário:", error);
       return {
         sucesso: false,
-        erros: ['Erro interno do servidor']
+        erros: ["Erro interno do servidor"],
       };
     }
   }
@@ -129,7 +128,7 @@ class AdminService {
       if (!usuarioExistente) {
         return {
           sucesso: false,
-          erros: ['Usuário não encontrado']
+          erros: ["Usuário não encontrado"],
         };
       }
 
@@ -138,7 +137,7 @@ class AdminService {
       if (!validacao.valido) {
         return {
           sucesso: false,
-          erros: validacao.erros
+          erros: validacao.erros,
         };
       }
 
@@ -146,14 +145,14 @@ class AdminService {
       const dadosCompletos = {
         ...dadosAtualizacao,
         atualizadoEm: new Date().toISOString(),
-        atualizadoPor: adminId
+        atualizadoPor: adminId,
       };
 
       // Se está alterando perfil para admin, ajustar permissões
-      if (dadosCompletos.perfil === 'admin') {
+      if (dadosCompletos.perfil === "admin") {
         dadosCompletos.isAdmin = true;
-        dadosCompletos.accessLevel = 'full';
-        dadosCompletos.permissoes = ['all', 'admin', 'admin_total'];
+        dadosCompletos.accessLevel = "full";
+        dadosCompletos.permissoes = ["all", "admin", "admin_total"];
       }
 
       // Hash da nova senha se fornecida
@@ -161,21 +160,23 @@ class AdminService {
         dadosCompletos.senha = await bcrypt.hash(dadosCompletos.senha, 10);
       }
 
-      const usuarioAtualizado = await database.atualizarUsuario(usuarioId, dadosCompletos);
+      const usuarioAtualizado = await database.atualizarUsuario(
+        usuarioId,
+        dadosCompletos,
+      );
 
       // Remover senha do retorno
       delete usuarioAtualizado.senha;
 
       return {
         sucesso: true,
-        usuario: usuarioAtualizado
+        usuario: usuarioAtualizado,
       };
-
     } catch (error) {
-      console.error('❌ Erro ao atualizar usuário:', error);
+      console.error("❌ Erro ao atualizar usuário:", error);
       return {
         sucesso: false,
-        erros: ['Erro interno do servidor']
+        erros: ["Erro interno do servidor"],
       };
     }
   }
@@ -189,14 +190,14 @@ class AdminService {
       if (!usuario) {
         return {
           sucesso: false,
-          erros: ['Usuário não encontrado']
+          erros: ["Usuário não encontrado"],
         };
       }
 
       const usuarioDesativado = await database.atualizarUsuario(usuarioId, {
         ativo: false,
         desativadoEm: new Date().toISOString(),
-        desativadoPor: adminId
+        desativadoPor: adminId,
       });
 
       // Remover senha do retorno
@@ -204,14 +205,13 @@ class AdminService {
 
       return {
         sucesso: true,
-        usuario: usuarioDesativado
+        usuario: usuarioDesativado,
       };
-
     } catch (error) {
-      console.error('❌ Erro ao desativar usuário:', error);
+      console.error("❌ Erro ao desativar usuário:", error);
       return {
         sucesso: false,
-        erros: ['Erro interno do servidor']
+        erros: ["Erro interno do servidor"],
       };
     }
   }
@@ -225,14 +225,14 @@ class AdminService {
       if (!usuario) {
         return {
           sucesso: false,
-          erros: ['Usuário não encontrado']
+          erros: ["Usuário não encontrado"],
         };
       }
 
       if (!novaSenha || novaSenha.length < 6) {
         return {
           sucesso: false,
-          erros: ['Nova senha deve ter pelo menos 6 caracteres']
+          erros: ["Nova senha deve ter pelo menos 6 caracteres"],
         };
       }
 
@@ -241,18 +241,17 @@ class AdminService {
       await database.atualizarUsuario(usuarioId, {
         senha: senhaHash,
         atualizadoEm: new Date().toISOString(),
-        atualizadoPor: adminId
+        atualizadoPor: adminId,
       });
 
       return {
-        sucesso: true
+        sucesso: true,
       };
-
     } catch (error) {
-      console.error('❌ Erro ao alterar senha:', error);
+      console.error("❌ Erro ao alterar senha:", error);
       return {
         sucesso: false,
-        erros: ['Erro interno do servidor']
+        erros: ["Erro interno do servidor"],
       };
     }
   }
@@ -264,33 +263,32 @@ class AdminService {
     try {
       const usuarios = await database.listarUsuarios({ limite: 1000 });
       const totalUsuarios = usuarios.dados.length;
-      const usuariosAtivos = usuarios.dados.filter(u => u.ativo).length;
+      const usuariosAtivos = usuarios.dados.filter((u) => u.ativo).length;
 
       const status = {
         usuarios: {
           total: totalUsuarios,
           ativos: usuariosAtivos,
-          inativos: totalUsuarios - usuariosAtivos
+          inativos: totalUsuarios - usuariosAtivos,
         },
         sistema: {
-          versao: '1.0.0',
-          ambiente: process.env.NODE_ENV || 'development',
+          versao: "1.0.0",
+          ambiente: process.env.NODE_ENV || "development",
           uptime: process.uptime(),
-          memoria: process.memoryUsage()
+          memoria: process.memoryUsage(),
         },
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       };
 
       return {
         sucesso: true,
-        status
+        status,
       };
-
     } catch (error) {
-      console.error('❌ Erro ao obter status do sistema:', error);
+      console.error("❌ Erro ao obter status do sistema:", error);
       return {
         sucesso: false,
-        erros: ['Erro interno do servidor']
+        erros: ["Erro interno do servidor"],
       };
     }
   }
@@ -304,11 +302,11 @@ class AdminService {
       const logs = [
         {
           id: 1,
-          nivel: 'info',
-          mensagem: 'Sistema iniciado',
+          nivel: "info",
+          mensagem: "Sistema iniciado",
           timestamp: new Date().toISOString(),
-          usuario: 'sistema'
-        }
+          usuario: "sistema",
+        },
       ];
 
       return {
@@ -318,15 +316,55 @@ class AdminService {
           pagina: 1,
           limite: 50,
           total: logs.length,
-          totalPaginas: 1
-        }
+          totalPaginas: 1,
+        },
       };
-
     } catch (error) {
-      console.error('❌ Erro ao obter logs:', error);
+      console.error("❌ Erro ao obter logs:", error);
       return {
         sucesso: false,
-        erros: ['Erro interno do servidor']
+        erros: ["Erro interno do servidor"],
+      };
+    }
+  }
+
+  /**
+   * Alterar status do usuário
+   */
+  static async alterarStatusUsuario(usuarioId, novoStatus, adminId) {
+    try {
+      const usuario = await database.buscarUsuarioPorId(usuarioId);
+      if (!usuario) {
+        return {
+          sucesso: false,
+          erros: ["Usuário não encontrado"],
+        };
+      }
+
+      if (!["ativo", "inativo", "bloqueado"].includes(novoStatus)) {
+        return {
+          sucesso: false,
+          erros: ["Status inválido"],
+        };
+      }
+
+      const usuarioAtualizado = await database.atualizarUsuario(usuarioId, {
+        status: novoStatus,
+        atualizadoEm: new Date().toISOString(),
+        atualizadoPor: adminId,
+      });
+
+      delete usuarioAtualizado.senha;
+
+      return {
+        sucesso: true,
+        usuario: usuarioAtualizado,
+      };
+    } catch (error) {
+      console.error("❌ Erro ao alterar status do usuário:", error);
+      return {
+        sucesso: false,
+        erros: ["Erro interno do servidor"],
       };
     }
   }
@@ -339,25 +377,25 @@ class AdminService {
 
     if (!isUpdate || dados.nome !== undefined) {
       if (!dados.nome || dados.nome.trim().length < 2) {
-        erros.push('Nome deve ter pelo menos 2 caracteres');
+        erros.push("Nome deve ter pelo menos 2 caracteres");
       }
     }
 
     if (!isUpdate || dados.email !== undefined) {
-      if (!dados.email || !dados.email.includes('@')) {
-        erros.push('Email inválido');
+      if (!dados.email || !dados.email.includes("@")) {
+        erros.push("Email inválido");
       }
     }
 
     if (!isUpdate || dados.senha !== undefined) {
       if (!dados.senha || dados.senha.length < 6) {
-        erros.push('Senha deve ter pelo menos 6 caracteres');
+        erros.push("Senha deve ter pelo menos 6 caracteres");
       }
     }
 
     return {
       valido: erros.length === 0,
-      erros
+      erros,
     };
   }
 }

@@ -100,6 +100,7 @@ backend/
 ## 📞 Suporte
 
 Para configuração e deploy, consulte:
+
 - `GUIA_DEPLOY_DIGITAL_OCEAN.md`
 - `GUIA_CONFIGURACAO_PRODUCAO.md`
 - `DEPLOY.md`

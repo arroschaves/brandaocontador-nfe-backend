@@ -4,17 +4,19 @@
 
 **Status Atual:** Sistema online mas com falhas funcionais críticas  
 **Impacto:** Usuários não conseguem usar funcionalidades principais  
-**Urgência:** ALTA - Sistema inutilizável para operações normais  
+**Urgência:** ALTA - Sistema inutilizável para operações normais
 
 ---
 
 ## 2. ERROS IDENTIFICADOS POR CATEGORIA
 
 ### A) ERROS DE REDE/CONECTIVIDADE
+
 - ❌ **Cadastro de cliente novo:** "Falha de rede ao comunicar com o servidor"
 - ❌ **Dashboard:** "Erro ao carregar dados do dashboard"
 
 ### B) ERROS DE PERMISSÃO/ACESSO
+
 - ❌ **Inutilizar NFe:** acesso negado
 - ❌ **Gestão de eventos:** acesso negado
 - ❌ **Relatórios Fiscais:** acesso negado
@@ -23,6 +25,7 @@
 - ❌ **Configurações:** acesso negado
 
 ### C) ERROS DE CARREGAMENTO
+
 - ❌ **Menu Emitir NFE:** não carrega
 
 ---
@@ -55,6 +58,7 @@
 ## 4. ARQUIVOS QUE PRECISAM SER VERIFICADOS/CORRIGIDOS
 
 ### 🔴 PRIORIDADE CRÍTICA:
+
 - `backend/app.js` - Registro de rotas principais
 - `backend/middleware/auth.js` - Sistema de autenticação
 - `backend/data/usuarios.json` - Permissões de administrador
@@ -62,12 +66,14 @@
 - `backend/routes/admin.js` - Dashboard e funcionalidades admin
 
 ### 🟡 PRIORIDADE ALTA:
+
 - `backend/routes/nfe.js` - Emissão de NFe
 - `backend/routes/eventos.js` - Gestão de eventos
 - `backend/routes/relatorios.js` - Relatórios fiscais
 - `backend/routes/configuracoes.js` - Configurações do sistema
 
 ### 🟢 PRIORIDADE MÉDIA:
+
 - `backend/services/cliente-service.js` - Lógica de negócio
 - `backend/services/auth-service.js` - Serviços de autenticação
 - `backend/config/database.js` - Configuração de dados
@@ -77,7 +83,9 @@
 ## 5. PLANO DE CORREÇÃO DETALHADO
 
 ### FASE 1 - DIAGNÓSTICO LOCAL (30 min)
+
 1. **Verificar integridade dos arquivos:**
+
    ```bash
    # Verificar se todos os arquivos existem
    ls -la backend/routes/
@@ -85,11 +93,12 @@
    ```
 
 2. **Testar rotas localmente:**
+
    ```bash
    # Iniciar servidor local
    cd backend
    npm start
-   
+
    # Testar endpoints críticos
    curl http://localhost:3000/api/clientes
    curl http://localhost:3000/api/dashboard/stats
@@ -101,6 +110,7 @@
    - Testar middleware de autenticação
 
 ### FASE 2 - CORREÇÕES (60 min)
+
 1. **Corrigir arquivos identificados:**
    - Revisar e corrigir `app.js`
    - Atualizar `middleware/auth.js`
@@ -119,7 +129,9 @@
    - Confirmar CORS
 
 ### FASE 3 - DEPLOY (30 min)
+
 1. **Upload dos arquivos corrigidos:**
+
    ```bash
    scp backend/app.js root@165.227.79.207:/var/www/nfe-backend/
    scp backend/middleware/auth.js root@165.227.79.207:/var/www/nfe-backend/middleware/
@@ -127,6 +139,7 @@
    ```
 
 2. **Restart dos serviços:**
+
    ```bash
    ssh root@165.227.79.207
    pm2 restart nfe-backend
@@ -143,12 +156,14 @@
 ## 6. CHECKLIST DE VALIDAÇÃO
 
 ### ✅ FUNCIONALIDADES CRÍTICAS:
+
 - [ ] **Login de administrador** - Autenticação funcionando
 - [ ] **Cadastro de cliente** - POST /api/clientes funcionando
 - [ ] **Dashboard** - GET /api/dashboard/stats carregando
 - [ ] **Menu NFE** - Interface carregando corretamente
 
 ### ✅ PERMISSÕES DE ADMIN:
+
 - [ ] **Emitir NFE** - Acesso liberado
 - [ ] **Inutilizar NFe** - Acesso liberado
 - [ ] **Gestão de eventos** - Acesso liberado
@@ -158,6 +173,7 @@
 - [ ] **Configurações** - Acesso liberado
 
 ### ✅ TESTES TÉCNICOS:
+
 - [ ] **API Health Check** - /health respondendo 200
 - [ ] **CORS** - Headers corretos
 - [ ] **JWT** - Token válido e não expirado
@@ -168,6 +184,7 @@
 ## 7. COMANDOS DE TESTE RECOMENDADOS
 
 ### TESTES LOCAIS:
+
 ```bash
 # Iniciar servidor
 cd backend && npm start
@@ -189,6 +206,7 @@ curl -X GET http://localhost:3000/api/dashboard/stats \
 ```
 
 ### TESTES REMOTOS:
+
 ```bash
 # Testar conectividade
 curl https://api.brandaocontador.com.br/health
@@ -216,14 +234,15 @@ curl -X POST https://api.brandaocontador.com.br/api/auth/login \
 **Usuário SSH:** root  
 **Aplicação:** /var/www/nfe-backend/  
 **PM2 Process:** nfe-backend  
-**Nginx Config:** /etc/nginx/sites-available/nfe  
+**Nginx Config:** /etc/nginx/sites-available/nfe
 
 **URLs de Teste:**
+
 - API: https://api.brandaocontador.com.br
 - Frontend: https://nfe.brandaocontador.com.br
 - Health: https://api.brandaocontador.com.br/health
 
 ---
 
-*Documento criado em: $(date)*  
-*Status: AGUARDANDO CORREÇÕES*
+_Documento criado em: $(date)_  
+_Status: AGUARDANDO CORREÇÕES_

@@ -7,6 +7,7 @@ Este documento fornece um guia completo para deploy do sistema NFe no servidor C
 ## 🌐 Informações do Servidor
 
 ### Servidor CONTABO
+
 - **IP:** 147.93.186.214
 - **Sistema:** Ubuntu 24.04.3 LTS
 - **Porta SSH:** 22
@@ -16,6 +17,7 @@ Este documento fornece um guia completo para deploy do sistema NFe no servidor C
 - **Localização:** Europa
 
 ### URLs de Acesso
+
 - **API Backend:** https://api.brandaocontador.com.br
 - **Frontend:** https://brandaocontador.com.br
 - **Painel Admin:** https://brandaocontador.com.br/admin
@@ -336,11 +338,13 @@ pm2 logs nfe-backend
 ### Configuração dos Secrets
 
 No repositório GitHub, configure o secret:
+
 - `CONTABO_SSH_PASSWORD`: Senha SSH do servidor
 
 ### Processo Automático
 
 O deploy é executado automaticamente quando:
+
 1. Há push na branch `main`
 2. Arquivos na pasta `backend/` são modificados
 3. O arquivo `ecosystem.config.js` é modificado
@@ -417,6 +421,7 @@ ss -tlnp | grep :3000
 ### Problemas Comuns
 
 #### 1. Aplicação não inicia
+
 ```bash
 # Verificar logs
 pm2 logs nfe-backend --lines 50
@@ -430,6 +435,7 @@ cat .env
 ```
 
 #### 2. Erro 502 Bad Gateway
+
 ```bash
 # Verificar se aplicação está rodando
 pm2 list
@@ -445,6 +451,7 @@ tail -f /var/log/nginx/nfe-backend.error.log
 ```
 
 #### 3. Problemas com SSL
+
 ```bash
 # Verificar certificado
 certbot certificates
@@ -457,6 +464,7 @@ nginx -t
 ```
 
 #### 4. Problemas com Arquivos JSON
+
 ```bash
 # Verificar estrutura de dados
 cd /var/www/brandaocontador-nfe-backend
@@ -497,24 +505,26 @@ cp -r data_YYYYMMDD_HHMMSS/* /var/www/brandaocontador-nfe-backend/data/
 ```javascript
 // ecosystem.config.js otimizado
 module.exports = {
-  apps: [{
-    name: 'nfe-backend',
-    script: 'app.js',
-    instances: 2, // Usar 2 instâncias
-    exec_mode: 'cluster',
-    env: {
-      NODE_ENV: 'development'
+  apps: [
+    {
+      name: "nfe-backend",
+      script: "app.js",
+      instances: 2, // Usar 2 instâncias
+      exec_mode: "cluster",
+      env: {
+        NODE_ENV: "development",
+      },
+      env_production: {
+        NODE_ENV: "production",
+        PORT: 3000,
+      },
+      max_memory_restart: "1G",
+      error_file: "/var/log/nfe/error.log",
+      out_file: "/var/log/nfe/out.log",
+      log_file: "/var/log/nfe/combined.log",
+      time: true,
     },
-    env_production: {
-      NODE_ENV: 'production',
-      PORT: 3000
-    },
-    max_memory_restart: '1G',
-    error_file: '/var/log/nfe/error.log',
-    out_file: '/var/log/nfe/out.log',
-    log_file: '/var/log/nfe/combined.log',
-    time: true
-  }]
+  ],
 };
 ```
 
@@ -524,19 +534,19 @@ module.exports = {
 # Otimizações no nginx
 server {
     # ... configurações anteriores ...
-    
+
     # Compressão
     gzip on;
     gzip_vary on;
     gzip_min_length 1024;
     gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript;
-    
+
     # Cache de arquivos estáticos
     location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg)$ {
         expires 1y;
         add_header Cache-Control "public, immutable";
     }
-    
+
     # Limites de upload
     client_max_body_size 10M;
 }
@@ -545,11 +555,13 @@ server {
 ## 📞 Suporte e Contatos
 
 ### Informações Técnicas
+
 - **Desenvolvedor:** arroschaves
 - **Email:** professormatms@bo.com.br
 - **Repositório:** https://github.com/arroschaves/brandaocontador-nfe-backend
 
 ### Servidor CONTABO
+
 - **IP:** 147.93.186.214
 - **Sistema:** Ubuntu 24.04.3 LTS
 - **Localização:** Europa
@@ -560,6 +572,7 @@ server {
 ## ✅ Checklist de Deploy
 
 ### Configuração Inicial
+
 - [ ] Servidor CONTABO configurado
 - [ ] Node.js 22.x instalado
 - [ ] PM2 instalado e configurado
@@ -569,6 +582,7 @@ server {
 - [ ] Diretórios criados
 
 ### Deploy
+
 - [ ] Repositório clonado
 - [ ] Dependências instaladas
 - [ ] Arquivo .env configurado
@@ -577,6 +591,7 @@ server {
 - [ ] Backup automático configurado
 
 ### Monitoramento
+
 - [ ] Health checks funcionando
 - [ ] Logs configurados
 - [ ] Monitoramento ativo

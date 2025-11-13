@@ -3,6 +3,7 @@
 Este arquivo registra decisões, padrões e valores que devemos reaproveitar para evitar perguntas repetidas em futuras automações.
 
 ## Perfil de Ambiente (Produção)
+
 - Domínio da API: `api.brandaocontador.com.br`
 - Porta backend: `3001`
 - Proxy: Nginx -> `http://localhost:3001`
@@ -10,24 +11,29 @@ Este arquivo registra decisões, padrões e valores que devemos reaproveitar par
 - Base do frontend (Pages): `'/'` quando usar CNAME; use `'/<repo>/'` quando publicar em `https://<user>.github.io/<repo>/`.
 
 ## Convenções
+
 - Backend gerencia o processo com PM2 usando `backend/deploy/ecosystem.production.js` e carrega variáveis do `.env` gerado no servidor.
 - SSL automatizado com Certbot/Nginx quando `API_DOMAIN` e `SSL_EMAIL` estiverem definidos.
 - Health público: `GET /health` (alias: `GET /api/health`).
 - Frontend (Vite) consome `import.meta.env.VITE_API_URL` e respeita `process.env.VITE_BASE` no build.
 
 ## Onde centralizar valores
+
 - Variáveis não sensíveis: use `Repository Variables` (`Settings > Environments/Variables`) como `API_DOMAIN`, `BACKEND_URL`, `VITE_API_URL`, `VITE_BASE`, `UF`, `AMBIENTE`.
 - Secrets sensíveis: use `Actions Secrets` como `MONGODB_URI`, `JWT_SECRET`, `CERT_PASS`, `DO_SSH_KEY`.
 
 ## Workflows atualizados
+
 - `/.github/workflows/deploy-backend.yml`: usa `vars` como fallback para `API_DOMAIN`, `SSL_EMAIL`, `CORS_ORIGINS`, etc., e mantém secrets para dados sensíveis.
 - `/.github/workflows/frontend-pages.yml`: usa `vars` como fallback para `VITE_API_URL`, `VITE_BASE` e adiciona `404.html` para SPA.
 
 ## Próximos registros (como atualizar este arquivo)
+
 - Ao decidir novos domínios/subdomínios, portas ou políticas de CORS, adicione aqui e crie/atualize `Repository Variables` correspondentes.
 - Sempre que mudar o fluxo de deploy, registre o resumo do que foi alterado e o motivo.
 
 ## Últimos passos executados
+
 - Ajustado PM2 para não sobrescrever variáveis do `.env` em produção.
 - Reescrito workflow do backend para PM2+Nginx+SSL via SSH.
 - Criado workflow do frontend para GitHub Pages com `VITE_API_URL` e `VITE_BASE`.
@@ -43,6 +49,7 @@ Este arquivo registra decisões, padrões e valores que devemos reaproveitar par
 - Orquestração: PM2 com `backend/deploy/ecosystem.production.js` e `.env` em produção.
 
 ### Rotas de atualização suportadas
+
 - Via CI/CD (recomendado): `/.github/workflows/auto-deploy.yml`
   - Dispara em `push` para `main`.
   - Requisitos (Secrets): `SSH_PRIVATE_KEY`, `SSH_HOST`, `SSH_USER`.
@@ -51,6 +58,7 @@ Este arquivo registra decisões, padrões e valores que devemos reaproveitar par
 
 - Via scripts no servidor (SSH manual)
   - Primeira instalação:
+
     ```bash
     # Conectar ao servidor
     ssh -i <chave> -p 2222 root@159.89.228.223
@@ -63,6 +71,7 @@ Este arquivo registra decisões, padrões e valores que devemos reaproveitar par
     chmod +x deploy.sh
     ./deploy.sh
     ```
+
   - Atualização (diretório já existe):
     ```bash
     cd /var/www/brandaocontador-nfe-backend
@@ -76,19 +85,23 @@ Este arquivo registra decisões, padrões e valores que devemos reaproveitar par
   - Fluxo: testa SSH, faz backup do `.env`, `git fetch/reset --hard origin/main`, instala dependências com limites de memória/swap, valida PM2, testa `https://api.brandaocontador.com.br/health` e `/api/health`.
 
 ### Confirmação de atualização 100%
+
 - Endpoints de versão: `GET /version` e `GET /api/version` devem existir e retornar JSON com `commit`, `branch` e `deployedAt` do último deploy.
 - Health detalhado: `GET /api/health` deve incluir `bancoDados`, `uptime`, `versaoNode` (formato do `app-real.js`).
 - PM2: processo visível como `brandaocontador-nfe-backend`.
 
 ### Variáveis e secrets essenciais
+
 - Secrets: `MONGODB_URI`, `JWT_SECRET`, `CERT_PASS`, credenciais SSH (`SSH_PRIVATE_KEY`, `SSH_HOST`, `SSH_USER`).
 - Vars (defaults): `API_DOMAIN`, `BACKEND_URL`, `CORS_ORIGINS`, `AMBIENTE`, `UF`.
 - Convenção: secrets só para dados sensíveis; valores públicos em `Repository Variables`.
 
 ### Observação de estado atual
+
 - Se `/version` não existir em produção, significa que o backend não está no último commit. Preencher os secrets SSH e acionar o `auto-deploy` (ou executar `deploy-update.sh`) para atualizar.
 
 ## Fluxo Operacional Contínuo (Local → DigitalOcean)
+
 - Desenvolver e testar localmente o backend em `backend/`.
 - Rodar testes rápidos: `npm run testar` (ou endpoint `GET /api/health`).
 - Commitar mudanças: `git add -A && git commit -m "feat/fix: descrição"`.
@@ -103,6 +116,7 @@ Este arquivo registra decisões, padrões e valores que devemos reaproveitar par
 - Se o job pular (por falta de secrets), usar fallback manual (abaixo).
 
 ## Informações de Acesso (DigitalOcean)
+
 - Domínio da API: `https://api.brandaocontador.com.br`
 - Droplet IP: `159.89.228.223`
 - SSH:
@@ -115,11 +129,13 @@ Este arquivo registra decisões, padrões e valores que devemos reaproveitar par
 - Node (servidor): `v20.18.1` (atual de produção)
 
 ## Checklist de Secrets e Vars (GitHub)
+
 - Secrets obrigatórios (backend deploy): `SSH_PRIVATE_KEY`, `SSH_HOST`, `SSH_USER`.
 - Secrets de app: `MONGODB_URI`, `JWT_SECRET`, `CERT_PASS`.
 - Vars (não sensíveis): `API_DOMAIN`, `BACKEND_URL`, `CORS_ORIGINS`, `AMBIENTE`, `UF`.
 
 ## Fallback Manual (se CI/CD não rodar)
+
 - Via scripts no servidor:
   - Primeira instalação:
     - `ssh -i <chave> -p 2222 root@159.89.228.223`
@@ -132,6 +148,7 @@ Este arquivo registra decisões, padrões e valores que devemos reaproveitar par
   - Atualiza código (`git reset --hard origin/main`), instala dependências com swap temporária e valida PM2 + health.
 
 ## Rotinas de Operação
+
 - PM2:
   - Status: `pm2 list`
   - Logs: `pm2 logs brandaocontador-nfe-backend --lines 200`
@@ -143,6 +160,7 @@ Este arquivo registra decisões, padrões e valores que devemos reaproveitar par
   - `GET /api/health`, `GET /health` e `GET /version`.
 
 ## Troubleshooting Rápido
+
 - Deploy não atualiza:
   - Verifique se os secrets SSH estão definidos no GitHub.
   - Confirme acesso SSH manual (`ssh ...`).
@@ -155,6 +173,7 @@ Este arquivo registra decisões, padrões e valores que devemos reaproveitar par
   - Testar `nginx -t` e recarregar; revisar `backend/deploy/nginx.conf` como base.
 
 ## Registro de Atualização — 2025-10-17
+
 - Contexto: endpoints `/version` e `/api/version` indisponíveis; `/health` retornava simplificado e, em seguida, 502 (Cloudflare) após reinícios.
 - Análise: `pm2 logs api-nfe` mostrou erros por módulos ausentes (`mongodb-memory-server`, `multer`) e modelos inexistentes (`./models/Cliente`). O diretório remoto `backend/models` não tinha `Cliente.js` e `Produto.js`.
 - Ações executadas:

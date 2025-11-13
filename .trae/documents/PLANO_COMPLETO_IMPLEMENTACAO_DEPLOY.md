@@ -1,4 +1,5 @@
 # PLANO COMPLETO DE IMPLEMENTAÇÃO E DEPLOY
+
 ## Sistema NFe Brandão Contador
 
 ---
@@ -6,6 +7,7 @@
 ## 📊 ANÁLISE DO ESTADO ATUAL
 
 ### ✅ O que está funcionando:
+
 - **Backend**: Totalmente funcional em modo simulação
 - **Estrutura XML NFe**: Corrigida e validada
 - **Sistema de Logs**: Implementado e detalhado
@@ -17,6 +19,7 @@
 ### ⚠️ Gaps Identificados:
 
 #### 1. **Frontend Incompleto**
+
 - Layout básico sem navegação completa
 - Falta formulário de emissão de NFe
 - Ausência de páginas de validação e histórico
@@ -24,24 +27,28 @@
 - Sem integração real com backend
 
 #### 2. **Sistema de Autenticação**
+
 - NextAuth configurado mas sem integração com backend
 - Falta sistema de permissões (admin/contador/usuário)
 - Ausência de middleware de autorização
 - Sem gestão de API keys
 
 #### 3. **Painel Administrativo**
+
 - Não implementado
 - Falta gestão de usuários
 - Ausência de monitoramento em tempo real
 - Sem configurações globais
 
 #### 4. **Integração SEFAZ**
+
 - Sistema em modo simulação
 - Falta certificado digital válido
 - Ausência de validações obrigatórias
 - Sem retry automático para falhas
 
 #### 5. **Deploy e Infraestrutura**
+
 - Sem CI/CD automatizado
 - Configurações de produção incompletas
 - Falta SSL e domínios configurados
@@ -54,6 +61,7 @@
 ### FASE 1: Frontend Completo (2-3 semanas)
 
 #### 1.1 Sistema de Navegação
+
 ```typescript
 // Componentes a implementar:
 - Navigation.tsx (menu principal)
@@ -63,6 +71,7 @@
 ```
 
 #### 1.2 Páginas Principais
+
 ```typescript
 // Estrutura de páginas:
 src/app/
@@ -84,6 +93,7 @@ src/app/
 ```
 
 #### 1.3 Componentes Essenciais
+
 ```typescript
 // Componentes a desenvolver:
 components/
@@ -106,6 +116,7 @@ components/
 ### FASE 2: Sistema de Autenticação Robusto (1-2 semanas)
 
 #### 2.1 Backend - Sistema de Usuários
+
 ```javascript
 // Novos endpoints a implementar:
 POST /api/auth/register        // Registro de usuários
@@ -118,15 +129,16 @@ POST /api/users/:id/permissions // Alterar permissões
 ```
 
 #### 2.2 Middleware de Autorização
+
 ```javascript
 // middleware/rbac.js
 const checkPermissions = (requiredRole) => {
   return (req, res, next) => {
     const userRole = req.user.role;
     const permissions = {
-      'user': ['nfe:read', 'nfe:create'],
-      'contador': ['nfe:*', 'client:*'],
-      'admin': ['*']
+      user: ["nfe:read", "nfe:create"],
+      contador: ["nfe:*", "client:*"],
+      admin: ["*"],
     };
     // Lógica de verificação
   };
@@ -134,6 +146,7 @@ const checkPermissions = (requiredRole) => {
 ```
 
 #### 2.3 Frontend - Integração NextAuth
+
 ```typescript
 // lib/auth.ts
 export const authOptions = {
@@ -141,24 +154,28 @@ export const authOptions = {
     CredentialsProvider({
       async authorize(credentials) {
         // Integração com backend
-        const response = await fetch(`${process.env.BACKEND_URL}/api/auth/login`, {
-          method: 'POST',
-          body: JSON.stringify(credentials)
-        });
+        const response = await fetch(
+          `${process.env.BACKEND_URL}/api/auth/login`,
+          {
+            method: "POST",
+            body: JSON.stringify(credentials),
+          },
+        );
         return response.ok ? await response.json() : null;
-      }
-    })
+      },
+    }),
   ],
   callbacks: {
     jwt: ({ token, user }) => ({ ...token, ...user }),
-    session: ({ session, token }) => ({ ...session, user: token })
-  }
+    session: ({ session, token }) => ({ ...session, user: token }),
+  },
 };
 ```
 
 ### FASE 3: Painel Administrativo (2 semanas)
 
 #### 3.1 Dashboard Administrativo
+
 ```typescript
 // admin/page.tsx
 interface AdminDashboard {
@@ -174,13 +191,14 @@ interface AdminDashboard {
 ```
 
 #### 3.2 Gestão de Usuários
+
 ```typescript
 // admin/usuarios/page.tsx
 interface UserManagement {
   users: User[];
   filters: {
-    role: 'all' | 'user' | 'contador' | 'admin';
-    status: 'active' | 'inactive' | 'all';
+    role: "all" | "user" | "contador" | "admin";
+    status: "active" | "inactive" | "all";
     search: string;
   };
   actions: {
@@ -193,6 +211,7 @@ interface UserManagement {
 ```
 
 #### 3.3 Monitoramento do Sistema
+
 ```typescript
 // admin/sistema/page.tsx
 interface SystemMonitoring {
@@ -203,8 +222,8 @@ interface SystemMonitoring {
     network: number;
   };
   sefazStatus: {
-    homologacao: 'online' | 'offline';
-    producao: 'online' | 'offline';
+    homologacao: "online" | "offline";
+    producao: "online" | "offline";
     lastCheck: Date;
   };
   certificateStatus: {
@@ -218,6 +237,7 @@ interface SystemMonitoring {
 ### FASE 4: Integração SEFAZ Real (1-2 semanas)
 
 #### 4.1 Configuração de Certificados
+
 ```bash
 # Estrutura de certificados
 certs/
@@ -233,21 +253,23 @@ certs/
 ```
 
 #### 4.2 Validações Obrigatórias
+
 ```javascript
 // services/nfe-validation.js
 const validateNFeData = (nfeData) => {
   const validations = [
     validateCNPJ(nfeData.emit.CNPJ),
     validateCPF_CNPJ(nfeData.dest.CNPJ || nfeData.dest.CPF),
-    validateNCM(nfeData.det.map(item => item.prod.NCM)),
-    validateCST(nfeData.det.map(item => item.imposto.ICMS.CST)),
-    validateTotals(nfeData.total)
+    validateNCM(nfeData.det.map((item) => item.prod.NCM)),
+    validateCST(nfeData.det.map((item) => item.imposto.ICMS.CST)),
+    validateTotals(nfeData.total),
   ];
-  return validations.every(v => v.valid);
+  return validations.every((v) => v.valid);
 };
 ```
 
 #### 4.3 Sistema de Retry
+
 ```javascript
 // services/sefaz-client.js
 const sendToSefaz = async (xmlData, retries = 3) => {
@@ -255,12 +277,12 @@ const sendToSefaz = async (xmlData, retries = 3) => {
     try {
       const response = await axios.post(sefazUrl, xmlData, {
         timeout: 30000,
-        headers: { 'Content-Type': 'text/xml; charset=utf-8' }
+        headers: { "Content-Type": "text/xml; charset=utf-8" },
       });
       return response.data;
     } catch (error) {
       if (attempt === retries) throw error;
-      await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+      await new Promise((resolve) => setTimeout(resolve, 1000 * attempt));
     }
   }
 };
@@ -269,6 +291,7 @@ const sendToSefaz = async (xmlData, retries = 3) => {
 ### FASE 5: Deploy Automatizado (1 semana)
 
 #### 5.1 GitHub Actions
+
 ```yaml
 # .github/workflows/deploy.yml
 name: Deploy to Production
@@ -317,23 +340,23 @@ graph TB
     subgraph "Cloudflare"
         CF[Cloudflare DNS + CDN]
     end
-    
+
     subgraph "Vercel"
         FE[Frontend - nfe.brandaocontador.com.br]
         AD[Admin - admin.brandaocontador.com.br]
     end
-    
+
     subgraph "DigitalOcean Droplet"
         NG[Nginx Reverse Proxy]
         BE[Backend API - api.brandaocontador.com.br]
         PM[PM2 Process Manager]
     end
-    
+
     subgraph "Serviços Externos"
         SF[SEFAZ]
         EM[Email Service]
     end
-    
+
     CF --> FE
     CF --> AD
     CF --> NG
@@ -345,12 +368,12 @@ graph TB
 
 ### Domínios e Subdomínios
 
-| Serviço | URL | Hospedagem | SSL |
-|---------|-----|--------------|-----|
-| Frontend Principal | nfe.brandaocontador.com.br | Vercel | ✅ Auto |
-| Painel Admin | admin.brandaocontador.com.br | Vercel | ✅ Auto |
-| API Backend | api.brandaocontador.com.br | DigitalOcean | ✅ Let's Encrypt |
-| Site Principal | brandaocontador.com.br | Existente | ✅ |
+| Serviço            | URL                          | Hospedagem   | SSL              |
+| ------------------ | ---------------------------- | ------------ | ---------------- |
+| Frontend Principal | nfe.brandaocontador.com.br   | Vercel       | ✅ Auto          |
+| Painel Admin       | admin.brandaocontador.com.br | Vercel       | ✅ Auto          |
+| API Backend        | api.brandaocontador.com.br   | DigitalOcean | ✅ Let's Encrypt |
+| Site Principal     | brandaocontador.com.br       | Existente    | ✅               |
 
 ---
 
@@ -359,6 +382,7 @@ graph TB
 ### 1. GitHub - Repositórios
 
 #### 1.1 Estrutura de Repositórios
+
 ```bash
 # Repositório principal
 github.com/brandaocontador/nfe-system
@@ -370,6 +394,7 @@ github.com/brandaocontador/nfe-system
 ```
 
 #### 1.2 Configuração de Branches
+
 ```bash
 # Estratégia de branches
 main           # Produção
@@ -381,6 +406,7 @@ hotfix/*       # Correções urgentes
 ### 2. Vercel - Frontend
 
 #### 2.1 Configuração do Projeto
+
 ```json
 // vercel.json
 {
@@ -405,6 +431,7 @@ hotfix/*       # Correções urgentes
 ```
 
 #### 2.2 Variáveis de Ambiente
+
 ```bash
 # Vercel Environment Variables
 NEXT_PUBLIC_API_URL=https://api.brandaocontador.com.br
@@ -418,6 +445,7 @@ GOOGLE_CLIENT_SECRET=your-google-client-secret
 ### 3. DigitalOcean - Backend
 
 #### 3.1 Configuração do Servidor
+
 ```bash
 # Especificações do Droplet
 Tipo: Basic
@@ -429,6 +457,7 @@ Região: São Paulo (sfo3)
 ```
 
 #### 3.2 Setup Inicial
+
 ```bash
 #!/bin/bash
 # setup-server.sh
@@ -457,12 +486,13 @@ sudo apt install certbot python3-certbot-nginx -y
 ```
 
 #### 3.3 Configuração Nginx
+
 ```nginx
 # /etc/nginx/sites-available/nfe-api
 server {
     listen 80;
     server_name api.brandaocontador.com.br;
-    
+
     location / {
         proxy_pass http://localhost:3001;
         proxy_http_version 1.1;
@@ -478,30 +508,34 @@ server {
 ```
 
 #### 3.4 Configuração PM2
+
 ```javascript
 // ecosystem.production.js
 module.exports = {
-  apps: [{
-    name: 'nfe-backend',
-    script: 'app.js',
-    cwd: '/var/www/nfe-backend',
-    instances: 2,
-    exec_mode: 'cluster',
-    env: {
-      NODE_ENV: 'production',
-      PORT: 3001
+  apps: [
+    {
+      name: "nfe-backend",
+      script: "app.js",
+      cwd: "/var/www/nfe-backend",
+      instances: 2,
+      exec_mode: "cluster",
+      env: {
+        NODE_ENV: "production",
+        PORT: 3001,
+      },
+      error_file: "/var/log/pm2/nfe-backend-error.log",
+      out_file: "/var/log/pm2/nfe-backend-out.log",
+      log_file: "/var/log/pm2/nfe-backend.log",
+      time: true,
     },
-    error_file: '/var/log/pm2/nfe-backend-error.log',
-    out_file: '/var/log/pm2/nfe-backend-out.log',
-    log_file: '/var/log/pm2/nfe-backend.log',
-    time: true
-  }]
+  ],
 };
 ```
 
 ### 4. SSL e Domínios
 
 #### 4.1 Configuração Cloudflare
+
 ```bash
 # DNS Records
 A     api.brandaocontador.com.br     -> IP_DO_DIGITALOCEAN
@@ -510,6 +544,7 @@ CNAME admin.brandaocontador.com.br   -> admin-deployment.vercel.app
 ```
 
 #### 4.2 SSL no DigitalOcean
+
 ```bash
 # Gerar certificado SSL
 sudo certbot --nginx -d api.brandaocontador.com.br
@@ -525,30 +560,35 @@ sudo crontab -e
 ## 📅 CRONOGRAMA DE IMPLEMENTAÇÃO
 
 ### Semana 1-2: Frontend Base
+
 - [ ] Implementar sistema de navegação
 - [ ] Criar páginas de autenticação
 - [ ] Desenvolver dashboard melhorado
 - [ ] Implementar formulário de emissão NFe
 
 ### Semana 3-4: Funcionalidades Core
+
 - [ ] Página de validação NFe
 - [ ] Histórico e relatórios
 - [ ] Configurações do sistema
 - [ ] Integração com backend
 
 ### Semana 5-6: Painel Admin
+
 - [ ] Dashboard administrativo
 - [ ] Gestão de usuários
 - [ ] Monitoramento do sistema
 - [ ] Logs e auditoria
 
 ### Semana 7-8: Integração SEFAZ
+
 - [ ] Configurar certificados
 - [ ] Implementar validações
 - [ ] Testes em homologação
 - [ ] Sistema de retry
 
 ### Semana 9-10: Deploy e Produção
+
 - [ ] Configurar CI/CD
 - [ ] Deploy em produção
 - [ ] Configurar domínios
@@ -625,6 +665,7 @@ ssh root@your-server-ip
 ## 📋 CHECKLIST FINAL
 
 ### Frontend
+
 - [ ] ✅ Next.js 15 configurado
 - [ ] 🔄 Sistema de navegação completo
 - [ ] 🔄 Páginas principais implementadas
@@ -635,6 +676,7 @@ ssh root@your-server-ip
 - [ ] 🔄 Responsividade mobile
 
 ### Backend
+
 - [ ] ✅ API funcional
 - [ ] ✅ Sistema de logs
 - [ ] 🔄 Autenticação JWT
@@ -645,6 +687,7 @@ ssh root@your-server-ip
 - [ ] 🔄 Monitoramento
 
 ### Deploy
+
 - [ ] 🔄 GitHub Actions CI/CD
 - [ ] 🔄 Vercel frontend
 - [ ] 🔄 DigitalOcean backend
@@ -653,6 +696,7 @@ ssh root@your-server-ip
 - [ ] 🔄 Monitoramento produção
 
 ### Segurança
+
 - [ ] ✅ Variáveis ambiente
 - [ ] 🔄 Certificados digitais
 - [ ] 🔄 HTTPS everywhere
@@ -665,12 +709,14 @@ ssh root@your-server-ip
 ## 💰 ESTIMATIVA DE CUSTOS
 
 ### Hospedagem Mensal
+
 - **Vercel Pro**: $20/mês (frontend + admin)
 - **DigitalOcean Droplet**: $24/mês (4GB RAM)
 - **Cloudflare Pro**: $20/mês (DNS + CDN)
 - **Total**: ~$64/mês
 
 ### Desenvolvimento
+
 - **Frontend Completo**: 40-60 horas
 - **Backend Melhorias**: 20-30 horas
 - **Deploy e Configuração**: 10-15 horas

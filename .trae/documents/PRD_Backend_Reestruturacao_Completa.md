@@ -12,14 +12,15 @@ Sistema de emissão de NFe, CTe e MDFe com arquitetura limpa, autenticação rob
 
 ### 2.1 User Roles
 
-| Role | Registration Method | Core Permissions |
-|------|---------------------|------------------|
-| Usuário Padrão | Email + senha | Emitir NFe, consultar documentos, configurar emitente |
-| Administrador | Criado via seed script | Todas as permissões + gerenciar usuários |
+| Role           | Registration Method    | Core Permissions                                      |
+| -------------- | ---------------------- | ----------------------------------------------------- |
+| Usuário Padrão | Email + senha          | Emitir NFe, consultar documentos, configurar emitente |
+| Administrador  | Criado via seed script | Todas as permissões + gerenciar usuários              |
 
 ### 2.2 Feature Module
 
 Nosso sistema reestruturado consistirá nas seguintes páginas principais:
+
 1. **Autenticação**: login, registro, validação de token
 2. **Dashboard**: visão geral do sistema, status SEFAZ, certificados
 3. **Configuração do Emitente**: dados da empresa, endereço, regime tributário
@@ -31,20 +32,21 @@ Nosso sistema reestruturado consistirá nas seguintes páginas principais:
 
 ### 2.3 Page Details
 
-| Page Name | Module Name | Feature description |
-|-----------|-------------|---------------------|
-| Autenticação | Login/Registro | Autenticar usuário com JWT, registrar novos usuários, validar tokens |
-| Dashboard | Status Sistema | Exibir status SEFAZ, certificados, estatísticas de emissão |
-| Configuração | Dados Emitente | Configurar dados da empresa, endereço, certificado digital |
-| Emissão NFe | Formulário NFe | Criar NFe com produtos/serviços, calcular impostos, enviar SEFAZ |
-| Emissão CTe | Formulário CTe | Criar conhecimento de transporte, dados remetente/destinatário |
-| Emissão MDFe | Formulário MDFe | Criar manifesto de documentos fiscais eletrônicos |
-| Consultas | Busca Documentos | Consultar NFe/CTe/MDFe por chave, período, status |
-| Relatórios | Logs Sistema | Visualizar histórico de operações, erros, auditoria |
+| Page Name    | Module Name      | Feature description                                                  |
+| ------------ | ---------------- | -------------------------------------------------------------------- |
+| Autenticação | Login/Registro   | Autenticar usuário com JWT, registrar novos usuários, validar tokens |
+| Dashboard    | Status Sistema   | Exibir status SEFAZ, certificados, estatísticas de emissão           |
+| Configuração | Dados Emitente   | Configurar dados da empresa, endereço, certificado digital           |
+| Emissão NFe  | Formulário NFe   | Criar NFe com produtos/serviços, calcular impostos, enviar SEFAZ     |
+| Emissão CTe  | Formulário CTe   | Criar conhecimento de transporte, dados remetente/destinatário       |
+| Emissão MDFe | Formulário MDFe  | Criar manifesto de documentos fiscais eletrônicos                    |
+| Consultas    | Busca Documentos | Consultar NFe/CTe/MDFe por chave, período, status                    |
+| Relatórios   | Logs Sistema     | Visualizar histórico de operações, erros, auditoria                  |
 
 ## 3. Core Process
 
 **Fluxo Principal do Usuário:**
+
 1. Usuário faz login no sistema
 2. Sistema valida credenciais e retorna JWT token
 3. Usuário configura dados do emitente (se primeira vez)
@@ -54,6 +56,7 @@ Nosso sistema reestruturado consistirá nas seguintes páginas principais:
 7. Usuário pode consultar documentos emitidos
 
 **Fluxo de Autenticação:**
+
 1. Login → Validação → Token JWT → Acesso às rotas protegidas
 2. Middleware verifica token em cada requisição
 3. Token expirado → Renovação automática ou logout
@@ -88,13 +91,13 @@ graph TD
 
 ### 4.2 Page Design Overview
 
-| Page Name | Module Name | UI Elements |
-|-----------|-------------|-------------|
-| Autenticação | Login Form | Card centralizado, campos email/senha, botão azul, link registro |
-| Dashboard | Status Cards | Grid de cards com métricas, gráficos simples, cores de status |
-| Configuração | Formulário Empresa | Formulário em etapas, validação em tempo real, preview dados |
-| Emissão NFe | Formulário Produtos | Tabela de produtos, cálculos automáticos, botões ação |
-| Consultas | Lista Documentos | Tabela paginada, filtros, badges de status, ações rápidas |
+| Page Name    | Module Name         | UI Elements                                                      |
+| ------------ | ------------------- | ---------------------------------------------------------------- |
+| Autenticação | Login Form          | Card centralizado, campos email/senha, botão azul, link registro |
+| Dashboard    | Status Cards        | Grid de cards com métricas, gráficos simples, cores de status    |
+| Configuração | Formulário Empresa  | Formulário em etapas, validação em tempo real, preview dados     |
+| Emissão NFe  | Formulário Produtos | Tabela de produtos, cálculos automáticos, botões ação            |
+| Consultas    | Lista Documentos    | Tabela paginada, filtros, badges de status, ações rápidas        |
 
 ### 4.3 Responsiveness
 
@@ -105,16 +108,19 @@ Sistema desktop-first com adaptação mobile. Interface otimizada para tablets e
 ### 5.1 Problemas Críticos de Arquitetura
 
 **Múltiplos Pontos de Entrada:**
+
 - `app.js`, `app-real.js`, `app-simples.js` - Confusão sobre qual usar
 - Configurações conflitantes entre arquivos
 - Middlewares duplicados e inconsistentes
 
 **Sistema de Autenticação Fragmentado:**
+
 - `auth.js`, `auth-real.js`, `auth-simples.js` - Múltiplas implementações
 - Middleware condicional baseado em `SIMULATION_MODE` causa inconsistências
 - Token JWT não sendo validado corretamente em produção
 
 **Configurações de Ambiente Caóticas:**
+
 - Múltiplos arquivos `.env.*` sem padrão claro
 - Variáveis conflitantes entre desenvolvimento/produção
 - Scripts de deploy inconsistentes
@@ -122,11 +128,13 @@ Sistema desktop-first com adaptação mobile. Interface otimizada para tablets e
 ### 5.2 Problemas de Banco de Dados
 
 **Dupla Implementação:**
+
 - MongoDB (database.js) vs Arquivo JSON (database-simples.js)
 - Modelos Mongoose não utilizados consistentemente
 - Dados podem ficar dessincronizados
 
 **Estrutura de Dados Inconsistente:**
+
 - Campos obrigatórios não validados
 - Relacionamentos não definidos claramente
 - Falta de índices para performance
@@ -134,11 +142,13 @@ Sistema desktop-first com adaptação mobile. Interface otimizada para tablets e
 ### 5.3 Problemas de Integração SEFAZ
 
 **Cliente SEFAZ Instável:**
+
 - Timeout não configurado adequadamente
 - Certificados não validados corretamente
 - Respostas SOAP não tratadas adequadamente
 
 **Modo Simulação Problemático:**
+
 - Lógica condicional espalhada pelo código
 - Dificulta testes e validação
 - Pode causar comportamentos inesperados
@@ -166,6 +176,7 @@ backend/
 ### 6.2 Middleware de Autenticação Unificado
 
 **Características:**
+
 - JWT com refresh token
 - Validação consistente em todas as rotas
 - Logs estruturados de acesso
@@ -174,6 +185,7 @@ backend/
 ### 6.3 Banco de Dados Único
 
 **MongoDB como padrão:**
+
 - Modelos Mongoose bem definidos
 - Validações no schema
 - Índices para performance
@@ -182,6 +194,7 @@ backend/
 ### 6.4 Integração SEFAZ Robusta
 
 **Cliente SEFAZ unificado:**
+
 - Pool de conexões
 - Retry automático
 - Timeout configurável
@@ -301,16 +314,18 @@ TIMEOUT=30000
 
 ```javascript
 module.exports = {
-  apps: [{
-    name: 'brandaocontador-nfe',
-    script: './app.js',
-    instances: 1,
-    autorestart: true,
-    watch: false,
-    max_memory_restart: '1G',
-    env_file: '.env'
-  }]
-}
+  apps: [
+    {
+      name: "brandaocontador-nfe",
+      script: "./app.js",
+      instances: 1,
+      autorestart: true,
+      watch: false,
+      max_memory_restart: "1G",
+      env_file: ".env",
+    },
+  ],
+};
 ```
 
 ## 10. Métricas de Sucesso

@@ -6,9 +6,7 @@
   },
   "auth": {
     "type": "bearer",
-    "bearer": [
-      { "key": "token", "value": "{{jwtToken}}", "type": "string" }
-    ]
+    "bearer": [{ "key": "token", "value": "{{jwtToken}}", "type": "string" }]
   },
   "variable": [
     { "key": "baseUrl", "value": "https://nfe.brandaocontador.com.br/api" },
@@ -25,7 +23,10 @@
       "request": {
         "method": "POST",
         "header": [{ "key": "Content-Type", "value": "application/json" }],
-        "body": { "mode": "raw", "raw": "{ \"email\":\"admin@example.com\", \"senha\":\"SenhaForte123\" }" },
+        "body": {
+          "mode": "raw",
+          "raw": "{ \"email\":\"admin@example.com\", \"senha\":\"SenhaForte123\" }"
+        },
         "url": "{{baseUrl}}/auth/login"
       }
     },
@@ -34,7 +35,10 @@
       "request": {
         "method": "POST",
         "header": [{ "key": "Content-Type", "value": "application/json" }],
-        "body": { "mode": "raw", "raw": "{ \"nome\":\"Cliente\", \"email\":\"cliente@example.com\", \"senha\":\"Senha123\", \"tipoCliente\":\"CPF\", \"documento\":\"12345678901\" }" },
+        "body": {
+          "mode": "raw",
+          "raw": "{ \"nome\":\"Cliente\", \"email\":\"cliente@example.com\", \"senha\":\"Senha123\", \"tipoCliente\":\"CPF\", \"documento\":\"12345678901\" }"
+        },
         "url": "{{baseUrl}}/auth/register"
       }
     },
@@ -47,7 +51,10 @@
       "request": {
         "method": "POST",
         "header": [{ "key": "Content-Type", "value": "application/json" }],
-        "body": { "mode": "raw", "raw": "{ \"modo\":\"validacao\", \"emitente\": {\"cnpj\":\"12345678000199\"}, \"destinatario\": {\"cpf\":\"12345678901\"}, \"itens\":[{\"descricao\":\"Produto\",\"cfop\":\"5102\",\"ncm\":\"12345678\",\"quantidade\":1,\"valorUnitario\":10}] }" },
+        "body": {
+          "mode": "raw",
+          "raw": "{ \"modo\":\"validacao\", \"emitente\": {\"cnpj\":\"12345678000199\"}, \"destinatario\": {\"cpf\":\"12345678901\"}, \"itens\":[{\"descricao\":\"Produto\",\"cfop\":\"5102\",\"ncm\":\"12345678\",\"quantidade\":1,\"valorUnitario\":10}] }"
+        },
         "url": "{{baseUrl}}/nfe/validar"
       }
     },
@@ -56,7 +63,10 @@
       "request": {
         "method": "POST",
         "header": [{ "key": "Content-Type", "value": "application/json" }],
-        "body": { "mode": "raw", "raw": "{ \"emitente\": {\"cnpj\":\"12345678000199\"}, \"destinatario\": {\"cpf\":\"12345678901\"}, \"itens\":[{\"descricao\":\"Produto\",\"cfop\":\"5102\",\"ncm\":\"12345678\",\"quantidade\":1,\"valorUnitario\":10}], \"pagamento\": {\"forma\":\"01\"} }" },
+        "body": {
+          "mode": "raw",
+          "raw": "{ \"emitente\": {\"cnpj\":\"12345678000199\"}, \"destinatario\": {\"cpf\":\"12345678901\"}, \"itens\":[{\"descricao\":\"Produto\",\"cfop\":\"5102\",\"ncm\":\"12345678\",\"quantidade\":1,\"valorUnitario\":10}], \"pagamento\": {\"forma\":\"01\"} }"
+        },
         "url": "{{baseUrl}}/nfe/emitir"
       }
     },
@@ -66,14 +76,20 @@
     },
     {
       "name": "Download XML",
-      "request": { "method": "GET", "url": "{{baseUrl}}/nfe/download?id={{idNFe}}" }
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/nfe/download?id={{idNFe}}"
+      }
     },
     {
       "name": "Cancelar NFe",
       "request": {
         "method": "POST",
         "header": [{ "key": "Content-Type", "value": "application/json" }],
-        "body": { "mode": "raw", "raw": "{ \"id\":\"{{idNFe}}\", \"justificativa\":\"Erro de preenchimento\" }" },
+        "body": {
+          "mode": "raw",
+          "raw": "{ \"id\":\"{{idNFe}}\", \"justificativa\":\"Erro de preenchimento\" }"
+        },
         "url": "{{baseUrl}}/nfe/cancelar"
       }
     },
@@ -82,7 +98,10 @@
       "request": {
         "method": "POST",
         "header": [{ "key": "Content-Type", "value": "application/json" }],
-        "body": { "mode": "raw", "raw": "{ \"serie\":\"1\", \"numeroInicial\":100, \"numeroFinal\":100, \"justificativa\":\"Sequência não utilizada\" }" },
+        "body": {
+          "mode": "raw",
+          "raw": "{ \"serie\":\"1\", \"numeroInicial\":100, \"numeroFinal\":100, \"justificativa\":\"Sequência não utilizada\" }"
+        },
         "url": "{{baseUrl}}/nfe/inutilizar"
       }
     },
@@ -95,7 +114,10 @@
       "request": {
         "method": "PATCH",
         "header": [{ "key": "Content-Type", "value": "application/json" }],
-        "body": { "mode": "raw", "raw": "{ \"ambiente\":2, \"seriePadrao\":\"1\", \"numeroInicial\":1000, \"emailEnvio\":\"financeiro@example.com\" }" },
+        "body": {
+          "mode": "raw",
+          "raw": "{ \"ambiente\":2, \"seriePadrao\":\"1\", \"numeroInicial\":1000, \"emailEnvio\":\"financeiro@example.com\" }"
+        },
         "url": "{{baseUrl}}/configuracoes/nfe"
       }
     },
@@ -104,7 +126,10 @@
       "request": {
         "method": "PATCH",
         "header": [{ "key": "Content-Type", "value": "application/json" }],
-        "body": { "mode": "raw", "raw": "{ \"emailNFeEmitida\":\"emitida@example.com\", \"emailNFeCancelada\":\"cancelada@example.com\", \"whatsappNotificacoes\":false }" },
+        "body": {
+          "mode": "raw",
+          "raw": "{ \"emailNFeEmitida\":\"emitida@example.com\", \"emailNFeCancelada\":\"cancelada@example.com\", \"whatsappNotificacoes\":false }"
+        },
         "url": "{{baseUrl}}/configuracoes/notificacoes"
       }
     },
@@ -112,10 +137,13 @@
       "name": "Upload Certificado (Admin)",
       "request": {
         "method": "POST",
-        "body": { "mode": "formdata", "formdata": [
-          { "key": "certificado", "type": "file", "src": "" },
-          { "key": "senha", "type": "text", "value": "123456" }
-        ] },
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            { "key": "certificado", "type": "file", "src": "" },
+            { "key": "senha", "type": "text", "value": "123456" }
+          ]
+        },
         "url": "{{baseUrl}}/configuracoes/certificado"
       }
     },
@@ -123,10 +151,13 @@
       "name": "Upload Certificado (Cliente)",
       "request": {
         "method": "POST",
-        "body": { "mode": "formdata", "formdata": [
-          { "key": "certificado", "type": "file", "src": "" },
-          { "key": "senha", "type": "text", "value": "123456" }
-        ] },
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            { "key": "certificado", "type": "file", "src": "" },
+            { "key": "senha", "type": "text", "value": "123456" }
+          ]
+        },
         "url": "{{baseUrl}}/me/certificado"
       }
     }

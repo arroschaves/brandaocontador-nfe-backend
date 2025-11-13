@@ -15,6 +15,7 @@ Antes de colocar o sistema em produção, certifique-se de ter:
 ## 🔧 1. CONFIGURAÇÃO DO AMBIENTE
 
 ### 📁 Estrutura de Diretórios
+
 ```
 /opt/nfe-backend/          # Diretório principal
 ├── app.js                 # Aplicação principal
@@ -30,6 +31,7 @@ Antes de colocar o sistema em produção, certifique-se de ter:
 ```
 
 ### 🔐 Variáveis de Ambiente (.env)
+
 ```env
 # ==================== AMBIENTE ====================
 NODE_ENV=production
@@ -86,6 +88,7 @@ SMTP_PASS=sua-senha-app
 ## 🗄️ 2. CONFIGURAÇÃO DO MONGODB
 
 ### 🐳 Opção 1: MongoDB Local com Docker
+
 ```bash
 # Criar volume persistente
 docker volume create mongodb_data
@@ -112,6 +115,7 @@ db.createUser({
 ```
 
 ### ☁️ Opção 2: MongoDB Atlas (Recomendado)
+
 1. Acesse [MongoDB Atlas](https://cloud.mongodb.com)
 2. Crie um cluster gratuito
 3. Configure o usuário e senha
@@ -119,6 +123,7 @@ db.createUser({
 5. Copie a string de conexão para `MONGODB_URI`
 
 ### 🔧 Configuração de Índices
+
 ```javascript
 // Execute no MongoDB para otimizar performance
 use nfe_production
@@ -152,12 +157,14 @@ db.nfes.createIndex({ "status": 1 })
 ## 🔐 3. CONFIGURAÇÃO DO CERTIFICADO DIGITAL
 
 ### 📋 Requisitos do Certificado
+
 - **Tipo**: A1 (.pfx)
 - **Validade**: Mínimo 6 meses
 - **Emitido para**: CNPJ do emitente
 - **Autoridade**: AC válida (Serasa, Certisign, etc.)
 
 ### 📁 Instalação do Certificado
+
 ```bash
 # Criar diretório para certificados
 mkdir -p /opt/nfe-backend/certs
@@ -171,6 +178,7 @@ chown nfe-user:nfe-user /opt/nfe-backend/certs/certificado-producao.pfx
 ```
 
 ### ✅ Validação do Certificado
+
 ```bash
 # Testar carregamento do certificado
 openssl pkcs12 -in certificado-producao.pfx -noout -info
@@ -181,6 +189,7 @@ openssl pkcs12 -in certificado-producao.pfx -noout -info
 ## 🚀 4. INSTALAÇÃO E DEPLOY
 
 ### 📦 Instalação das Dependências
+
 ```bash
 # Navegar para o diretório
 cd /opt/nfe-backend
@@ -193,6 +202,7 @@ npm audit
 ```
 
 ### 🔧 Configuração do PM2 (Process Manager)
+
 ```bash
 # Instalar PM2 globalmente
 npm install -g pm2
@@ -237,6 +247,7 @@ pm2 save
 ## 🌐 5. CONFIGURAÇÃO DO NGINX (PROXY REVERSO)
 
 ### 📝 Configuração do Nginx
+
 ```nginx
 # /etc/nginx/sites-available/nfe-backend
 server {
@@ -252,7 +263,7 @@ server {
     # Certificado SSL
     ssl_certificate /etc/letsencrypt/live/api.seudominio.com.br/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/api.seudominio.com.br/privkey.pem;
-    
+
     # Configurações SSL
     ssl_protocols TLSv1.2 TLSv1.3;
     ssl_ciphers ECDHE-RSA-AES256-GCM-SHA512:DHE-RSA-AES256-GCM-SHA512;
@@ -277,12 +288,12 @@ server {
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
         proxy_cache_bypass $http_upgrade;
-        
+
         # Timeouts
         proxy_connect_timeout 60s;
         proxy_send_timeout 60s;
         proxy_read_timeout 60s;
-        
+
         # Tamanho máximo do body
         client_max_body_size 10M;
     }
@@ -294,6 +305,7 @@ server {
 ```
 
 ### 🔧 Ativar Configuração
+
 ```bash
 # Ativar site
 ln -s /etc/nginx/sites-available/nfe-backend /etc/nginx/sites-enabled/
@@ -310,6 +322,7 @@ systemctl reload nginx
 ## 🔒 6. CONFIGURAÇÃO DE SEGURANÇA
 
 ### 🛡️ Firewall (UFW)
+
 ```bash
 # Configurar firewall
 ufw default deny incoming
@@ -321,6 +334,7 @@ ufw enable
 ```
 
 ### 👤 Usuário do Sistema
+
 ```bash
 # Criar usuário específico
 useradd -r -s /bin/false nfe-user
@@ -329,6 +343,7 @@ chmod -R 750 /opt/nfe-backend
 ```
 
 ### 🔐 Backup Automático
+
 ```bash
 # Script de backup
 cat > /opt/nfe-backend/scripts/backup.sh << 'EOF'
@@ -365,6 +380,7 @@ echo "0 2 * * * /opt/nfe-backend/scripts/backup.sh" | crontab -
 ## 📊 7. MONITORAMENTO E LOGS
 
 ### 📝 Configuração de Logs
+
 ```bash
 # Configurar logrotate
 cat > /etc/logrotate.d/nfe-backend << 'EOF'
@@ -384,6 +400,7 @@ EOF
 ```
 
 ### 📊 Monitoramento com PM2
+
 ```bash
 # Instalar PM2 Plus (opcional)
 pm2 install pm2-server-monit
@@ -400,6 +417,7 @@ pm2 logs nfe-backend
 ## 🧪 8. TESTES DE PRODUÇÃO
 
 ### ✅ Checklist de Validação
+
 ```bash
 # 1. Verificar status da aplicação
 curl -f http://localhost:3000/health
@@ -420,6 +438,7 @@ tail -f /opt/nfe-backend/logs/nfe-backend.log
 ```
 
 ### 🔍 Monitoramento Contínuo
+
 ```bash
 # Script de monitoramento
 cat > /opt/nfe-backend/scripts/monitor.sh << 'EOF'
@@ -462,6 +481,7 @@ echo "*/5 * * * * /opt/nfe-backend/scripts/monitor.sh" | crontab -
 ### ❌ Problemas Comuns
 
 #### 🔐 Erro de Certificado
+
 ```bash
 # Verificar certificado
 openssl pkcs12 -in certificado.pfx -noout -info
@@ -471,6 +491,7 @@ ls -la /opt/nfe-backend/certs/
 ```
 
 #### 🗄️ Erro de Conexão MongoDB
+
 ```bash
 # Verificar status
 systemctl status mongod
@@ -480,6 +501,7 @@ mongosh "mongodb://localhost:27017/nfe_production"
 ```
 
 #### 🌐 Erro de Conectividade SEFAZ
+
 ```bash
 # Testar conectividade
 curl -v https://nfe.sefaz.ms.gov.br/ws/NfeStatusServico/NfeStatusServico4.asmx
@@ -489,6 +511,7 @@ nslookup nfe.sefaz.ms.gov.br
 ```
 
 #### 📊 Alto Uso de Memória
+
 ```bash
 # Verificar processos
 pm2 monit
@@ -505,6 +528,7 @@ pm2 logs nfe-backend --lines 100
 ## 📞 10. SUPORTE E MANUTENÇÃO
 
 ### 🔧 Comandos Úteis
+
 ```bash
 # Status geral
 pm2 status
@@ -532,6 +556,7 @@ free -h
 ```
 
 ### 📋 Manutenção Periódica
+
 - **Diária**: Verificar logs e status
 - **Semanal**: Verificar backups e espaço em disco
 - **Mensal**: Atualizar dependências e certificados

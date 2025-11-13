@@ -10,28 +10,28 @@ graph TB
         U1[Usuários Finais]
         U2[Administradores]
     end
-    
+
     subgraph "Cloudflare CDN"
         CF[Cloudflare]
     end
-    
+
     subgraph "Vercel (Frontend)"
         V1[nfe.brandaocontador.com.br]
         V2[admin.brandaocontador.com.br]
     end
-    
+
     subgraph "DigitalOcean (Backend)"
         DO[api.brandaocontador.com.br]
         NG[Nginx Proxy]
         PM[PM2 Process Manager]
         APP[Node.js App]
     end
-    
+
     subgraph "Serviços Externos"
         SEFAZ[SEFAZ APIs]
         CERT[Certificados A1/A3]
     end
-    
+
     U1 --> CF
     U2 --> CF
     CF --> V1
@@ -48,6 +48,7 @@ graph TB
 ### 1.2 Tecnologias por Camada
 
 #### Frontend (Vercel)
+
 - **Framework**: Next.js 14 + TypeScript
 - **Styling**: Tailwind CSS
 - **State Management**: React Hooks + Context
@@ -56,6 +57,7 @@ graph TB
 - **Build Tool**: Next.js built-in
 
 #### Backend (DigitalOcean)
+
 - **Runtime**: Node.js 18.x
 - **Framework**: Express.js
 - **Process Manager**: PM2
@@ -96,10 +98,10 @@ name: Deploy Frontend to Vercel
 on:
   push:
     branches: [main]
-    paths: ['frontend/**']
+    paths: ["frontend/**"]
   pull_request:
     branches: [main]
-    paths: ['frontend/**']
+    paths: ["frontend/**"]
 
 env:
   VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
@@ -111,29 +113,29 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
-          cache: 'npm'
+          node-version: "18"
+          cache: "npm"
           cache-dependency-path: frontend/package-lock.json
-      
+
       - name: Install dependencies
         run: |
           cd frontend
           npm ci
-      
+
       - name: Run tests
         run: |
           cd frontend
           npm run test
-      
+
       - name: Build application
         run: |
           cd frontend
           npm run build
-  
+
   deploy:
     needs: test
     runs-on: ubuntu-latest
@@ -141,20 +143,20 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      
+
       - name: Install Vercel CLI
         run: npm install --global vercel@latest
-      
+
       - name: Pull Vercel Environment Information
         run: |
           cd frontend
           vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
-      
+
       - name: Build Project Artifacts
         run: |
           cd frontend
           vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
-      
+
       - name: Deploy Project Artifacts to Vercel
         run: |
           cd frontend
@@ -170,7 +172,7 @@ name: Deploy Backend to DigitalOcean
 on:
   push:
     branches: [main]
-    paths: ['backend/**']
+    paths: ["backend/**"]
 
 jobs:
   test:
@@ -178,24 +180,24 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
-          cache: 'npm'
+          node-version: "18"
+          cache: "npm"
           cache-dependency-path: backend/package-lock.json
-      
+
       - name: Install dependencies
         run: |
           cd backend
           npm ci
-      
+
       - name: Run tests
         run: |
           cd backend
           npm test
-  
+
   deploy:
     needs: test
     runs-on: ubuntu-latest
@@ -210,25 +212,25 @@ jobs:
           port: ${{ secrets.DO_PORT }}
           script: |
             cd /var/www/brandao-contador-api
-            
+
             # Backup atual
             cp -r . ../backup-$(date +%Y%m%d-%H%M%S)
-            
+
             # Atualizar código
             git pull origin main
-            
+
             # Instalar dependências
             npm install --production
-            
+
             # Reiniciar aplicação
             pm2 restart brandao-contador-api
-            
+
             # Verificar status
             pm2 status
-            
+
             # Salvar configuração PM2
             pm2 save
-            
+
             # Verificar se aplicação está respondendo
             sleep 5
             curl -f http://localhost:3001/status || exit 1
@@ -237,6 +239,7 @@ jobs:
 ### 2.4 Configuração de Secrets no GitHub
 
 #### Secrets Necessários
+
 ```
 # Vercel
 VERCEL_TOKEN=your-vercel-token
@@ -302,7 +305,7 @@ server {
 server {
     listen 443 ssl http2;
     server_name api.brandaocontador.com.br;
-    
+
     # SSL Configuration
     ssl_certificate /etc/letsencrypt/live/api.brandaocontador.com.br/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/api.brandaocontador.com.br/privkey.pem;
@@ -311,17 +314,17 @@ server {
     ssl_prefer_server_ciphers off;
     ssl_session_cache shared:SSL:10m;
     ssl_session_timeout 10m;
-    
+
     # Security Headers
     add_header X-Frame-Options DENY;
     add_header X-Content-Type-Options nosniff;
     add_header X-XSS-Protection "1; mode=block";
     add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
-    
+
     # Rate Limiting
     limit_req_zone $binary_remote_addr zone=api:10m rate=10r/s;
     limit_req zone=api burst=20 nodelay;
-    
+
     # Proxy Configuration
     location / {
         proxy_pass http://localhost:3001;
@@ -333,13 +336,13 @@ server {
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
         proxy_cache_bypass $http_upgrade;
-        
+
         # Timeouts
         proxy_connect_timeout 60s;
         proxy_send_timeout 60s;
         proxy_read_timeout 60s;
     }
-    
+
     # Health Check
     location /health {
         access_log off;
@@ -354,30 +357,32 @@ server {
 ```javascript
 // ecosystem.config.js
 module.exports = {
-  apps: [{
-    name: 'brandao-contador-api',
-    script: 'app.js',
-    instances: 'max',
-    exec_mode: 'cluster',
-    env: {
-      NODE_ENV: 'production',
-      PORT: 3001
+  apps: [
+    {
+      name: "brandao-contador-api",
+      script: "app.js",
+      instances: "max",
+      exec_mode: "cluster",
+      env: {
+        NODE_ENV: "production",
+        PORT: 3001,
+      },
+      env_production: {
+        NODE_ENV: "production",
+        PORT: 3001,
+      },
+      error_file: "./logs/err.log",
+      out_file: "./logs/out.log",
+      log_file: "./logs/combined.log",
+      time: true,
+      max_memory_restart: "1G",
+      node_args: "--max-old-space-size=1024",
+      watch: false,
+      ignore_watch: ["node_modules", "logs"],
+      max_restarts: 10,
+      min_uptime: "10s",
     },
-    env_production: {
-      NODE_ENV: 'production',
-      PORT: 3001
-    },
-    error_file: './logs/err.log',
-    out_file: './logs/out.log',
-    log_file: './logs/combined.log',
-    time: true,
-    max_memory_restart: '1G',
-    node_args: '--max-old-space-size=1024',
-    watch: false,
-    ignore_watch: ['node_modules', 'logs'],
-    max_restarts: 10,
-    min_uptime: '10s'
-  }]
+  ],
 };
 ```
 
@@ -404,10 +409,7 @@ api.brandaocontador.com.br    A        YOUR_DIGITALOCEAN_IP
 ```json
 // vercel.json
 {
-  "domains": [
-    "nfe.brandaocontador.com.br",
-    "admin.brandaocontador.com.br"
-  ],
+  "domains": ["nfe.brandaocontador.com.br", "admin.brandaocontador.com.br"],
   "routes": [
     {
       "src": "/(.*)",
@@ -432,32 +434,32 @@ api.brandaocontador.com.br    A        YOUR_DIGITALOCEAN_IP
 
 ```javascript
 // health-check.js
-const express = require('express');
+const express = require("express");
 const app = express();
 
 // Health check endpoint
-app.get('/health', (req, res) => {
+app.get("/health", (req, res) => {
   const healthCheck = {
     uptime: process.uptime(),
-    message: 'OK',
+    message: "OK",
     timestamp: Date.now(),
     env: process.env.NODE_ENV,
-    version: process.env.npm_package_version
+    version: process.env.npm_package_version,
   };
-  
+
   res.status(200).json(healthCheck);
 });
 
 // Readiness check
-app.get('/ready', async (req, res) => {
+app.get("/ready", async (req, res) => {
   try {
     // Verificar conexões essenciais
     // await checkDatabase();
     // await checkExternalServices();
-    
-    res.status(200).json({ status: 'ready' });
+
+    res.status(200).json({ status: "ready" });
   } catch (error) {
-    res.status(503).json({ status: 'not ready', error: error.message });
+    res.status(503).json({ status: "not ready", error: error.message });
   }
 });
 ```
@@ -466,23 +468,23 @@ app.get('/ready', async (req, res) => {
 
 ```javascript
 // logger.js
-const winston = require('winston');
+const winston = require("winston");
 
 const logger = winston.createLogger({
-  level: 'info',
+  level: "info",
   format: winston.format.combine(
     winston.format.timestamp(),
     winston.format.errors({ stack: true }),
-    winston.format.json()
+    winston.format.json(),
   ),
-  defaultMeta: { service: 'brandao-contador-api' },
+  defaultMeta: { service: "brandao-contador-api" },
   transports: [
-    new winston.transports.File({ filename: 'logs/error.log', level: 'error' }),
-    new winston.transports.File({ filename: 'logs/combined.log' }),
+    new winston.transports.File({ filename: "logs/error.log", level: "error" }),
+    new winston.transports.File({ filename: "logs/combined.log" }),
     new winston.transports.Console({
-      format: winston.format.simple()
-    })
-  ]
+      format: winston.format.simple(),
+    }),
+  ],
 });
 
 module.exports = logger;

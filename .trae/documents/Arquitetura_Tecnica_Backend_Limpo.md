@@ -41,45 +41,47 @@ graph TD
 
 ## 3. Route definitions
 
-| Route | Purpose |
-|-------|---------|
-| /api/auth/login | Autenticação de usuário, retorna JWT token |
-| /api/auth/register | Registro de novo usuário |
-| /api/auth/validate | Validação de token JWT |
-| /api/emitente/config | Configuração dos dados do emitente |
-| /api/nfe/emitir | Emissão de Nota Fiscal Eletrônica |
-| /api/cte/emitir | Emissão de Conhecimento de Transporte |
-| /api/mdfe/emitir | Emissão de Manifesto de Documentos Fiscais |
-| /api/nfe/consultar/:chave | Consulta NFe por chave de acesso |
-| /api/nfe/cancelar | Cancelamento de NFe |
-| /api/clientes | CRUD de clientes |
-| /api/produtos | CRUD de produtos |
-| /api/relatorios | Relatórios e consultas |
-| /api/sistema/status | Health check e status do sistema |
+| Route                     | Purpose                                    |
+| ------------------------- | ------------------------------------------ |
+| /api/auth/login           | Autenticação de usuário, retorna JWT token |
+| /api/auth/register        | Registro de novo usuário                   |
+| /api/auth/validate        | Validação de token JWT                     |
+| /api/emitente/config      | Configuração dos dados do emitente         |
+| /api/nfe/emitir           | Emissão de Nota Fiscal Eletrônica          |
+| /api/cte/emitir           | Emissão de Conhecimento de Transporte      |
+| /api/mdfe/emitir          | Emissão de Manifesto de Documentos Fiscais |
+| /api/nfe/consultar/:chave | Consulta NFe por chave de acesso           |
+| /api/nfe/cancelar         | Cancelamento de NFe                        |
+| /api/clientes             | CRUD de clientes                           |
+| /api/produtos             | CRUD de produtos                           |
+| /api/relatorios           | Relatórios e consultas                     |
+| /api/sistema/status       | Health check e status do sistema           |
 
 ## 4. API definitions
 
 ### 4.1 Core API
 
 **Autenticação de usuário**
+
 ```
 POST /api/auth/login
 ```
 
 Request:
-| Param Name| Param Type  | isRequired  | Description |
+| Param Name| Param Type | isRequired | Description |
 |-----------|-------------|-------------|-------------|
-| email     | string      | true        | Email do usuário |
-| senha     | string      | true        | Senha do usuário |
+| email | string | true | Email do usuário |
+| senha | string | true | Senha do usuário |
 
 Response:
-| Param Name| Param Type  | Description |
+| Param Name| Param Type | Description |
 |-----------|-------------|-------------|
-| sucesso   | boolean     | Status da operação |
-| token     | string      | JWT token para autenticação |
-| usuario   | object      | Dados do usuário logado |
+| sucesso | boolean | Status da operação |
+| token | string | JWT token para autenticação |
+| usuario | object | Dados do usuário logado |
 
 Example:
+
 ```json
 {
   "email": "usuario@empresa.com",
@@ -88,42 +90,44 @@ Example:
 ```
 
 **Emissão de NFe**
+
 ```
 POST /api/nfe/emitir
 ```
 
 Request:
-| Param Name| Param Type  | isRequired  | Description |
+| Param Name| Param Type | isRequired | Description |
 |-----------|-------------|-------------|-------------|
-| cliente   | object      | true        | Dados do cliente/destinatário |
-| produtos  | array       | true        | Lista de produtos/serviços |
-| observacoes | string    | false       | Observações adicionais |
+| cliente | object | true | Dados do cliente/destinatário |
+| produtos | array | true | Lista de produtos/serviços |
+| observacoes | string | false | Observações adicionais |
 
 Response:
-| Param Name| Param Type  | Description |
+| Param Name| Param Type | Description |
 |-----------|-------------|-------------|
-| sucesso   | boolean     | Status da emissão |
-| chave     | string      | Chave de acesso da NFe |
-| protocolo | string      | Protocolo de autorização SEFAZ |
-| xml       | string      | XML da NFe autorizada |
+| sucesso | boolean | Status da emissão |
+| chave | string | Chave de acesso da NFe |
+| protocolo | string | Protocolo de autorização SEFAZ |
+| xml | string | XML da NFe autorizada |
 
 **Configuração do Emitente**
+
 ```
 GET /api/emitente/config
 POST /api/emitente/config
 ```
 
 Request (POST):
-| Param Name| Param Type  | isRequired  | Description |
+| Param Name| Param Type | isRequired | Description |
 |-----------|-------------|-------------|-------------|
-| emitente  | object      | true        | Dados completos do emitente |
+| emitente | object | true | Dados completos do emitente |
 
 Response:
-| Param Name| Param Type  | Description |
+| Param Name| Param Type | Description |
 |-----------|-------------|-------------|
-| sucesso   | boolean     | Status da operação |
-| emitente  | object      | Dados do emitente configurado |
-| configurado | boolean   | Se emitente está configurado |
+| sucesso | boolean | Status da operação |
+| emitente | object | Dados do emitente configurado |
+| configurado | boolean | Se emitente está configurado |
 
 ### 4.2 TypeScript Interfaces
 
@@ -132,7 +136,7 @@ interface Usuario {
   id: string;
   nome: string;
   email: string;
-  tipoCliente: 'cpf' | 'cnpj';
+  tipoCliente: "cpf" | "cnpj";
   documento: string;
   ativo: boolean;
   permissoes: string[];
@@ -160,7 +164,7 @@ interface Endereco {
 }
 
 interface Cliente {
-  tipo: 'cpf' | 'cnpj';
+  tipo: "cpf" | "cnpj";
   documento: string;
   nome: string;
   email?: string;
@@ -186,7 +190,7 @@ interface NFe {
   cliente: Cliente;
   produtos: Produto[];
   valorTotal: number;
-  status: 'autorizada' | 'cancelada' | 'denegada';
+  status: "autorizada" | "cancelada" | "denegada";
   protocolo?: string;
   dataEmissao: Date;
 }
@@ -202,10 +206,10 @@ graph TD
     D --> E[Business Service Layer]
     E --> F[Data Access Layer]
     F --> G[(MongoDB)]
-    
+
     E --> H[SEFAZ Service]
     H --> I[External SEFAZ API]
-    
+
     E --> J[File Service]
     J --> K[File System]
 
@@ -214,21 +218,21 @@ graph TD
         C
         D
     end
-    
+
     subgraph "Business Logic"
         E
     end
-    
+
     subgraph "Data Layer"
         F
         G
     end
-    
+
     subgraph "External Services"
         H
         I
     end
-    
+
     subgraph "File Storage"
         J
         K
@@ -263,7 +267,7 @@ erDiagram
         date dataCadastro
         date ultimoAcesso
     }
-    
+
     CLIENTE {
         ObjectId id PK
         string tipo
@@ -276,7 +280,7 @@ erDiagram
         ObjectId usuarioId FK
         date dataCadastro
     }
-    
+
     PRODUTO {
         ObjectId id PK
         string codigo UK
@@ -290,7 +294,7 @@ erDiagram
         ObjectId usuarioId FK
         date dataCadastro
     }
-    
+
     NFE {
         ObjectId id PK
         number numero
@@ -306,7 +310,7 @@ erDiagram
         date dataEmissao
         date dataAutorizacao
     }
-    
+
     CONFIGURACAO {
         ObjectId id PK
         string chave UK
@@ -320,6 +324,7 @@ erDiagram
 ### 6.2 Data Definition Language
 
 **Usuários**
+
 ```javascript
 // Criar coleção de usuários
 db.createCollection("usuarios", {
@@ -334,19 +339,20 @@ db.createCollection("usuarios", {
         tipoCliente: { enum: ["cpf", "cnpj"] },
         documento: { bsonType: "string" },
         ativo: { bsonType: "bool" },
-        permissoes: { bsonType: "array" }
-      }
-    }
-  }
+        permissoes: { bsonType: "array" },
+      },
+    },
+  },
 });
 
 // Índices para usuários
-db.usuarios.createIndex({ "email": 1 }, { unique: true });
-db.usuarios.createIndex({ "documento": 1 }, { unique: true, sparse: true });
-db.usuarios.createIndex({ "ativo": 1 });
+db.usuarios.createIndex({ email: 1 }, { unique: true });
+db.usuarios.createIndex({ documento: 1 }, { unique: true, sparse: true });
+db.usuarios.createIndex({ ativo: 1 });
 ```
 
 **Clientes**
+
 ```javascript
 // Criar coleção de clientes
 db.createCollection("clientes", {
@@ -359,19 +365,20 @@ db.createCollection("clientes", {
         documento: { bsonType: "string" },
         nome: { bsonType: "string", maxLength: 200 },
         email: { bsonType: "string", pattern: "^[^@]+@[^@]+\.[^@]+$" },
-        ativo: { bsonType: "bool" }
-      }
-    }
-  }
+        ativo: { bsonType: "bool" },
+      },
+    },
+  },
 });
 
 // Índices para clientes
-db.clientes.createIndex({ "documento": 1 }, { unique: true });
-db.clientes.createIndex({ "usuarioId": 1 });
-db.clientes.createIndex({ "nome": 1 });
+db.clientes.createIndex({ documento: 1 }, { unique: true });
+db.clientes.createIndex({ usuarioId: 1 });
+db.clientes.createIndex({ nome: 1 });
 ```
 
 **Produtos**
+
 ```javascript
 // Criar coleção de produtos
 db.createCollection("produtos", {
@@ -384,19 +391,20 @@ db.createCollection("produtos", {
         nome: { bsonType: "string", maxLength: 150 },
         ncm: { bsonType: "string", pattern: "^[0-9]{2,8}$" },
         cfop: { bsonType: "string", pattern: "^[0-9]{4}$" },
-        valorUnitario: { bsonType: "number", minimum: 0 }
-      }
-    }
-  }
+        valorUnitario: { bsonType: "number", minimum: 0 },
+      },
+    },
+  },
 });
 
 // Índices para produtos
-db.produtos.createIndex({ "codigo": 1 }, { unique: true, sparse: true });
-db.produtos.createIndex({ "usuarioId": 1 });
-db.produtos.createIndex({ "ativo": 1 });
+db.produtos.createIndex({ codigo: 1 }, { unique: true, sparse: true });
+db.produtos.createIndex({ usuarioId: 1 });
+db.produtos.createIndex({ ativo: 1 });
 ```
 
 **NFes**
+
 ```javascript
 // Criar coleção de NFes
 db.createCollection("nfes", {
@@ -409,21 +417,22 @@ db.createCollection("nfes", {
         serie: { bsonType: "string" },
         chave: { bsonType: "string", minLength: 44, maxLength: 44 },
         status: { enum: ["autorizada", "cancelada", "denegada", "pendente"] },
-        valorTotal: { bsonType: "number", minimum: 0 }
-      }
-    }
-  }
+        valorTotal: { bsonType: "number", minimum: 0 },
+      },
+    },
+  },
 });
 
 // Índices para NFes
-db.nfes.createIndex({ "chave": 1 }, { unique: true });
-db.nfes.createIndex({ "usuarioId": 1 });
-db.nfes.createIndex({ "clienteId": 1 });
-db.nfes.createIndex({ "dataEmissao": -1 });
-db.nfes.createIndex({ "status": 1 });
+db.nfes.createIndex({ chave: 1 }, { unique: true });
+db.nfes.createIndex({ usuarioId: 1 });
+db.nfes.createIndex({ clienteId: 1 });
+db.nfes.createIndex({ dataEmissao: -1 });
+db.nfes.createIndex({ status: 1 });
 ```
 
 **Configurações**
+
 ```javascript
 // Criar coleção de configurações
 db.createCollection("configuracoes", {
@@ -435,17 +444,18 @@ db.createCollection("configuracoes", {
         chave: { bsonType: "string" },
         empresa: { bsonType: "object" },
         nfe: { bsonType: "object" },
-        notificacoes: { bsonType: "object" }
-      }
-    }
-  }
+        notificacoes: { bsonType: "object" },
+      },
+    },
+  },
 });
 
 // Índices para configurações
-db.configuracoes.createIndex({ "chave": 1 }, { unique: true });
+db.configuracoes.createIndex({ chave: 1 }, { unique: true });
 ```
 
 **Dados Iniciais**
+
 ```javascript
 // Inserir configuração padrão
 db.configuracoes.insertOne({
@@ -463,8 +473,8 @@ db.configuracoes.insertOne({
       numero: "",
       bairro: "",
       municipio: "",
-      uf: ""
-    }
+      uf: "",
+    },
   },
   nfe: {
     ambiente: "homologacao",
@@ -473,16 +483,16 @@ db.configuracoes.insertOne({
     certificadoDigital: {
       arquivo: "",
       senha: "",
-      status: "nao_configurado"
-    }
+      status: "nao_configurado",
+    },
   },
   notificacoes: {
     emailNFeEmitida: true,
     emailNFeCancelada: true,
-    emailErroEmissao: true
+    emailErroEmissao: true,
   },
   createdAt: new Date(),
-  updatedAt: new Date()
+  updatedAt: new Date(),
 });
 
 // Inserir usuário administrador padrão
@@ -499,12 +509,18 @@ db.usuarios.insertOne({
     numero: "123",
     bairro: "Centro",
     cidade: "Campo Grande",
-    uf: "MS"
+    uf: "MS",
   },
-  permissoes: ["admin", "nfe_emitir", "nfe_consultar", "cte_emitir", "mdfe_emitir"],
+  permissoes: [
+    "admin",
+    "nfe_emitir",
+    "nfe_consultar",
+    "cte_emitir",
+    "mdfe_emitir",
+  ],
   ativo: true,
   dataCadastro: new Date(),
-  ultimoAcesso: new Date()
+  ultimoAcesso: new Date(),
 });
 ```
 
@@ -546,20 +562,22 @@ LOG_FILE=./logs/app.log
 
 ```javascript
 module.exports = {
-  apps: [{
-    name: 'brandaocontador-nfe-backend',
-    script: './app.js',
-    instances: 1,
-    autorestart: true,
-    watch: false,
-    max_memory_restart: '1G',
-    env_file: '.env',
-    error_file: './logs/pm2-error.log',
-    out_file: './logs/pm2-out.log',
-    log_file: './logs/pm2-combined.log',
-    time: true
-  }]
-}
+  apps: [
+    {
+      name: "brandaocontador-nfe-backend",
+      script: "./app.js",
+      instances: 1,
+      autorestart: true,
+      watch: false,
+      max_memory_restart: "1G",
+      env_file: ".env",
+      error_file: "./logs/pm2-error.log",
+      out_file: "./logs/pm2-out.log",
+      log_file: "./logs/pm2-combined.log",
+      time: true,
+    },
+  ],
+};
 ```
 
 ### 7.3 Health Check Endpoint

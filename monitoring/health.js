@@ -1,12 +1,12 @@
 // ==================== SISTEMA DE HEALTH CHECKS ====================
 // Health checks robustos com verificação de dependências
 
-const fs = require('fs').promises;
-const path = require('path');
-const https = require('https');
-const pidusage = require('pidusage');
-const monitoringConfig = require('../config/monitoring');
-const { logger, logSystemEvent } = require('./logger');
+const fs = require("fs").promises;
+const path = require("path");
+const https = require("https");
+const pidusage = require("pidusage");
+const monitoringConfig = require("../config/monitoring");
+const { logger, logSystemEvent } = require("./logger");
 
 // ==================== VERIFICAÇÕES DE SAÚDE ====================
 
@@ -15,80 +15,85 @@ const { logger, logSystemEvent } = require('./logger');
  */
 async function basicHealthCheck() {
   const startTime = Date.now();
-  
+
   try {
     const health = {
-      status: 'healthy',
+      status: "healthy",
       timestamp: new Date().toISOString(),
       uptime: process.uptime(),
-      environment: process.env.NODE_ENV || 'development',
-      version: process.env.npm_package_version || '1.0.0',
-      checks: {}
+      environment: process.env.NODE_ENV || "development",
+      version: process.env.npm_package_version || "1.0.0",
+      checks: {},
     };
-    
+
     // Verificação de memória (corrigido para usar memória real do sistema)
-    const os = require('os');
+    const os = require("os");
     const memoryUsage = process.memoryUsage();
     const totalMemory = os.totalmem();
     const freeMemory = os.freemem();
     const usedMemory = totalMemory - freeMemory;
     const memoryUsagePercent = usedMemory / totalMemory;
-    
+
     health.checks.memory = {
-      status: memoryUsagePercent < monitoringConfig.health.thresholds.memory.critical ? 'healthy' : 'critical',
+      status:
+        memoryUsagePercent < monitoringConfig.health.thresholds.memory.critical
+          ? "healthy"
+          : "critical",
       usage: {
         heapUsed: `${Math.round(memoryUsage.heapUsed / 1024 / 1024)}MB`,
         heapTotal: `${Math.round(memoryUsage.heapTotal / 1024 / 1024)}MB`,
-        percentage: `${Math.round(memoryUsagePercent * 100)}%`
+        percentage: `${Math.round(memoryUsagePercent * 100)}%`,
       },
-      threshold: `${Math.round(monitoringConfig.health.thresholds.memory.critical * 100)}%`
+      threshold: `${Math.round(monitoringConfig.health.thresholds.memory.critical * 100)}%`,
     };
-    
+
     // Verificação de CPU
     try {
       const stats = await pidusage(process.pid);
       health.checks.cpu = {
-        status: stats.cpu < (monitoringConfig.health.thresholds.cpu.critical * 100) ? 'healthy' : 'critical',
+        status:
+          stats.cpu < monitoringConfig.health.thresholds.cpu.critical * 100
+            ? "healthy"
+            : "critical",
         usage: `${Math.round(stats.cpu)}%`,
-        threshold: `${Math.round(monitoringConfig.health.thresholds.cpu.critical * 100)}%`
+        threshold: `${Math.round(monitoringConfig.health.thresholds.cpu.critical * 100)}%`,
       };
     } catch (error) {
       health.checks.cpu = {
-        status: 'unknown',
-        error: error.message
+        status: "unknown",
+        error: error.message,
       };
     }
-    
+
     // Verificação de event loop
     const eventLoopStart = process.hrtime.bigint();
-    await new Promise(resolve => setImmediate(resolve));
+    await new Promise((resolve) => setImmediate(resolve));
     const eventLoopLag = Number(process.hrtime.bigint() - eventLoopStart) / 1e6; // ms
-    
+
     health.checks.eventLoop = {
-      status: eventLoopLag < 100 ? 'healthy' : 'warning',
+      status: eventLoopLag < 100 ? "healthy" : "warning",
       lag: `${Math.round(eventLoopLag)}ms`,
-      threshold: '100ms'
+      threshold: "100ms",
     };
-    
+
     // Determinar status geral
     const allChecks = Object.values(health.checks);
-    if (allChecks.some(check => check.status === 'critical')) {
-      health.status = 'critical';
-    } else if (allChecks.some(check => check.status === 'warning')) {
-      health.status = 'warning';
+    if (allChecks.some((check) => check.status === "critical")) {
+      health.status = "critical";
+    } else if (allChecks.some((check) => check.status === "warning")) {
+      health.status = "warning";
     }
-    
+
     health.responseTime = `${Date.now() - startTime}ms`;
-    
+
     return health;
-    
   } catch (error) {
-    logger.error('Erro no health check básico', { error: error.message });
+    logger.error("Erro no health check básico", { error: error.message });
     return {
-      status: 'critical',
+      status: "critical",
       timestamp: new Date().toISOString(),
       error: error.message,
-      responseTime: `${Date.now() - startTime}ms`
+      responseTime: `${Date.now() - startTime}ms`,
     };
   }
 }
@@ -98,51 +103,50 @@ async function basicHealthCheck() {
  */
 async function detailedHealthCheck() {
   const startTime = Date.now();
-  
+
   try {
     const health = await basicHealthCheck();
-    
+
     // Verificações de dependências
     if (monitoringConfig.health.checks.database) {
       health.checks.database = await checkDatabase();
     }
-    
+
     if (monitoringConfig.health.checks.certificate) {
       health.checks.certificate = await checkCertificates();
     }
-    
+
     if (monitoringConfig.health.checks.sefaz) {
       health.checks.sefaz = await checkSefazConnectivity();
     }
-    
+
     if (monitoringConfig.health.checks.disk) {
       health.checks.disk = await checkDiskSpace();
     }
-    
+
     // Verificações específicas NFe
     health.checks.nfeConfig = await checkNfeConfiguration();
-    
+
     // Recalcular status geral
     const allChecks = Object.values(health.checks);
-    if (allChecks.some(check => check.status === 'critical')) {
-      health.status = 'critical';
-    } else if (allChecks.some(check => check.status === 'warning')) {
-      health.status = 'warning';
+    if (allChecks.some((check) => check.status === "critical")) {
+      health.status = "critical";
+    } else if (allChecks.some((check) => check.status === "warning")) {
+      health.status = "warning";
     } else {
-      health.status = 'healthy';
+      health.status = "healthy";
     }
-    
+
     health.responseTime = `${Date.now() - startTime}ms`;
-    
+
     return health;
-    
   } catch (error) {
-    logger.error('Erro no health check detalhado', { error: error.message });
+    logger.error("Erro no health check detalhado", { error: error.message });
     return {
-      status: 'critical',
+      status: "critical",
       timestamp: new Date().toISOString(),
       error: error.message,
-      responseTime: `${Date.now() - startTime}ms`
+      responseTime: `${Date.now() - startTime}ms`,
     };
   }
 }
@@ -152,32 +156,32 @@ async function detailedHealthCheck() {
  */
 async function checkDatabase() {
   try {
-    if (process.env.USE_MONGODB === 'true') {
+    if (process.env.USE_MONGODB === "true") {
       // Verificação MongoDB (implementar conforme necessário)
       return {
-        status: 'healthy',
-        type: 'mongodb',
-        message: 'Conexão MongoDB ativa'
+        status: "healthy",
+        type: "mongodb",
+        message: "Conexão MongoDB ativa",
       };
     } else {
       // Verificação arquivo JSON
-      const dbPath = path.join(__dirname, '../data/database.json');
+      const dbPath = path.join(__dirname, "../data/database.json");
       await fs.access(dbPath);
-      
+
       const stats = await fs.stat(dbPath);
       return {
-        status: 'healthy',
-        type: 'json',
-        message: 'Arquivo de banco de dados acessível',
+        status: "healthy",
+        type: "json",
+        message: "Arquivo de banco de dados acessível",
         lastModified: stats.mtime.toISOString(),
-        size: `${Math.round(stats.size / 1024)}KB`
+        size: `${Math.round(stats.size / 1024)}KB`,
       };
     }
   } catch (error) {
     return {
-      status: 'critical',
-      type: process.env.USE_MONGODB === 'true' ? 'mongodb' : 'json',
-      error: error.message
+      status: "critical",
+      type: process.env.USE_MONGODB === "true" ? "mongodb" : "json",
+      error: error.message,
     };
   }
 }
@@ -187,52 +191,56 @@ async function checkDatabase() {
  */
 async function checkCertificates() {
   try {
-    const certsPath = path.join(__dirname, '../certs');
-    
+    const certsPath = path.join(__dirname, "../certs");
+
     try {
       const files = await fs.readdir(certsPath);
-      const certFiles = files.filter(file => 
-        file.endsWith('.p12') || file.endsWith('.pfx') || file.endsWith('.pem')
+      const certFiles = files.filter(
+        (file) =>
+          file.endsWith(".p12") ||
+          file.endsWith(".pfx") ||
+          file.endsWith(".pem"),
       );
-      
+
       if (certFiles.length === 0) {
         return {
-          status: 'not_configured',
-          message: 'Certificado digital não configurado - Cliente deve importar via interface',
-          path: certsPath
+          status: "not_configured",
+          message:
+            "Certificado digital não configurado - Cliente deve importar via interface",
+          path: certsPath,
         };
       }
-      
+
       const certificates = [];
       for (const certFile of certFiles) {
         const certPath = path.join(certsPath, certFile);
         const stats = await fs.stat(certPath);
-        
+
         certificates.push({
           name: certFile,
           size: `${Math.round(stats.size / 1024)}KB`,
-          lastModified: stats.mtime.toISOString()
+          lastModified: stats.mtime.toISOString(),
         });
       }
-      
+
       return {
-        status: 'healthy',
+        status: "healthy",
         message: `${certFiles.length} certificado(s) encontrado(s)`,
-        certificates
+        certificates,
       };
-      
     } catch (error) {
       return {
-        status: 'not_configured',
-        message: 'Certificado digital não configurado - Cliente deve importar via interface',
-        path: certsPath
+        status: "not_configured",
+        message:
+          "Certificado digital não configurado - Cliente deve importar via interface",
+        path: certsPath,
       };
     }
-    
   } catch (error) {
     return {
-      status: 'not_configured',
-      message: 'Certificado digital não configurado - Cliente deve importar via interface'
+      status: "not_configured",
+      message:
+        "Certificado digital não configurado - Cliente deve importar via interface",
     };
   }
 }
@@ -244,49 +252,49 @@ async function checkSefazConnectivity() {
   return new Promise((resolve) => {
     const timeout = setTimeout(() => {
       resolve({
-        status: 'warning',
-        message: 'Timeout na verificação SEFAZ',
-        timeout: `${monitoringConfig.health.timeout}ms`
+        status: "warning",
+        message: "Timeout na verificação SEFAZ",
+        timeout: `${monitoringConfig.health.timeout}ms`,
       });
     }, monitoringConfig.health.timeout);
-    
+
     // Verificação simplificada - ping para um serviço SEFAZ
     const options = {
-      hostname: 'nfe.fazenda.sp.gov.br',
+      hostname: "nfe.fazenda.sp.gov.br",
       port: 443,
-      path: '/',
-      method: 'HEAD',
-      timeout: monitoringConfig.health.timeout
+      path: "/",
+      method: "HEAD",
+      timeout: monitoringConfig.health.timeout,
     };
-    
+
     const req = https.request(options, (res) => {
       clearTimeout(timeout);
       resolve({
-        status: 'healthy',
-        message: 'Conectividade SEFAZ OK',
+        status: "healthy",
+        message: "Conectividade SEFAZ OK",
         statusCode: res.statusCode,
-        responseTime: Date.now()
+        responseTime: Date.now(),
       });
     });
-    
-    req.on('error', (error) => {
+
+    req.on("error", (error) => {
       clearTimeout(timeout);
       resolve({
-        status: 'critical',
-        message: 'Erro de conectividade SEFAZ',
-        error: error.message
+        status: "critical",
+        message: "Erro de conectividade SEFAZ",
+        error: error.message,
       });
     });
-    
-    req.on('timeout', () => {
+
+    req.on("timeout", () => {
       clearTimeout(timeout);
       req.destroy();
       resolve({
-        status: 'warning',
-        message: 'Timeout na conectividade SEFAZ'
+        status: "warning",
+        message: "Timeout na conectividade SEFAZ",
       });
     });
-    
+
     req.end();
   });
 }
@@ -297,18 +305,17 @@ async function checkSefazConnectivity() {
 async function checkDiskSpace() {
   try {
     const stats = await fs.stat(__dirname);
-    
+
     // Verificação simplificada - em produção usar bibliotecas específicas
     return {
-      status: 'healthy',
-      message: 'Espaço em disco disponível',
-      path: __dirname
+      status: "healthy",
+      message: "Espaço em disco disponível",
+      path: __dirname,
     };
-    
   } catch (error) {
     return {
-      status: 'critical',
-      error: error.message
+      status: "critical",
+      error: error.message,
     };
   }
 }
@@ -319,25 +326,19 @@ async function checkDiskSpace() {
 async function checkNfeConfiguration() {
   try {
     const checks = [];
-    
+
     // Verificar variáveis de ambiente essenciais
-    const requiredEnvVars = [
-      'NODE_ENV',
-      'PORT'
-    ];
-    
+    const requiredEnvVars = ["NODE_ENV", "PORT"];
+
     for (const envVar of requiredEnvVars) {
       if (!process.env[envVar]) {
         checks.push(`Variável ${envVar} não definida`);
       }
     }
-    
+
     // Verificar arquivos de configuração
-    const configFiles = [
-      '../config/database.js',
-      '../middleware/auth.js'
-    ];
-    
+    const configFiles = ["../config/database.js", "../middleware/auth.js"];
+
     for (const configFile of configFiles) {
       try {
         await fs.access(path.join(__dirname, configFile));
@@ -345,26 +346,25 @@ async function checkNfeConfiguration() {
         checks.push(`Arquivo ${configFile} não encontrado`);
       }
     }
-    
+
     if (checks.length > 0) {
       return {
-        status: 'warning',
-        message: 'Problemas de configuração detectados',
-        issues: checks
+        status: "warning",
+        message: "Problemas de configuração detectados",
+        issues: checks,
       };
     }
-    
+
     return {
-      status: 'healthy',
-      message: 'Configuração NFe OK',
+      status: "healthy",
+      message: "Configuração NFe OK",
       environment: process.env.NODE_ENV,
-      mongoEnabled: process.env.USE_MONGODB === 'true'
+      mongoEnabled: process.env.USE_MONGODB === "true",
     };
-    
   } catch (error) {
     return {
-      status: 'critical',
-      error: error.message
+      status: "critical",
+      error: error.message,
     };
   }
 }
@@ -377,28 +377,31 @@ async function checkNfeConfiguration() {
 async function healthCheckHandler(req, res) {
   try {
     const health = await basicHealthCheck();
-    
-    const statusCode = health.status === 'healthy' ? 200 : 
-                      health.status === 'warning' ? 200 : 503;
-    
+
+    const statusCode =
+      health.status === "healthy"
+        ? 200
+        : health.status === "warning"
+          ? 200
+          : 503;
+
     // Garantir que a resposta seja JSON válido
-    res.setHeader('Content-Type', 'application/json');
+    res.setHeader("Content-Type", "application/json");
     res.status(statusCode).json(health);
-    
+
     // Log do health check
-    logSystemEvent('health_check', {
+    logSystemEvent("health_check", {
       status: health.status,
       responseTime: health.responseTime,
-      endpoint: 'basic'
+      endpoint: "basic",
     });
-    
   } catch (error) {
-    logger.error('Erro no endpoint de health check', { error: error.message });
-    res.setHeader('Content-Type', 'application/json');
+    logger.error("Erro no endpoint de health check", { error: error.message });
+    res.setHeader("Content-Type", "application/json");
     res.status(503).json({
-      status: 'critical',
+      status: "critical",
       error: error.message,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   }
 }
@@ -409,28 +412,33 @@ async function healthCheckHandler(req, res) {
 async function detailedHealthCheckHandler(req, res) {
   try {
     const health = await detailedHealthCheck();
-    
-    const statusCode = health.status === 'healthy' ? 200 : 
-                      health.status === 'warning' ? 200 : 503;
-    
+
+    const statusCode =
+      health.status === "healthy"
+        ? 200
+        : health.status === "warning"
+          ? 200
+          : 503;
+
     // Garantir que a resposta seja JSON válido
-    res.setHeader('Content-Type', 'application/json');
+    res.setHeader("Content-Type", "application/json");
     res.status(statusCode).json(health);
-    
+
     // Log do health check detalhado
-    logSystemEvent('detailed_health_check', {
+    logSystemEvent("detailed_health_check", {
       status: health.status,
       responseTime: health.responseTime,
-      endpoint: 'detailed'
+      endpoint: "detailed",
     });
-    
   } catch (error) {
-    logger.error('Erro no endpoint de health check detalhado', { error: error.message });
-    res.setHeader('Content-Type', 'application/json');
-    res.status(503).json({
-      status: 'critical',
+    logger.error("Erro no endpoint de health check detalhado", {
       error: error.message,
-      timestamp: new Date().toISOString()
+    });
+    res.setHeader("Content-Type", "application/json");
+    res.status(503).json({
+      status: "critical",
+      error: error.message,
+      timestamp: new Date().toISOString(),
     });
   }
 }
@@ -441,19 +449,21 @@ async function detailedHealthCheckHandler(req, res) {
  * Inicializa o sistema de health checks
  */
 function initializeHealthChecks() {
-  console.log('🏥 Inicializando sistema de health checks...');
-  
+  console.log("🏥 Inicializando sistema de health checks...");
+
   // Health check inicial
   basicHealthCheck()
-    .then(health => {
-      logSystemEvent('health_check_initialized', {
+    .then((health) => {
+      logSystemEvent("health_check_initialized", {
         status: health.status,
-        uptime: health.uptime
+        uptime: health.uptime,
       });
-      console.log('✅ Sistema de health checks inicializado');
+      console.log("✅ Sistema de health checks inicializado");
     })
-    .catch(error => {
-      logger.error('Erro na inicialização do health check', { error: error.message });
+    .catch((error) => {
+      logger.error("Erro na inicialização do health check", {
+        error: error.message,
+      });
     });
 }
 
@@ -462,18 +472,18 @@ module.exports = {
   // Verificações
   basicHealthCheck,
   detailedHealthCheck,
-  
+
   // Verificações específicas
   checkDatabase,
   checkCertificates,
   checkSefazConnectivity,
   checkDiskSpace,
   checkNfeConfiguration,
-  
+
   // Handlers para endpoints
   healthCheckHandler,
   detailedHealthCheckHandler,
-  
+
   // Inicialização
-  initialize: initializeHealthChecks
+  initialize: initializeHealthChecks,
 };

@@ -1,4 +1,4 @@
-const nodemailer = require('nodemailer');
+const nodemailer = require("nodemailer");
 
 /**
  * Envia email usando configurações reais de SMTP
@@ -10,14 +10,22 @@ const nodemailer = require('nodemailer');
  * @param {string} params.html - HTML do email
  * @param {Array} params.attachments - Anexos (opcional)
  */
-async function sendEmail({ config, to, subject, text, html, attachments = [] }) {
+async function sendEmail({
+  config,
+  to,
+  subject,
+  text,
+  html,
+  attachments = [],
+}) {
   if (!config) {
-    throw new Error('Configurações não encontradas');
+    throw new Error("Configurações não encontradas");
   }
 
-  const fromName = config?.empresa?.razaoSocial || 'Sistema NFe';
-  const emailCfg = (config?.nfe?.emailEnvio) || (config?.notificacoes?.emailEnvio) || {};
-  
+  const fromName = config?.empresa?.razaoSocial || "Sistema NFe";
+  const emailCfg =
+    config?.nfe?.emailEnvio || config?.notificacoes?.emailEnvio || {};
+
   const servidor = emailCfg?.servidor;
   const porta = Number(emailCfg?.porta || 587);
   const usuario = emailCfg?.usuario;
@@ -25,7 +33,9 @@ async function sendEmail({ config, to, subject, text, html, attachments = [] }) 
   const ssl = Boolean(emailCfg?.ssl);
 
   if (!servidor || !usuario || !senha) {
-    throw new Error('Configurações de email incompletas. Verifique servidor, usuário e senha.');
+    throw new Error(
+      "Configurações de email incompletas. Verifique servidor, usuário e senha.",
+    );
   }
 
   const transporter = nodemailer.createTransporter({
@@ -33,7 +43,7 @@ async function sendEmail({ config, to, subject, text, html, attachments = [] }) 
     port: porta,
     secure: ssl,
     auth: { user: usuario, pass: senha },
-    tls: { rejectUnauthorized: false }
+    tls: { rejectUnauthorized: false },
   });
 
   // Verificar conexão
@@ -45,14 +55,14 @@ async function sendEmail({ config, to, subject, text, html, attachments = [] }) 
     subject: subject,
     text: text,
     html: html,
-    attachments: attachments
+    attachments: attachments,
   });
 
-  return { 
-    messageId: info.messageId, 
-    accepted: info.accepted, 
-    rejected: info.rejected, 
-    response: info.response 
+  return {
+    messageId: info.messageId,
+    accepted: info.accepted,
+    rejected: info.rejected,
+    response: info.response,
   };
 }
 
@@ -67,28 +77,28 @@ async function sendEmail({ config, to, subject, text, html, attachments = [] }) 
  */
 async function sendNfeEmail({ config, destinatario, nfe, xmlPath, pdfPath }) {
   const attachments = [];
-  
+
   if (xmlPath) {
     attachments.push({
       filename: `NFe_${nfe.numero}.xml`,
-      path: xmlPath
-    });
-  }
-  
-  if (pdfPath) {
-    attachments.push({
-      filename: `NFe_${nfe.numero}.pdf`,
-      path: pdfPath
+      path: xmlPath,
     });
   }
 
-  const subject = `NFe ${nfe.numero} - ${config?.empresa?.razaoSocial || 'Sistema NFe'}`;
+  if (pdfPath) {
+    attachments.push({
+      filename: `NFe_${nfe.numero}.pdf`,
+      path: pdfPath,
+    });
+  }
+
+  const subject = `NFe ${nfe.numero} - ${config?.empresa?.razaoSocial || "Sistema NFe"}`;
   const html = `
     <h2>Nota Fiscal Eletrônica</h2>
     <p><strong>Número:</strong> ${nfe.numero}</p>
     <p><strong>Série:</strong> ${nfe.serie}</p>
-    <p><strong>Data de Emissão:</strong> ${new Date(nfe.dataEmissao).toLocaleDateString('pt-BR')}</p>
-    <p><strong>Valor Total:</strong> R$ ${nfe.valorTotal?.toFixed(2) || '0,00'}</p>
+    <p><strong>Data de Emissão:</strong> ${new Date(nfe.dataEmissao).toLocaleDateString("pt-BR")}</p>
+    <p><strong>Valor Total:</strong> R$ ${nfe.valorTotal?.toFixed(2) || "0,00"}</p>
     <br>
     <p>Em anexo seguem os arquivos XML e PDF da Nota Fiscal.</p>
     <p><em>Este é um email automático, não responda.</em></p>
@@ -100,7 +110,7 @@ async function sendNfeEmail({ config, destinatario, nfe, xmlPath, pdfPath }) {
     subject,
     text: `NFe ${nfe.numero} em anexo`,
     html,
-    attachments
+    attachments,
   });
 }
 

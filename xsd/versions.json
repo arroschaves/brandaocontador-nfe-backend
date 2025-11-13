@@ -1,0 +1,7 @@
+{
+  "autorizacao": ["enviNFe_v4.00.xsd", "enviNFe_v3.10.xsd"],
+  "consulta": ["consSitNFe_v4.00.xsd", "consSitNFe_v3.10.xsd"],
+  "cancelamento": ["eventoCancNFe_v1.00.xsd"],
+  "inutilizacao": ["inutNFe_v4.00.xsd", "inutNFe_v3.10.xsd"],
+  "dfe": ["distDFe_v1.01.xsd"]
+}

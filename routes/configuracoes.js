@@ -2,14 +2,14 @@
  * Rotas para Configurações Avançadas
  */
 
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
-const ConfiguracoesService = require('../services/configuracoes');
-const authMiddleware = require('../middleware/auth');
-const { body, query, validationResult } = require('express-validator');
+const multer = require("multer");
+const path = require("path");
+const fs = require("fs");
+const ConfiguracoesService = require("../services/configuracoes");
+const authMiddleware = require("../middleware/auth");
+const { body, query, validationResult } = require("express-validator");
 
 const configService = new ConfiguracoesService();
 
@@ -18,18 +18,18 @@ const storage = multer.memoryStorage();
 const upload = multer({
   storage: storage,
   limits: {
-    fileSize: 5 * 1024 * 1024 // 5MB
+    fileSize: 5 * 1024 * 1024, // 5MB
   },
   fileFilter: (req, file, cb) => {
-    const allowedExtensions = ['.pfx', '.p12'];
+    const allowedExtensions = [".pfx", ".p12"];
     const fileExtension = path.extname(file.originalname).toLowerCase();
-    
+
     if (allowedExtensions.includes(fileExtension)) {
       return cb(null, true);
     }
-    
-    return cb(new Error('Formato de certificado inválido (use .pfx ou .p12)'));
-  }
+
+    return cb(new Error("Formato de certificado inválido (use .pfx ou .p12)"));
+  },
 });
 
 /**
@@ -54,7 +54,7 @@ const upload = multer({
  *           type: object
  *         contato:
  *           type: object
- *     
+ *
  *     ConfigBackup:
  *       type: object
  *       properties:
@@ -104,48 +104,44 @@ const upload = multer({
  *                     logs:
  *                       type: object
  */
-router.get('/', 
-  authMiddleware.verificarAutenticacao(),
-  async (req, res) => {
-    try {
-      // Obter todas as configurações
-      const [empresa, sefaz, backup, logs] = await Promise.allSettled([
-        configService.obterConfigEmpresa(req.usuario),
-        configService.obterConfigSefaz(req.usuario),
-        configService.obterConfigBackup(req.usuario),
-        configService.obterConfigLogs(req.usuario)
-      ]);
+router.get("/", authMiddleware.verificarAutenticacao(), async (req, res) => {
+  try {
+    // Obter todas as configurações
+    const [empresa, sefaz, backup, logs] = await Promise.allSettled([
+      configService.obterConfigEmpresa(req.usuario),
+      configService.obterConfigSefaz(req.usuario),
+      configService.obterConfigBackup(req.usuario),
+      configService.obterConfigLogs(req.usuario),
+    ]);
 
-      // Verificar se tem certificado (simulação - implementar conforme necessário)
-      const certificado = {
-        instalado: false,
-        valido: false,
-        dataVencimento: null,
-        titular: null
-      };
+    // Verificar se tem certificado (simulação - implementar conforme necessário)
+    const certificado = {
+      instalado: false,
+      valido: false,
+      dataVencimento: null,
+      titular: null,
+    };
 
-      const configuracoes = {
-        empresa: empresa.status === 'fulfilled' ? empresa.value : null,
-        sefaz: sefaz.status === 'fulfilled' ? sefaz.value : null,
-        certificado: certificado,
-        backup: backup.status === 'fulfilled' ? backup.value : null,
-        logs: logs.status === 'fulfilled' ? logs.value : null
-      };
+    const configuracoes = {
+      empresa: empresa.status === "fulfilled" ? empresa.value : null,
+      sefaz: sefaz.status === "fulfilled" ? sefaz.value : null,
+      certificado: certificado,
+      backup: backup.status === "fulfilled" ? backup.value : null,
+      logs: logs.status === "fulfilled" ? logs.value : null,
+    };
 
-      res.json({
-        sucesso: true,
-        configuracoes
-      });
-
-    } catch (error) {
-      console.error('Erro ao obter configurações gerais:', error);
-      res.status(500).json({
-        sucesso: false,
-        erro: error.message
-      });
-    }
+    res.json({
+      sucesso: true,
+      configuracoes,
+    });
+  } catch (error) {
+    console.error("Erro ao obter configurações gerais:", error);
+    res.status(500).json({
+      sucesso: false,
+      erro: error.message,
+    });
   }
-);
+});
 
 /**
  * @swagger
@@ -159,7 +155,8 @@ router.get('/',
  *       200:
  *         description: Configurações obtidas com sucesso
  */
-router.get('/empresa', 
+router.get(
+  "/empresa",
   authMiddleware.verificarAutenticacao(),
   async (req, res) => {
     try {
@@ -167,17 +164,16 @@ router.get('/empresa',
 
       res.json({
         sucesso: true,
-        configuracao
+        configuracao,
       });
-
     } catch (error) {
-      console.error('Erro ao obter configurações da empresa:', error);
+      console.error("Erro ao obter configurações da empresa:", error);
       res.status(500).json({
         sucesso: false,
-        erro: error.message
+        erro: error.message,
       });
     }
-  }
+  },
 );
 
 /**
@@ -198,14 +194,27 @@ router.get('/empresa',
  *       200:
  *         description: Empresa configurada com sucesso
  */
-router.put('/empresa', 
+router.put(
+  "/empresa",
   authMiddleware.verificarAutenticacao(),
   [
-    body('razaoSocial').optional().isLength({ min: 3 }).withMessage('Razão social deve ter pelo menos 3 caracteres'),
-    body('cnpj').optional().matches(/^\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}$|^\d{14}$/).withMessage('CNPJ inválido'),
-    body('regimeTributario').optional().isIn(['simples_nacional', 'lucro_presumido', 'lucro_real']).withMessage('Regime tributário inválido'),
-    body('endereco.cep').optional().matches(/^\d{5}-?\d{3}$/).withMessage('CEP inválido'),
-    body('contato.email').optional().isEmail().withMessage('Email inválido')
+    body("razaoSocial")
+      .optional()
+      .isLength({ min: 3 })
+      .withMessage("Razão social deve ter pelo menos 3 caracteres"),
+    body("cnpj")
+      .optional()
+      .matches(/^\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}$|^\d{14}$/)
+      .withMessage("CNPJ inválido"),
+    body("regimeTributario")
+      .optional()
+      .isIn(["simples_nacional", "lucro_presumido", "lucro_real"])
+      .withMessage("Regime tributário inválido"),
+    body("endereco.cep")
+      .optional()
+      .matches(/^\d{5}-?\d{3}$/)
+      .withMessage("CEP inválido"),
+    body("contato.email").optional().isEmail().withMessage("Email inválido"),
   ],
   async (req, res) => {
     try {
@@ -213,23 +222,25 @@ router.put('/empresa',
       if (!errors.isEmpty()) {
         return res.status(400).json({
           sucesso: false,
-          erro: 'Dados inválidos',
-          detalhes: errors.array()
+          erro: "Dados inválidos",
+          detalhes: errors.array(),
         });
       }
 
-      const resultado = await configService.configurarEmpresa(req.body, req.usuario);
+      const resultado = await configService.configurarEmpresa(
+        req.body,
+        req.usuario,
+      );
 
       res.json(resultado);
-
     } catch (error) {
-      console.error('Erro ao configurar empresa:', error);
+      console.error("Erro ao configurar empresa:", error);
       res.status(500).json({
         sucesso: false,
-        erro: error.message
+        erro: error.message,
       });
     }
-  }
+  },
 );
 
 /**
@@ -244,7 +255,8 @@ router.put('/empresa',
  *       200:
  *         description: Parâmetros obtidos com sucesso
  */
-router.get('/sefaz', 
+router.get(
+  "/sefaz",
   authMiddleware.verificarAutenticacao(),
   async (req, res) => {
     try {
@@ -252,17 +264,16 @@ router.get('/sefaz',
 
       res.json({
         sucesso: true,
-        configuracao
+        configuracao,
       });
-
     } catch (error) {
-      console.error('Erro ao obter configurações SEFAZ:', error);
+      console.error("Erro ao obter configurações SEFAZ:", error);
       res.status(500).json({
         sucesso: false,
-        erro: error.message
+        erro: error.message,
       });
     }
-  }
+  },
 );
 
 /**
@@ -293,22 +304,25 @@ router.get('/sefaz',
  *       200:
  *         description: Parâmetros configurados com sucesso
  */
-router.put('/sefaz', 
+router.put(
+  "/sefaz",
   authMiddleware.verificarAutenticacao(),
   async (req, res) => {
     try {
-      const resultado = await configService.configurarSefaz(req.body, req.usuario);
+      const resultado = await configService.configurarSefaz(
+        req.body,
+        req.usuario,
+      );
 
       res.json(resultado);
-
     } catch (error) {
-      console.error('Erro ao configurar SEFAZ:', error);
+      console.error("Erro ao configurar SEFAZ:", error);
       res.status(500).json({
         sucesso: false,
-        erro: error.message
+        erro: error.message,
       });
     }
-  }
+  },
 );
 
 /**
@@ -323,7 +337,8 @@ router.put('/sefaz',
  *       200:
  *         description: Configurações obtidas com sucesso
  */
-router.get('/backup', 
+router.get(
+  "/backup",
   authMiddleware.verificarAutenticacao(),
   async (req, res) => {
     try {
@@ -331,17 +346,16 @@ router.get('/backup',
 
       res.json({
         sucesso: true,
-        configuracao
+        configuracao,
       });
-
     } catch (error) {
-      console.error('Erro ao obter configurações de backup:', error);
+      console.error("Erro ao obter configurações de backup:", error);
       res.status(500).json({
         sucesso: false,
-        erro: error.message
+        erro: error.message,
       });
     }
-  }
+  },
 );
 
 /**
@@ -362,12 +376,22 @@ router.get('/backup',
  *       200:
  *         description: Backup configurado com sucesso
  */
-router.put('/backup', 
+router.put(
+  "/backup",
   authMiddleware.verificarAutenticacao(),
   [
-    body('automatico.frequencia').optional().isIn(['diario', 'semanal', 'mensal']).withMessage('Frequência inválida'),
-    body('automatico.horario').optional().matches(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/).withMessage('Horário inválido'),
-    body('automatico.retencao').optional().isInt({ min: 1, max: 365 }).withMessage('Retenção deve ser entre 1 e 365 dias')
+    body("automatico.frequencia")
+      .optional()
+      .isIn(["diario", "semanal", "mensal"])
+      .withMessage("Frequência inválida"),
+    body("automatico.horario")
+      .optional()
+      .matches(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/)
+      .withMessage("Horário inválido"),
+    body("automatico.retencao")
+      .optional()
+      .isInt({ min: 1, max: 365 })
+      .withMessage("Retenção deve ser entre 1 e 365 dias"),
   ],
   async (req, res) => {
     try {
@@ -375,23 +399,25 @@ router.put('/backup',
       if (!errors.isEmpty()) {
         return res.status(400).json({
           sucesso: false,
-          erro: 'Dados inválidos',
-          detalhes: errors.array()
+          erro: "Dados inválidos",
+          detalhes: errors.array(),
         });
       }
 
-      const resultado = await configService.configurarBackup(req.body, req.user);
+      const resultado = await configService.configurarBackup(
+        req.body,
+        req.user,
+      );
 
       res.json(resultado);
-
     } catch (error) {
-      console.error('Erro ao configurar backup:', error);
+      console.error("Erro ao configurar backup:", error);
       res.status(500).json({
         sucesso: false,
-        erro: error.message
+        erro: error.message,
       });
     }
-  }
+  },
 );
 
 /**
@@ -421,13 +447,26 @@ router.put('/backup',
  *       200:
  *         description: Backup realizado com sucesso
  */
-router.post('/backup/manual', 
+router.post(
+  "/backup/manual",
   authMiddleware.verificarAutenticacao(),
   [
-    body('incluirArquivos').optional().isBoolean().withMessage('incluirArquivos deve ser boolean'),
-    body('incluirBanco').optional().isBoolean().withMessage('incluirBanco deve ser boolean'),
-    body('incluirLogs').optional().isBoolean().withMessage('incluirLogs deve ser boolean'),
-    body('compressao').optional().isBoolean().withMessage('compressao deve ser boolean')
+    body("incluirArquivos")
+      .optional()
+      .isBoolean()
+      .withMessage("incluirArquivos deve ser boolean"),
+    body("incluirBanco")
+      .optional()
+      .isBoolean()
+      .withMessage("incluirBanco deve ser boolean"),
+    body("incluirLogs")
+      .optional()
+      .isBoolean()
+      .withMessage("incluirLogs deve ser boolean"),
+    body("compressao")
+      .optional()
+      .isBoolean()
+      .withMessage("compressao deve ser boolean"),
   ],
   async (req, res) => {
     try {
@@ -435,8 +474,8 @@ router.post('/backup/manual',
       if (!errors.isEmpty()) {
         return res.status(400).json({
           sucesso: false,
-          erro: 'Dados inválidos',
-          detalhes: errors.array()
+          erro: "Dados inválidos",
+          detalhes: errors.array(),
         });
       }
 
@@ -444,21 +483,23 @@ router.post('/backup/manual',
         incluirArquivos: req.body.incluirArquivos ?? true,
         incluirBanco: req.body.incluirBanco ?? true,
         incluirLogs: req.body.incluirLogs ?? false,
-        compressao: req.body.compressao ?? true
+        compressao: req.body.compressao ?? true,
       };
 
-      const resultado = await configService.realizarBackupManual(opcoes, req.user);
+      const resultado = await configService.realizarBackupManual(
+        opcoes,
+        req.user,
+      );
 
       res.json(resultado);
-
     } catch (error) {
-      console.error('Erro ao realizar backup manual:', error);
+      console.error("Erro ao realizar backup manual:", error);
       res.status(500).json({
         sucesso: false,
-        erro: error.message
+        erro: error.message,
       });
     }
-  }
+  },
 );
 
 /**
@@ -473,7 +514,8 @@ router.post('/backup/manual',
  *       200:
  *         description: Configurações obtidas com sucesso
  */
-router.get('/logs', 
+router.get(
+  "/logs",
   authMiddleware.verificarAutenticacao(),
   async (req, res) => {
     try {
@@ -481,17 +523,16 @@ router.get('/logs',
 
       res.json({
         sucesso: true,
-        configuracao
+        configuracao,
       });
-
     } catch (error) {
-      console.error('Erro ao obter configurações de logs:', error);
+      console.error("Erro ao obter configurações de logs:", error);
       res.status(500).json({
         sucesso: false,
-        erro: error.message
+        erro: error.message,
       });
     }
-  }
+  },
 );
 
 /**
@@ -520,11 +561,18 @@ router.get('/logs',
  *       200:
  *         description: Logs configurados com sucesso
  */
-router.put('/logs', 
+router.put(
+  "/logs",
   authMiddleware.verificarAutenticacao(),
   [
-    body('nivel').optional().isIn(['error', 'warn', 'info', 'debug']).withMessage('Nível de log inválido'),
-    body('arquivo.retencao').optional().isInt({ min: 1, max: 365 }).withMessage('Retenção deve ser entre 1 e 365 dias')
+    body("nivel")
+      .optional()
+      .isIn(["error", "warn", "info", "debug"])
+      .withMessage("Nível de log inválido"),
+    body("arquivo.retencao")
+      .optional()
+      .isInt({ min: 1, max: 365 })
+      .withMessage("Retenção deve ser entre 1 e 365 dias"),
   ],
   async (req, res) => {
     try {
@@ -532,23 +580,22 @@ router.put('/logs',
       if (!errors.isEmpty()) {
         return res.status(400).json({
           sucesso: false,
-          erro: 'Dados inválidos',
-          detalhes: errors.array()
+          erro: "Dados inválidos",
+          detalhes: errors.array(),
         });
       }
 
       const resultado = await configService.configurarLogs(req.body, req.user);
 
       res.json(resultado);
-
     } catch (error) {
-      console.error('Erro ao configurar logs:', error);
+      console.error("Erro ao configurar logs:", error);
       res.status(500).json({
         sucesso: false,
-        erro: error.message
+        erro: error.message,
       });
     }
-  }
+  },
 );
 
 /**
@@ -563,7 +610,8 @@ router.put('/logs',
  *       200:
  *         description: Configurações obtidas com sucesso
  */
-router.get('/performance', 
+router.get(
+  "/performance",
   authMiddleware.verificarAutenticacao(),
   async (req, res) => {
     try {
@@ -571,17 +619,16 @@ router.get('/performance',
 
       res.json({
         sucesso: true,
-        configuracao
+        configuracao,
       });
-
     } catch (error) {
-      console.error('Erro ao obter configurações de performance:', error);
+      console.error("Erro ao obter configurações de performance:", error);
       res.status(500).json({
         sucesso: false,
-        erro: error.message
+        erro: error.message,
       });
     }
-  }
+  },
 );
 
 /**
@@ -611,12 +658,22 @@ router.get('/performance',
  *       200:
  *         description: Performance otimizada com sucesso
  */
-router.put('/performance', 
+router.put(
+  "/performance",
   authMiddleware.verificarAutenticacao(),
   [
-    body('cache.ttl').optional().isInt({ min: 60 }).withMessage('TTL do cache deve ser maior que 60 segundos'),
-    body('compressao.nivel').optional().isInt({ min: 1, max: 9 }).withMessage('Nível de compressão deve ser entre 1 e 9'),
-    body('rateLimit.maximo').optional().isInt({ min: 10 }).withMessage('Rate limit deve ser maior que 10')
+    body("cache.ttl")
+      .optional()
+      .isInt({ min: 60 })
+      .withMessage("TTL do cache deve ser maior que 60 segundos"),
+    body("compressao.nivel")
+      .optional()
+      .isInt({ min: 1, max: 9 })
+      .withMessage("Nível de compressão deve ser entre 1 e 9"),
+    body("rateLimit.maximo")
+      .optional()
+      .isInt({ min: 10 })
+      .withMessage("Rate limit deve ser maior que 10"),
   ],
   async (req, res) => {
     try {
@@ -624,23 +681,25 @@ router.put('/performance',
       if (!errors.isEmpty()) {
         return res.status(400).json({
           sucesso: false,
-          erro: 'Dados inválidos',
-          detalhes: errors.array()
+          erro: "Dados inválidos",
+          detalhes: errors.array(),
         });
       }
 
-      const resultado = await configService.otimizarPerformance(req.body, req.user);
+      const resultado = await configService.otimizarPerformance(
+        req.body,
+        req.user,
+      );
 
       res.json(resultado);
-
     } catch (error) {
-      console.error('Erro ao otimizar performance:', error);
+      console.error("Erro ao otimizar performance:", error);
       res.status(500).json({
         sucesso: false,
-        erro: error.message
+        erro: error.message,
       });
     }
-  }
+  },
 );
 
 /**
@@ -666,22 +725,22 @@ router.put('/performance',
  *                 servicos:
  *                   type: object
  */
-router.get('/sistema/status', 
+router.get(
+  "/sistema/status",
   authMiddleware.verificarAutenticacao(),
   async (req, res) => {
     try {
       const status = await configService.obterStatusSistema();
 
       res.json(status);
-
     } catch (error) {
-      console.error('Erro ao obter status do sistema:', error);
+      console.error("Erro ao obter status do sistema:", error);
       res.status(500).json({
         sucesso: false,
-        erro: error.message
+        erro: error.message,
       });
     }
-  }
+  },
 );
 
 /**
@@ -696,36 +755,36 @@ router.get('/sistema/status',
  *       200:
  *         description: Informações obtidas com sucesso
  */
-router.get('/sistema/info', 
+router.get(
+  "/sistema/info",
   authMiddleware.verificarAutenticacao(),
   async (req, res) => {
     try {
-      const package = require('../../package.json');
-      
+      const package = require("../../package.json");
+
       const info = {
         sucesso: true,
         aplicacao: {
           nome: package.name,
           versao: package.version,
           descricao: package.description,
-          autor: package.author
+          autor: package.author,
         },
-        ambiente: process.env.NODE_ENV || 'development',
+        ambiente: process.env.NODE_ENV || "development",
         node: process.version,
         uptime: process.uptime(),
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       };
 
       res.json(info);
-
     } catch (error) {
-      console.error('Erro ao obter informações do sistema:', error);
+      console.error("Erro ao obter informações do sistema:", error);
       res.status(500).json({
         sucesso: false,
-        erro: error.message
+        erro: error.message,
       });
     }
-  }
+  },
 );
 
 /**
@@ -752,11 +811,14 @@ router.get('/sistema/info',
  *       200:
  *         description: Configurações resetadas com sucesso
  */
-router.post('/reset', 
+router.post(
+  "/reset",
   authMiddleware.verificarAutenticacao(),
   [
-    body('tipo').isIn(['empresa', 'sefaz', 'backup', 'logs', 'performance', 'todos']).withMessage('Tipo inválido'),
-    body('confirmar').equals(true).withMessage('Confirmação obrigatória')
+    body("tipo")
+      .isIn(["empresa", "sefaz", "backup", "logs", "performance", "todos"])
+      .withMessage("Tipo inválido"),
+    body("confirmar").equals(true).withMessage("Confirmação obrigatória"),
   ],
   async (req, res) => {
     try {
@@ -764,8 +826,8 @@ router.post('/reset',
       if (!errors.isEmpty()) {
         return res.status(400).json({
           sucesso: false,
-          erro: 'Dados inválidos',
-          detalhes: errors.array()
+          erro: "Dados inválidos",
+          detalhes: errors.array(),
         });
       }
 
@@ -774,22 +836,22 @@ router.post('/reset',
       // Implementar reset das configurações
       let resultado;
       switch (tipo) {
-        case 'empresa':
+        case "empresa":
           resultado = await configService.resetarConfigEmpresa(req.user);
           break;
-        case 'sefaz':
+        case "sefaz":
           resultado = await configService.resetarConfigSefaz(req.user);
           break;
-        case 'backup':
+        case "backup":
           resultado = await configService.resetarConfigBackup(req.user);
           break;
-        case 'logs':
+        case "logs":
           resultado = await configService.resetarConfigLogs(req.user);
           break;
-        case 'performance':
+        case "performance":
           resultado = await configService.resetarConfigPerformance(req.user);
           break;
-        case 'todos':
+        case "todos":
           resultado = await configService.resetarTodasConfiguracoes(req.user);
           break;
       }
@@ -797,17 +859,16 @@ router.post('/reset',
       res.json({
         sucesso: true,
         mensagem: `Configurações de ${tipo} resetadas com sucesso`,
-        resultado
+        resultado,
       });
-
     } catch (error) {
-      console.error('Erro ao resetar configurações:', error);
+      console.error("Erro ao resetar configurações:", error);
       res.status(500).json({
         sucesso: false,
-        erro: error.message
+        erro: error.message,
       });
     }
-  }
+  },
 );
 
 /**
@@ -843,12 +904,17 @@ router.post('/reset',
  *                     cnpj:
  *                       type: string
  */
-router.get('/certificado', 
+router.get(
+  "/certificado",
   authMiddleware.verificarAutenticacao(),
   async (req, res) => {
     try {
       // Verificar se existe certificado instalado
-      const certificadoPath = path.join(__dirname, '../data/certificados', `${req.usuario.id}.pfx`);
+      const certificadoPath = path.join(
+        __dirname,
+        "../data/certificados",
+        `${req.usuario.id}.pfx`,
+      );
       const certificadoExists = fs.existsSync(certificadoPath);
 
       let certificadoInfo = {
@@ -856,7 +922,7 @@ router.get('/certificado',
         valido: false,
         dataVencimento: null,
         titular: null,
-        cnpj: null
+        cnpj: null,
       };
 
       if (certificadoExists) {
@@ -864,22 +930,25 @@ router.get('/certificado',
         // Por enquanto, vamos simular
         certificadoInfo.valido = true;
         certificadoInfo.titular = "Certificado Instalado";
-        certificadoInfo.dataVencimento = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+        certificadoInfo.dataVencimento = new Date(
+          Date.now() + 365 * 24 * 60 * 60 * 1000,
+        )
+          .toISOString()
+          .split("T")[0];
       }
 
       res.json({
         sucesso: true,
-        certificado: certificadoInfo
+        certificado: certificadoInfo,
       });
-
     } catch (error) {
-      console.error('Erro ao obter informações do certificado:', error);
+      console.error("Erro ao obter informações do certificado:", error);
       res.status(500).json({
         sucesso: false,
-        erro: error.message
+        erro: error.message,
       });
     }
-  }
+  },
 );
 
 /**
@@ -926,20 +995,19 @@ router.get('/certificado',
  *       500:
  *         description: Erro interno do servidor
  */
-router.post('/certificado', 
+router.post(
+  "/certificado",
   authMiddleware.verificarAutenticacao(),
-  upload.single('certificado'),
-  [
-    body('senha').notEmpty().withMessage('Senha do certificado é obrigatória')
-  ],
+  upload.single("certificado"),
+  [body("senha").notEmpty().withMessage("Senha do certificado é obrigatória")],
   async (req, res) => {
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
         return res.status(400).json({
           sucesso: false,
-          erro: 'Dados inválidos',
-          detalhes: errors.array()
+          erro: "Dados inválidos",
+          detalhes: errors.array(),
         });
       }
 
@@ -947,8 +1015,8 @@ router.post('/certificado',
       if (!req.file) {
         return res.status(400).json({
           sucesso: false,
-          erro: 'Arquivo de certificado é obrigatório',
-          codigo: 'CERTIFICATE_FILE_REQUIRED'
+          erro: "Arquivo de certificado é obrigatório",
+          codigo: "CERTIFICATE_FILE_REQUIRED",
         });
       }
 
@@ -956,60 +1024,112 @@ router.post('/certificado',
       if (!req.body.senha) {
         return res.status(400).json({
           sucesso: false,
-          erro: 'Senha do certificado é obrigatória',
-          codigo: 'CERTIFICATE_PASSWORD_REQUIRED'
+          erro: "Senha do certificado é obrigatória",
+          codigo: "CERTIFICATE_PASSWORD_REQUIRED",
         });
       }
 
       // Criar diretório de certificados se não existir
-      const certificadosDir = path.join(__dirname, '../data/certificados');
+      const certificadosDir = path.join(__dirname, "../data/certificados");
       if (!fs.existsSync(certificadosDir)) {
         fs.mkdirSync(certificadosDir, { recursive: true });
       }
 
-      // Salvar o certificado
-      const certificadoPath = path.join(certificadosDir, `${req.usuario.id}.pfx`);
-      fs.writeFileSync(certificadoPath, req.file.buffer);
+      // SEGURANÇA: Criptografar certificado e senha antes de salvar
+      const encryptionService = require("../services/encryption-service");
 
-      // Salvar a senha (em produção, use criptografia adequada)
+      // Salvar o certificado criptografado (FIX: usar 'latin1' em vez de 'utf8' para dados hexadecimais)
+      const certificadoPath = path.join(
+        certificadosDir,
+        `${req.usuario.id}.pfx`,
+      );
+      const certificadoCriptografado = encryptionService.encryptBuffer(
+        req.file.buffer,
+      );
+      fs.writeFileSync(certificadoPath, certificadoCriptografado, "latin1");
+
+      // Salvar a senha criptografada (FIX: usar 'utf8' pois é texto)
       const senhaPath = path.join(certificadosDir, `${req.usuario.id}.key`);
-      fs.writeFileSync(senhaPath, req.body.senha);
+      const senhaCriptografada = encryptionService.encrypt(req.body.senha);
+      fs.writeFileSync(senhaPath, senhaCriptografada, "utf8");
 
-      // Aqui você pode implementar a validação do certificado
-      // Por enquanto, vamos simular sucesso
+      // FIX: Atualizar dados do usuário com informações do certificado
+      const usuariosPath = path.join(__dirname, "../data/usuarios.json");
+      const usuarios = JSON.parse(fs.readFileSync(usuariosPath, "utf8"));
+
+      const usuarioIndex = usuarios.findIndex((u) => u.id === req.usuario.id);
+      if (usuarioIndex !== -1) {
+        // Inicializar objeto certificado se não existir
+        if (!usuarios[usuarioIndex].certificado) {
+          usuarios[usuarioIndex].certificado = {};
+        }
+
+        // Atualizar dados do certificado
+        usuarios[usuarioIndex].certificado = {
+          instalado: true,
+          valido: true,
+          arquivo: req.file.originalname,
+          tamanho: req.file.size,
+          dataUpload: new Date().toISOString(),
+          dataVencimento: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
+            .toISOString()
+            .split("T")[0],
+          titular: "Certificado Instalado",
+          tipo: "A1",
+        };
+
+        usuarios[usuarioIndex].dataAtualizacao = new Date().toISOString();
+
+        // Persistir no banco
+        fs.writeFileSync(
+          usuariosPath,
+          JSON.stringify(usuarios, null, 2),
+          "utf8",
+        );
+      }
+
+      // Retornar dados completos do certificado e configurações
       const certificadoInfo = {
         instalado: true,
         valido: true,
-        dataVencimento: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        dataVencimento: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
+          .toISOString()
+          .split("T")[0],
         titular: "Certificado Instalado",
-        arquivo: req.file.originalname
+        arquivo: req.file.originalname,
+        tipo: "A1",
+        status: "ativo",
       };
 
       res.json({
         sucesso: true,
-        mensagem: 'Certificado instalado com sucesso',
-        certificado: certificadoInfo
+        mensagem: "Certificado instalado com sucesso",
+        certificado: certificadoInfo,
+        configuracoes: {
+          nfe: {
+            certificadoDigital: certificadoInfo,
+          },
+        },
       });
-
     } catch (error) {
-      console.error('Erro ao processar certificado:', error);
-      
+      console.error("Erro ao processar certificado:", error);
+
       // Tratar erros específicos
-      if (error.message.includes('Formato de certificado inválido')) {
+      if (error.message.includes("Formato de certificado inválido")) {
         return res.status(400).json({
           sucesso: false,
-          erro: 'Formato de certificado inválido',
-          codigo: 'INVALID_CERTIFICATE_FORMAT'
+          erro: "Formato de certificado inválido",
+          codigo: "INVALID_CERTIFICATE_FORMAT",
         });
       }
 
       res.status(500).json({
         sucesso: false,
-        erro: 'Erro ao processar certificado: ' + error.message,
-        codigo: 'CERTIFICATE_PROCESSING_ERROR'
+        erro: "Erro ao processar certificado: " + error.message,
+        codigo: "CERTIFICATE_PROCESSING_ERROR",
       });
     }
-  }
+  },
 );
 
 module.exports = router;

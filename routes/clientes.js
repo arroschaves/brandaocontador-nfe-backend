@@ -1,7 +1,7 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const ClienteService = require('../services/cliente-service');
-const authMiddleware = require('../middleware/auth');
+const ClienteService = require("../services/cliente-service");
+const authMiddleware = require("../middleware/auth");
 
 // ==================== MIDDLEWARE ====================
 
@@ -15,15 +15,18 @@ router.use(authMiddleware.verificarAutenticacao());
  * @desc    Criar novo cliente
  * @access  Private
  */
-router.post('/', async (req, res) => {
+router.post("/", async (req, res) => {
   try {
-    const resultado = await ClienteService.criarCliente(req.body, req.usuario.id);
-    
+    const resultado = await ClienteService.criarCliente(
+      req.body,
+      req.usuario.id,
+    );
+
     if (!resultado.sucesso) {
       return res.status(400).json({
         sucesso: false,
         erros: resultado.erros,
-        avisos: resultado.avisos
+        avisos: resultado.avisos,
       });
     }
 
@@ -31,15 +34,15 @@ router.post('/', async (req, res) => {
       sucesso: true,
       cliente: resultado.cliente,
       avisos: resultado.avisos,
-      mensagem: 'Cliente criado com sucesso'
+      mensagem: "Cliente criado com sucesso",
     });
-
   } catch (error) {
-    console.error('❌ Erro na rota POST /clientes:', error.message);
+    console.error("❌ Erro na rota POST /clientes:", error.message);
     res.status(500).json({
       sucesso: false,
-      erro: 'Erro interno do servidor',
-      detalhes: process.env.NODE_ENV === 'development' ? error.message : undefined
+      erro: "Erro interno do servidor",
+      detalhes:
+        process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 });
@@ -49,31 +52,34 @@ router.post('/', async (req, res) => {
  * @desc    Listar clientes com filtros e paginação
  * @access  Private
  */
-router.get('/', async (req, res) => {
+router.get("/", async (req, res) => {
   try {
     const filtros = {
       pagina: parseInt(req.query.pagina) || 1,
       limite: parseInt(req.query.limite) || 20,
-      busca: req.query.busca || '',
-      tipo: req.query.tipo || '',
-      ativo: req.query.ativo !== undefined ? req.query.ativo === 'true' : true,
-      ordenacao: req.query.ordenacao || 'nome'
+      busca: req.query.busca || "",
+      tipo: req.query.tipo || "",
+      ativo: req.query.ativo !== undefined ? req.query.ativo === "true" : true,
+      ordenacao: req.query.ordenacao || "nome",
     };
 
-    const resultado = await ClienteService.listarClientes(filtros, req.usuario.id);
+    const resultado = await ClienteService.listarClientes(
+      filtros,
+      req.usuario.id,
+    );
 
     res.json({
       sucesso: true,
       clientes: resultado.clientes,
-      paginacao: resultado.paginacao
+      paginacao: resultado.paginacao,
     });
-
   } catch (error) {
-    console.error('❌ Erro na rota GET /clientes:', error.message);
+    console.error("❌ Erro na rota GET /clientes:", error.message);
     res.status(500).json({
       sucesso: false,
-      erro: 'Erro interno do servidor',
-      detalhes: process.env.NODE_ENV === 'development' ? error.message : undefined
+      erro: "Erro interno do servidor",
+      detalhes:
+        process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 });
@@ -83,28 +89,31 @@ router.get('/', async (req, res) => {
  * @desc    Buscar cliente por ID
  * @access  Private
  */
-router.get('/:id', async (req, res) => {
+router.get("/:id", async (req, res) => {
   try {
-    const resultado = await ClienteService.buscarClientePorId(req.params.id, req.usuario.id);
-    
+    const resultado = await ClienteService.buscarClientePorId(
+      req.params.id,
+      req.usuario.id,
+    );
+
     if (!resultado.sucesso) {
       return res.status(404).json({
         sucesso: false,
-        erros: resultado.erros
+        erros: resultado.erros,
       });
     }
 
     res.json({
       sucesso: true,
-      cliente: resultado.cliente
+      cliente: resultado.cliente,
     });
-
   } catch (error) {
-    console.error('❌ Erro na rota GET /clientes/:id:', error.message);
+    console.error("❌ Erro na rota GET /clientes/:id:", error.message);
     res.status(500).json({
       sucesso: false,
-      erro: 'Erro interno do servidor',
-      detalhes: process.env.NODE_ENV === 'development' ? error.message : undefined
+      erro: "Erro interno do servidor",
+      detalhes:
+        process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 });
@@ -114,34 +123,34 @@ router.get('/:id', async (req, res) => {
  * @desc    Atualizar cliente
  * @access  Private
  */
-router.put('/:id', async (req, res) => {
+router.put("/:id", async (req, res) => {
   try {
     const resultado = await ClienteService.atualizarCliente(
-      req.params.id, 
-      req.body, 
-      req.usuario.id
+      req.params.id,
+      req.body,
+      req.usuario.id,
     );
-    
+
     if (!resultado.sucesso) {
       return res.status(400).json({
         sucesso: false,
         erros: resultado.erros,
-        avisos: resultado.avisos
+        avisos: resultado.avisos,
       });
     }
 
     res.json({
       sucesso: true,
       cliente: resultado.cliente,
-      mensagem: 'Cliente atualizado com sucesso'
+      mensagem: "Cliente atualizado com sucesso",
     });
-
   } catch (error) {
-    console.error('❌ Erro na rota PUT /clientes/:id:', error.message);
+    console.error("❌ Erro na rota PUT /clientes/:id:", error.message);
     res.status(500).json({
       sucesso: false,
-      erro: 'Erro interno do servidor',
-      detalhes: process.env.NODE_ENV === 'development' ? error.message : undefined
+      erro: "Erro interno do servidor",
+      detalhes:
+        process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 });
@@ -151,29 +160,32 @@ router.put('/:id', async (req, res) => {
  * @desc    Desativar cliente (soft delete)
  * @access  Private
  */
-router.delete('/:id', async (req, res) => {
+router.delete("/:id", async (req, res) => {
   try {
-    const resultado = await ClienteService.desativarCliente(req.params.id, req.usuario.id);
-    
+    const resultado = await ClienteService.desativarCliente(
+      req.params.id,
+      req.usuario.id,
+    );
+
     if (!resultado.sucesso) {
       return res.status(404).json({
         sucesso: false,
-        erros: resultado.erros
+        erros: resultado.erros,
       });
     }
 
     res.json({
       sucesso: true,
       cliente: resultado.cliente,
-      mensagem: 'Cliente desativado com sucesso'
+      mensagem: "Cliente desativado com sucesso",
     });
-
   } catch (error) {
-    console.error('❌ Erro na rota DELETE /clientes/:id:', error.message);
+    console.error("❌ Erro na rota DELETE /clientes/:id:", error.message);
     res.status(500).json({
       sucesso: false,
-      erro: 'Erro interno do servidor',
-      detalhes: process.env.NODE_ENV === 'development' ? error.message : undefined
+      erro: "Erro interno do servidor",
+      detalhes:
+        process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 });
@@ -185,31 +197,34 @@ router.delete('/:id', async (req, res) => {
  * @desc    Buscar cliente por documento
  * @access  Private
  */
-router.get('/documento/:documento', async (req, res) => {
+router.get("/documento/:documento", async (req, res) => {
   try {
     const resultado = await ClienteService.buscarClientePorDocumento(
-      req.params.documento, 
-      req.usuario.id
+      req.params.documento,
+      req.usuario.id,
     );
-    
+
     if (!resultado.sucesso) {
       return res.status(404).json({
         sucesso: false,
-        erros: resultado.erros
+        erros: resultado.erros,
       });
     }
 
     res.json({
       sucesso: true,
-      cliente: resultado.cliente
+      cliente: resultado.cliente,
     });
-
   } catch (error) {
-    console.error('❌ Erro na rota GET /clientes/documento/:documento:', error.message);
+    console.error(
+      "❌ Erro na rota GET /clientes/documento/:documento:",
+      error.message,
+    );
     res.status(500).json({
       sucesso: false,
-      erro: 'Erro interno do servidor',
-      detalhes: process.env.NODE_ENV === 'development' ? error.message : undefined
+      erro: "Erro interno do servidor",
+      detalhes:
+        process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 });
@@ -221,14 +236,14 @@ router.get('/documento/:documento', async (req, res) => {
  * @desc    Validar documento (CPF/CNPJ)
  * @access  Private
  */
-router.post('/validar/documento', async (req, res) => {
+router.post("/validar/documento", async (req, res) => {
   try {
     const { documento, tipo } = req.body;
-    
+
     if (!documento || !tipo) {
       return res.status(400).json({
         sucesso: false,
-        erro: 'Documento e tipo são obrigatórios'
+        erro: "Documento e tipo são obrigatórios",
       });
     }
 
@@ -236,15 +251,18 @@ router.post('/validar/documento', async (req, res) => {
 
     res.json({
       sucesso: true,
-      validacao: resultado
+      validacao: resultado,
     });
-
   } catch (error) {
-    console.error('❌ Erro na rota POST /clientes/validar/documento:', error.message);
+    console.error(
+      "❌ Erro na rota POST /clientes/validar/documento:",
+      error.message,
+    );
     res.status(500).json({
       sucesso: false,
-      erro: 'Erro interno do servidor',
-      detalhes: process.env.NODE_ENV === 'development' ? error.message : undefined
+      erro: "Erro interno do servidor",
+      detalhes:
+        process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 });
@@ -254,28 +272,31 @@ router.post('/validar/documento', async (req, res) => {
  * @desc    Consultar CNPJ na Receita Federal
  * @access  Private
  */
-router.get('/consultar/cnpj/:cnpj', async (req, res) => {
+router.get("/consultar/cnpj/:cnpj", async (req, res) => {
   try {
     const resultado = await ClienteService.consultarCNPJ(req.params.cnpj);
-    
+
     if (!resultado.sucesso) {
       return res.status(400).json({
         sucesso: false,
-        erro: resultado.erro
+        erro: resultado.erro,
       });
     }
 
     res.json({
       sucesso: true,
-      dados: resultado.dados
+      dados: resultado.dados,
     });
-
   } catch (error) {
-    console.error('❌ Erro na rota GET /clientes/consultar/cnpj/:cnpj:', error.message);
+    console.error(
+      "❌ Erro na rota GET /clientes/consultar/cnpj/:cnpj:",
+      error.message,
+    );
     res.status(500).json({
       sucesso: false,
-      erro: 'Erro interno do servidor',
-      detalhes: process.env.NODE_ENV === 'development' ? error.message : undefined
+      erro: "Erro interno do servidor",
+      detalhes:
+        process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 });
@@ -285,28 +306,31 @@ router.get('/consultar/cnpj/:cnpj', async (req, res) => {
  * @desc    Consultar CEP
  * @access  Private
  */
-router.get('/consultar/cep/:cep', async (req, res) => {
+router.get("/consultar/cep/:cep", async (req, res) => {
   try {
     const resultado = await ClienteService.consultarCEP(req.params.cep);
-    
+
     if (!resultado.sucesso) {
       return res.status(400).json({
         sucesso: false,
-        erro: resultado.erro
+        erro: resultado.erro,
       });
     }
 
     res.json({
       sucesso: true,
-      dados: resultado.dados
+      dados: resultado.dados,
     });
-
   } catch (error) {
-    console.error('❌ Erro na rota GET /clientes/consultar/cep/:cep:', error.message);
+    console.error(
+      "❌ Erro na rota GET /clientes/consultar/cep/:cep:",
+      error.message,
+    );
     res.status(500).json({
       sucesso: false,
-      erro: 'Erro interno do servidor',
-      detalhes: process.env.NODE_ENV === 'development' ? error.message : undefined
+      erro: "Erro interno do servidor",
+      detalhes:
+        process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 });
@@ -318,28 +342,28 @@ router.get('/consultar/cep/:cep', async (req, res) => {
  * @desc    Obter lista de estados brasileiros
  * @access  Private
  */
-router.get('/estados', async (req, res) => {
+router.get("/estados", async (req, res) => {
   try {
     const resultado = await ClienteService.obterEstados();
-    
+
     if (!resultado.sucesso) {
       return res.status(400).json({
         sucesso: false,
-        erro: resultado.erro
+        erro: resultado.erro,
       });
     }
 
     res.json({
       sucesso: true,
-      estados: resultado.estados
+      estados: resultado.estados,
     });
-
   } catch (error) {
-    console.error('❌ Erro na rota GET /clientes/estados:', error.message);
+    console.error("❌ Erro na rota GET /clientes/estados:", error.message);
     res.status(500).json({
       sucesso: false,
-      erro: 'Erro interno do servidor',
-      detalhes: process.env.NODE_ENV === 'development' ? error.message : undefined
+      erro: "Erro interno do servidor",
+      detalhes:
+        process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 });
@@ -349,28 +373,28 @@ router.get('/estados', async (req, res) => {
  * @desc    Obter cidades por UF
  * @access  Private
  */
-router.get('/cidades/:uf', async (req, res) => {
+router.get("/cidades/:uf", async (req, res) => {
   try {
     const resultado = await ClienteService.obterCidades(req.params.uf);
-    
+
     if (!resultado.sucesso) {
       return res.status(400).json({
         sucesso: false,
-        erro: resultado.erro
+        erro: resultado.erro,
       });
     }
 
     res.json({
       sucesso: true,
-      cidades: resultado.cidades
+      cidades: resultado.cidades,
     });
-
   } catch (error) {
-    console.error('❌ Erro na rota GET /clientes/cidades/:uf:', error.message);
+    console.error("❌ Erro na rota GET /clientes/cidades/:uf:", error.message);
     res.status(500).json({
       sucesso: false,
-      erro: 'Erro interno do servidor',
-      detalhes: process.env.NODE_ENV === 'development' ? error.message : undefined
+      erro: "Erro interno do servidor",
+      detalhes:
+        process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 });
@@ -382,21 +406,24 @@ router.get('/cidades/:uf', async (req, res) => {
  * @desc    Obter estatísticas de clientes
  * @access  Private
  */
-router.get('/relatorios/estatisticas', async (req, res) => {
+router.get("/relatorios/estatisticas", async (req, res) => {
   try {
     const resultado = await ClienteService.obterEstatisticas(req.usuario.id);
 
     res.json({
       sucesso: true,
-      estatisticas: resultado.estatisticas
+      estatisticas: resultado.estatisticas,
     });
-
   } catch (error) {
-    console.error('❌ Erro na rota GET /clientes/relatorios/estatisticas:', error.message);
+    console.error(
+      "❌ Erro na rota GET /clientes/relatorios/estatisticas:",
+      error.message,
+    );
     res.status(500).json({
       sucesso: false,
-      erro: 'Erro interno do servidor',
-      detalhes: process.env.NODE_ENV === 'development' ? error.message : undefined
+      erro: "Erro interno do servidor",
+      detalhes:
+        process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 });
@@ -406,33 +433,36 @@ router.get('/relatorios/estatisticas', async (req, res) => {
  * @desc    Exportar clientes para CSV
  * @access  Private
  */
-router.get('/exportar/csv', async (req, res) => {
+router.get("/exportar/csv", async (req, res) => {
   try {
     const filtros = {
-      busca: req.query.busca || '',
-      tipo: req.query.tipo || '',
-      ativo: req.query.ativo !== undefined ? req.query.ativo === 'true' : true
+      busca: req.query.busca || "",
+      tipo: req.query.tipo || "",
+      ativo: req.query.ativo !== undefined ? req.query.ativo === "true" : true,
     };
 
-    const resultado = await ClienteService.exportarClientes(filtros, req.usuario.id);
-    
+    const resultado = await ClienteService.exportarClientes(
+      filtros,
+      req.usuario.id,
+    );
+
     if (!resultado.sucesso) {
       return res.status(400).json({
         sucesso: false,
-        erro: 'Erro ao exportar clientes'
+        erro: "Erro ao exportar clientes",
       });
     }
 
-    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader('Content-Disposition', 'attachment; filename="clientes.csv"');
-    res.send('\uFEFF' + resultado.csv); // BOM para UTF-8
-
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", 'attachment; filename="clientes.csv"');
+    res.send("\uFEFF" + resultado.csv); // BOM para UTF-8
   } catch (error) {
-    console.error('❌ Erro na rota GET /clientes/exportar/csv:', error.message);
+    console.error("❌ Erro na rota GET /clientes/exportar/csv:", error.message);
     res.status(500).json({
       sucesso: false,
-      erro: 'Erro interno do servidor',
-      detalhes: process.env.NODE_ENV === 'development' ? error.message : undefined
+      erro: "Erro interno do servidor",
+      detalhes:
+        process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 });
@@ -444,21 +474,24 @@ router.get('/exportar/csv', async (req, res) => {
  * @desc    Limpar cache de validações
  * @access  Private
  */
-router.post('/cache/limpar', async (req, res) => {
+router.post("/cache/limpar", async (req, res) => {
   try {
     ClienteService.limparCache();
 
     res.json({
       sucesso: true,
-      mensagem: 'Cache limpo com sucesso'
+      mensagem: "Cache limpo com sucesso",
     });
-
   } catch (error) {
-    console.error('❌ Erro na rota POST /clientes/cache/limpar:', error.message);
+    console.error(
+      "❌ Erro na rota POST /clientes/cache/limpar:",
+      error.message,
+    );
     res.status(500).json({
       sucesso: false,
-      erro: 'Erro interno do servidor',
-      detalhes: process.env.NODE_ENV === 'development' ? error.message : undefined
+      erro: "Erro interno do servidor",
+      detalhes:
+        process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 });
@@ -468,21 +501,24 @@ router.post('/cache/limpar', async (req, res) => {
  * @desc    Obter estatísticas do cache
  * @access  Private
  */
-router.get('/cache/estatisticas', async (req, res) => {
+router.get("/cache/estatisticas", async (req, res) => {
   try {
     const estatisticas = ClienteService.obterEstatisticasCache();
 
     res.json({
       sucesso: true,
-      cache: estatisticas
+      cache: estatisticas,
     });
-
   } catch (error) {
-    console.error('❌ Erro na rota GET /clientes/cache/estatisticas:', error.message);
+    console.error(
+      "❌ Erro na rota GET /clientes/cache/estatisticas:",
+      error.message,
+    );
     res.status(500).json({
       sucesso: false,
-      erro: 'Erro interno do servidor',
-      detalhes: process.env.NODE_ENV === 'development' ? error.message : undefined
+      erro: "Erro interno do servidor",
+      detalhes:
+        process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 });

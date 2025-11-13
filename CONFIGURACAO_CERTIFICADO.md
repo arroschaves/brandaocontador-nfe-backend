@@ -42,6 +42,7 @@ curl -X GET http://localhost:3001/nfe/status
 ```
 
 O retorno deve mostrar:
+
 ```json
 {
   "certificado": {
@@ -64,20 +65,24 @@ O sistema tenta carregar o certificado na seguinte ordem:
 ## Troubleshooting
 
 ### Erro: "Senha inválida"
+
 - Verifique se a senha está correta no arquivo `.env`
 - Teste a senha abrindo o certificado no Windows
 
 ### Erro: "Arquivo não encontrado"
+
 - Verifique se o arquivo `.pfx` está no local correto
 - Confirme as permissões de leitura do arquivo
 
 ### Erro: "Certificado expirado"
+
 - Verifique a validade do certificado
 - Renove o certificado se necessário
 
 ## Segurança
 
 ⚠️ **IMPORTANTE:**
+
 - Nunca commite o arquivo `.pfx` no Git
 - Mantenha a senha segura
 - Use permissões restritas no arquivo do certificado

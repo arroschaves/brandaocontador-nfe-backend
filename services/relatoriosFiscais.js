@@ -3,50 +3,88 @@
  * Livros Fiscais, Simulador IBS/CBS/IS, Exportação, Dashboards
  */
 
-const PDFDocument = require('pdfkit');
-const ExcelJS = require('exceljs');
-const moment = require('moment-timezone');
-const fs = require('fs');
-const path = require('path');
+const PDFDocument = require("pdfkit");
+const ExcelJS = require("exceljs");
+const moment = require("moment-timezone");
+const fs = require("fs");
+const path = require("path");
 
 class RelatoriosFiscaisService {
   constructor() {
     // Configurações de relatórios
     this.configRelatorios = {
       livroEntrada: {
-        campos: ['dataEmissao', 'numero', 'serie', 'chave', 'fornecedor', 'cnpj', 'valorTotal', 'baseCalculoICMS', 'valorICMS', 'baseCalculoICMSST', 'valorICMSST', 'valorIPI', 'valorPIS', 'valorCOFINS'],
-        ordenacao: 'dataEmissao'
+        campos: [
+          "dataEmissao",
+          "numero",
+          "serie",
+          "chave",
+          "fornecedor",
+          "cnpj",
+          "valorTotal",
+          "baseCalculoICMS",
+          "valorICMS",
+          "baseCalculoICMSST",
+          "valorICMSST",
+          "valorIPI",
+          "valorPIS",
+          "valorCOFINS",
+        ],
+        ordenacao: "dataEmissao",
       },
       livroSaida: {
-        campos: ['dataEmissao', 'numero', 'serie', 'chave', 'cliente', 'cnpj', 'valorTotal', 'baseCalculoICMS', 'valorICMS', 'baseCalculoICMSST', 'valorICMSST', 'valorIPI', 'valorPIS', 'valorCOFINS'],
-        ordenacao: 'dataEmissao'
+        campos: [
+          "dataEmissao",
+          "numero",
+          "serie",
+          "chave",
+          "cliente",
+          "cnpj",
+          "valorTotal",
+          "baseCalculoICMS",
+          "valorICMS",
+          "baseCalculoICMSST",
+          "valorICMSST",
+          "valorIPI",
+          "valorPIS",
+          "valorCOFINS",
+        ],
+        ordenacao: "dataEmissao",
       },
       apuracaoICMS: {
-        campos: ['periodo', 'saldoAnterior', 'debitos', 'creditos', 'saldoApurado', 'icmsRecolher', 'icmsCompensar'],
-        agrupamento: 'mensal'
-      }
+        campos: [
+          "periodo",
+          "saldoAnterior",
+          "debitos",
+          "creditos",
+          "saldoApurado",
+          "icmsRecolher",
+          "icmsCompensar",
+        ],
+        agrupamento: "mensal",
+      },
     };
 
     // Alíquotas para simulação 2026
     this.aliquotas2026 = {
-      ibs: 8.80, // Imposto sobre Bens e Serviços
-      cbs: 8.80, // Contribuição sobre Bens e Serviços
-      is: 1.00,  // Imposto Seletivo
-      creditoIntegral: true
+      ibs: 8.8, // Imposto sobre Bens e Serviços
+      cbs: 8.8, // Contribuição sobre Bens e Serviços
+      is: 1.0, // Imposto Seletivo
+      creditoIntegral: true,
     };
 
     // Produtos sujeitos ao Imposto Seletivo
     this.produtosSujeitosIS = [
-      '22030000', // Cerveja
-      '22041000', // Vinhos
-      '22051000', // Vermutes
-      '24011000', // Tabaco
-      '27101100', // Gasolina
-      '27101200', // Querosene
-      '27101900', // Outros óleos
-      '87032100', // Automóveis até 1000cm³
-      '87032200', // Automóveis 1000-1500cm³
-      '87032300'  // Automóveis 1500-3000cm³
+      "22030000", // Cerveja
+      "22041000", // Vinhos
+      "22051000", // Vermutes
+      "24011000", // Tabaco
+      "27101100", // Gasolina
+      "27101200", // Querosene
+      "27101900", // Outros óleos
+      "87032100", // Automóveis até 1000cm³
+      "87032200", // Automóveis 1000-1500cm³
+      "87032300", // Automóveis 1500-3000cm³
     ];
   }
 
@@ -54,18 +92,18 @@ class RelatoriosFiscaisService {
    * Gerar Livro de Entrada
    */
   async gerarLivroEntrada(filtros) {
-    const { dataInicial, dataFinal, formato = 'pdf', usuario } = filtros;
+    const { dataInicial, dataFinal, formato = "pdf", usuario } = filtros;
 
     try {
       // Buscar NFes de entrada no período
       const nfesEntrada = await this.buscarNFesEntrada({
         dataInicial,
         dataFinal,
-        usuario
+        usuario,
       });
 
       if (nfesEntrada.length === 0) {
-        throw new Error('Nenhuma NFe de entrada encontrada no período');
+        throw new Error("Nenhuma NFe de entrada encontrada no período");
       }
 
       // Processar dados
@@ -74,27 +112,30 @@ class RelatoriosFiscaisService {
       // Gerar relatório no formato solicitado
       let arquivo;
       switch (formato) {
-        case 'pdf':
+        case "pdf":
           arquivo = await this.gerarPDFLivroEntrada(dadosProcessados, filtros);
           break;
-        case 'excel':
-          arquivo = await this.gerarExcelLivroEntrada(dadosProcessados, filtros);
+        case "excel":
+          arquivo = await this.gerarExcelLivroEntrada(
+            dadosProcessados,
+            filtros,
+          );
           break;
-        case 'xml':
+        case "xml":
           arquivo = await this.gerarXMLLivroEntrada(dadosProcessados, filtros);
           break;
         default:
-          throw new Error('Formato não suportado');
+          throw new Error("Formato não suportado");
       }
 
       // Registrar geração do relatório
       await this.registrarRelatorio({
-        tipo: 'livro_entrada',
+        tipo: "livro_entrada",
         periodo: `${dataInicial} a ${dataFinal}`,
         formato,
         usuario: usuario.id,
         arquivo: arquivo.caminho,
-        registros: nfesEntrada.length
+        registros: nfesEntrada.length,
       });
 
       return {
@@ -103,10 +144,9 @@ class RelatoriosFiscaisService {
         nomeArquivo: arquivo.nome,
         formato,
         registros: nfesEntrada.length,
-        periodo: `${moment(dataInicial).format('DD/MM/YYYY')} a ${moment(dataFinal).format('DD/MM/YYYY')}`,
-        totais: dadosProcessados.totais
+        periodo: `${moment(dataInicial).format("DD/MM/YYYY")} a ${moment(dataFinal).format("DD/MM/YYYY")}`,
+        totais: dadosProcessados.totais,
       };
-
     } catch (error) {
       throw new Error(`Erro ao gerar Livro de Entrada: ${error.message}`);
     }
@@ -116,18 +156,18 @@ class RelatoriosFiscaisService {
    * Gerar Livro de Saída
    */
   async gerarLivroSaida(filtros) {
-    const { dataInicial, dataFinal, formato = 'pdf', usuario } = filtros;
+    const { dataInicial, dataFinal, formato = "pdf", usuario } = filtros;
 
     try {
       // Buscar NFes de saída no período
       const nfesSaida = await this.buscarNFesSaida({
         dataInicial,
         dataFinal,
-        usuario
+        usuario,
       });
 
       if (nfesSaida.length === 0) {
-        throw new Error('Nenhuma NFe de saída encontrada no período');
+        throw new Error("Nenhuma NFe de saída encontrada no período");
       }
 
       // Processar dados
@@ -136,17 +176,17 @@ class RelatoriosFiscaisService {
       // Gerar relatório no formato solicitado
       let arquivo;
       switch (formato) {
-        case 'pdf':
+        case "pdf":
           arquivo = await this.gerarPDFLivroSaida(dadosProcessados, filtros);
           break;
-        case 'excel':
+        case "excel":
           arquivo = await this.gerarExcelLivroSaida(dadosProcessados, filtros);
           break;
-        case 'xml':
+        case "xml":
           arquivo = await this.gerarXMLLivroSaida(dadosProcessados, filtros);
           break;
         default:
-          throw new Error('Formato não suportado');
+          throw new Error("Formato não suportado");
       }
 
       return {
@@ -155,10 +195,9 @@ class RelatoriosFiscaisService {
         nomeArquivo: arquivo.nome,
         formato,
         registros: nfesSaida.length,
-        periodo: `${moment(dataInicial).format('DD/MM/YYYY')} a ${moment(dataFinal).format('DD/MM/YYYY')}`,
-        totais: dadosProcessados.totais
+        periodo: `${moment(dataInicial).format("DD/MM/YYYY")} a ${moment(dataFinal).format("DD/MM/YYYY")}`,
+        totais: dadosProcessados.totais,
       };
-
     } catch (error) {
       throw new Error(`Erro ao gerar Livro de Saída: ${error.message}`);
     }
@@ -168,31 +207,37 @@ class RelatoriosFiscaisService {
    * Gerar Apuração de ICMS
    */
   async gerarApuracaoICMS(filtros) {
-    const { mes, ano, formato = 'pdf', usuario } = filtros;
+    const { mes, ano, formato = "pdf", usuario } = filtros;
 
     try {
       const periodo = moment(`${ano}-${mes}-01`);
-      const dataInicial = periodo.startOf('month').format('YYYY-MM-DD');
-      const dataFinal = periodo.endOf('month').format('YYYY-MM-DD');
+      const dataInicial = periodo.startOf("month").format("YYYY-MM-DD");
+      const dataFinal = periodo.endOf("month").format("YYYY-MM-DD");
 
       // Buscar dados para apuração
       const dadosApuracao = await this.calcularApuracaoICMS({
         dataInicial,
         dataFinal,
-        usuario
+        usuario,
       });
 
       // Gerar relatório
       let arquivo;
       switch (formato) {
-        case 'pdf':
-          arquivo = await this.gerarPDFApuracaoICMS(dadosApuracao, { mes, ano });
+        case "pdf":
+          arquivo = await this.gerarPDFApuracaoICMS(dadosApuracao, {
+            mes,
+            ano,
+          });
           break;
-        case 'excel':
-          arquivo = await this.gerarExcelApuracaoICMS(dadosApuracao, { mes, ano });
+        case "excel":
+          arquivo = await this.gerarExcelApuracaoICMS(dadosApuracao, {
+            mes,
+            ano,
+          });
           break;
         default:
-          throw new Error('Formato não suportado');
+          throw new Error("Formato não suportado");
       }
 
       return {
@@ -201,9 +246,8 @@ class RelatoriosFiscaisService {
         nomeArquivo: arquivo.nome,
         formato,
         periodo: `${mes}/${ano}`,
-        apuracao: dadosApuracao
+        apuracao: dadosApuracao,
       };
-
     } catch (error) {
       throw new Error(`Erro ao gerar Apuração de ICMS: ${error.message}`);
     }
@@ -220,11 +264,11 @@ class RelatoriosFiscaisService {
       const nfes = await this.buscarTodasNFes({
         dataInicial,
         dataFinal,
-        usuario
+        usuario,
       });
 
       if (nfes.length === 0) {
-        throw new Error('Nenhuma NFe encontrada no período para simulação');
+        throw new Error("Nenhuma NFe encontrada no período para simulação");
       }
 
       // Calcular impostos sistema atual
@@ -241,20 +285,19 @@ class RelatoriosFiscaisService {
 
       return {
         sucesso: true,
-        periodo: `${moment(dataInicial).format('DD/MM/YYYY')} a ${moment(dataFinal).format('DD/MM/YYYY')}`,
+        periodo: `${moment(dataInicial).format("DD/MM/YYYY")} a ${moment(dataFinal).format("DD/MM/YYYY")}`,
         nfesAnalisadas: nfes.length,
         sistemaAtual,
         sistema2026,
         comparativo,
         analiseImpacto,
         observacoes: [
-          'Simulação baseada na Reforma Tributária aprovada',
-          'Valores sujeitos a alterações até implementação final',
-          'Considerar período de transição e adaptação',
-          'Consultar contador para análise específica'
-        ]
+          "Simulação baseada na Reforma Tributária aprovada",
+          "Valores sujeitos a alterações até implementação final",
+          "Considerar período de transição e adaptação",
+          "Consultar contador para análise específica",
+        ],
       };
-
     } catch (error) {
       throw new Error(`Erro na simulação 2026: ${error.message}`);
     }
@@ -264,34 +307,39 @@ class RelatoriosFiscaisService {
    * Gerar Dashboard - APIs para KPIs e Gráficos
    */
   async gerarDadosDashboard(filtros) {
-    const { periodo = 'mes', usuario } = filtros;
+    const { periodo = "mes", usuario } = filtros;
 
     try {
       const agora = moment();
       let dataInicial, dataFinal;
 
       switch (periodo) {
-        case 'mes':
-          dataInicial = agora.startOf('month').format('YYYY-MM-DD');
-          dataFinal = agora.endOf('month').format('YYYY-MM-DD');
+        case "mes":
+          dataInicial = agora.startOf("month").format("YYYY-MM-DD");
+          dataFinal = agora.endOf("month").format("YYYY-MM-DD");
           break;
-        case 'trimestre':
-          dataInicial = agora.startOf('quarter').format('YYYY-MM-DD');
-          dataFinal = agora.endOf('quarter').format('YYYY-MM-DD');
+        case "trimestre":
+          dataInicial = agora.startOf("quarter").format("YYYY-MM-DD");
+          dataFinal = agora.endOf("quarter").format("YYYY-MM-DD");
           break;
-        case 'ano':
-          dataInicial = agora.startOf('year').format('YYYY-MM-DD');
-          dataFinal = agora.endOf('year').format('YYYY-MM-DD');
+        case "ano":
+          dataInicial = agora.startOf("year").format("YYYY-MM-DD");
+          dataFinal = agora.endOf("year").format("YYYY-MM-DD");
           break;
         default:
-          throw new Error('Período inválido');
+          throw new Error("Período inválido");
       }
 
       // KPIs principais
       const kpis = await this.calcularKPIs({ dataInicial, dataFinal, usuario });
 
       // Dados para gráficos
-      const graficos = await this.gerarDadosGraficos({ dataInicial, dataFinal, usuario, periodo });
+      const graficos = await this.gerarDadosGraficos({
+        dataInicial,
+        dataFinal,
+        usuario,
+        periodo,
+      });
 
       // Alertas e notificações
       const alertas = await this.verificarAlertas({ usuario });
@@ -304,9 +352,8 @@ class RelatoriosFiscaisService {
         kpis,
         graficos,
         alertas,
-        ultimaAtualizacao: new Date().toISOString()
+        ultimaAtualizacao: new Date().toISOString(),
       };
-
     } catch (error) {
       throw new Error(`Erro ao gerar dados do dashboard: ${error.message}`);
     }
@@ -316,8 +363,8 @@ class RelatoriosFiscaisService {
    * Métodos de processamento de dados
    */
   processarDadosLivroEntrada(nfes) {
-    const dados = nfes.map(nfe => ({
-      dataEmissao: moment(nfe.dataEmissao).format('DD/MM/YYYY'),
+    const dados = nfes.map((nfe) => ({
+      dataEmissao: moment(nfe.dataEmissao).format("DD/MM/YYYY"),
       numero: nfe.numero,
       serie: nfe.serie,
       chave: nfe.chave,
@@ -330,26 +377,32 @@ class RelatoriosFiscaisService {
       valorICMSST: parseFloat(nfe.impostos?.icmsST?.valor || 0),
       valorIPI: parseFloat(nfe.impostos?.ipi?.valor || 0),
       valorPIS: parseFloat(nfe.impostos?.pis?.valor || 0),
-      valorCOFINS: parseFloat(nfe.impostos?.cofins?.valor || 0)
+      valorCOFINS: parseFloat(nfe.impostos?.cofins?.valor || 0),
     }));
 
     const totais = {
       valorTotal: dados.reduce((sum, item) => sum + item.valorTotal, 0),
-      baseCalculoICMS: dados.reduce((sum, item) => sum + item.baseCalculoICMS, 0),
+      baseCalculoICMS: dados.reduce(
+        (sum, item) => sum + item.baseCalculoICMS,
+        0,
+      ),
       valorICMS: dados.reduce((sum, item) => sum + item.valorICMS, 0),
-      baseCalculoICMSST: dados.reduce((sum, item) => sum + item.baseCalculoICMSST, 0),
+      baseCalculoICMSST: dados.reduce(
+        (sum, item) => sum + item.baseCalculoICMSST,
+        0,
+      ),
       valorICMSST: dados.reduce((sum, item) => sum + item.valorICMSST, 0),
       valorIPI: dados.reduce((sum, item) => sum + item.valorIPI, 0),
       valorPIS: dados.reduce((sum, item) => sum + item.valorPIS, 0),
-      valorCOFINS: dados.reduce((sum, item) => sum + item.valorCOFINS, 0)
+      valorCOFINS: dados.reduce((sum, item) => sum + item.valorCOFINS, 0),
     };
 
     return { dados, totais };
   }
 
   processarDadosLivroSaida(nfes) {
-    const dados = nfes.map(nfe => ({
-      dataEmissao: moment(nfe.dataEmissao).format('DD/MM/YYYY'),
+    const dados = nfes.map((nfe) => ({
+      dataEmissao: moment(nfe.dataEmissao).format("DD/MM/YYYY"),
       numero: nfe.numero,
       serie: nfe.serie,
       chave: nfe.chave,
@@ -362,18 +415,24 @@ class RelatoriosFiscaisService {
       valorICMSST: parseFloat(nfe.impostos?.icmsST?.valor || 0),
       valorIPI: parseFloat(nfe.impostos?.ipi?.valor || 0),
       valorPIS: parseFloat(nfe.impostos?.pis?.valor || 0),
-      valorCOFINS: parseFloat(nfe.impostos?.cofins?.valor || 0)
+      valorCOFINS: parseFloat(nfe.impostos?.cofins?.valor || 0),
     }));
 
     const totais = {
       valorTotal: dados.reduce((sum, item) => sum + item.valorTotal, 0),
-      baseCalculoICMS: dados.reduce((sum, item) => sum + item.baseCalculoICMS, 0),
+      baseCalculoICMS: dados.reduce(
+        (sum, item) => sum + item.baseCalculoICMS,
+        0,
+      ),
       valorICMS: dados.reduce((sum, item) => sum + item.valorICMS, 0),
-      baseCalculoICMSST: dados.reduce((sum, item) => sum + item.baseCalculoICMSST, 0),
+      baseCalculoICMSST: dados.reduce(
+        (sum, item) => sum + item.baseCalculoICMSST,
+        0,
+      ),
       valorICMSST: dados.reduce((sum, item) => sum + item.valorICMSST, 0),
       valorIPI: dados.reduce((sum, item) => sum + item.valorIPI, 0),
       valorPIS: dados.reduce((sum, item) => sum + item.valorPIS, 0),
-      valorCOFINS: dados.reduce((sum, item) => sum + item.valorCOFINS, 0)
+      valorCOFINS: dados.reduce((sum, item) => sum + item.valorCOFINS, 0),
     };
 
     return { dados, totais };
@@ -386,10 +445,10 @@ class RelatoriosFiscaisService {
       pis: 0,
       cofins: 0,
       iss: 0,
-      total: 0
+      total: 0,
     };
 
-    nfes.forEach(nfe => {
+    nfes.forEach((nfe) => {
       totais.icms += parseFloat(nfe.impostos?.icms?.valor || 0);
       totais.ipi += parseFloat(nfe.impostos?.ipi?.valor || 0);
       totais.pis += parseFloat(nfe.impostos?.pis?.valor || 0);
@@ -397,34 +456,41 @@ class RelatoriosFiscaisService {
       totais.iss += parseFloat(nfe.impostos?.iss?.valor || 0);
     });
 
-    totais.total = totais.icms + totais.ipi + totais.pis + totais.cofins + totais.iss;
+    totais.total =
+      totais.icms + totais.ipi + totais.pis + totais.cofins + totais.iss;
 
     return {
       impostos: totais,
-      aliquotaEfetiva: totais.total / nfes.reduce((sum, nfe) => sum + parseFloat(nfe.valorTotal || 0), 0) * 100,
-      observacoes: 'Sistema tributário atual (múltiplos impostos)'
+      aliquotaEfetiva:
+        (totais.total /
+          nfes.reduce((sum, nfe) => sum + parseFloat(nfe.valorTotal || 0), 0)) *
+        100,
+      observacoes: "Sistema tributário atual (múltiplos impostos)",
     };
   }
 
   calcularImpostosSistema2026(nfes, incluirIS) {
-    const valorTotalNFes = nfes.reduce((sum, nfe) => sum + parseFloat(nfe.valorTotal || 0), 0);
+    const valorTotalNFes = nfes.reduce(
+      (sum, nfe) => sum + parseFloat(nfe.valorTotal || 0),
+      0,
+    );
 
     const ibs = valorTotalNFes * (this.aliquotas2026.ibs / 100);
     const cbs = valorTotalNFes * (this.aliquotas2026.cbs / 100);
-    
+
     let is = 0;
     if (incluirIS) {
       // Calcular IS apenas para produtos sujeitos
       const valorProdutosSujeitosIS = nfes.reduce((sum, nfe) => {
         const valorIS = (nfe.itens || []).reduce((sumItem, item) => {
           if (this.produtosSujeitosIS.includes(item.ncm)) {
-            return sumItem + (parseFloat(item.valorTotal || 0));
+            return sumItem + parseFloat(item.valorTotal || 0);
           }
           return sumItem;
         }, 0);
         return sum + valorIS;
       }, 0);
-      
+
       is = valorProdutosSujeitosIS * (this.aliquotas2026.is / 100);
     }
 
@@ -435,17 +501,19 @@ class RelatoriosFiscaisService {
         ibs,
         cbs,
         is,
-        total
+        total,
       },
-      aliquotaEfetiva: total / valorTotalNFes * 100,
+      aliquotaEfetiva: (total / valorTotalNFes) * 100,
       creditoIntegral: this.aliquotas2026.creditoIntegral,
-      observacoes: 'Sistema tributário 2026 (Reforma Tributária)'
+      observacoes: "Sistema tributário 2026 (Reforma Tributária)",
     };
   }
 
   gerarComparativo(sistemaAtual, sistema2026) {
-    const diferencaAbsoluta = sistema2026.impostos.total - sistemaAtual.impostos.total;
-    const diferencaPercentual = (diferencaAbsoluta / sistemaAtual.impostos.total) * 100;
+    const diferencaAbsoluta =
+      sistema2026.impostos.total - sistemaAtual.impostos.total;
+    const diferencaPercentual =
+      (diferencaAbsoluta / sistemaAtual.impostos.total) * 100;
 
     return {
       sistemaAtual: sistemaAtual.impostos.total,
@@ -453,40 +521,40 @@ class RelatoriosFiscaisService {
       diferenca: {
         absoluta: diferencaAbsoluta,
         percentual: diferencaPercentual,
-        tipo: diferencaAbsoluta > 0 ? 'aumento' : 'reducao'
+        tipo: diferencaAbsoluta > 0 ? "aumento" : "reducao",
       },
       economia: diferencaAbsoluta < 0 ? Math.abs(diferencaAbsoluta) : 0,
-      custoAdicional: diferencaAbsoluta > 0 ? diferencaAbsoluta : 0
+      custoAdicional: diferencaAbsoluta > 0 ? diferencaAbsoluta : 0,
     };
   }
 
   analisarImpacto(comparativo) {
     const impacto = {
-      classificacao: '',
+      classificacao: "",
       recomendacoes: [],
-      pontos_atencao: []
+      pontos_atencao: [],
     };
 
     if (Math.abs(comparativo.diferenca.percentual) <= 5) {
-      impacto.classificacao = 'Impacto Baixo';
-      impacto.recomendacoes.push('Monitorar implementação da reforma');
+      impacto.classificacao = "Impacto Baixo";
+      impacto.recomendacoes.push("Monitorar implementação da reforma");
     } else if (Math.abs(comparativo.diferenca.percentual) <= 15) {
-      impacto.classificacao = 'Impacto Moderado';
-      impacto.recomendacoes.push('Planejar ajustes operacionais');
-      impacto.recomendacoes.push('Revisar precificação se necessário');
+      impacto.classificacao = "Impacto Moderado";
+      impacto.recomendacoes.push("Planejar ajustes operacionais");
+      impacto.recomendacoes.push("Revisar precificação se necessário");
     } else {
-      impacto.classificacao = 'Impacto Alto';
-      impacto.recomendacoes.push('Reavaliar estratégia tributária');
-      impacto.recomendacoes.push('Considerar mudanças estruturais');
-      impacto.pontos_atencao.push('Impacto significativo na carga tributária');
+      impacto.classificacao = "Impacto Alto";
+      impacto.recomendacoes.push("Reavaliar estratégia tributária");
+      impacto.recomendacoes.push("Considerar mudanças estruturais");
+      impacto.pontos_atencao.push("Impacto significativo na carga tributária");
     }
 
-    if (comparativo.diferenca.tipo === 'reducao') {
-      impacto.recomendacoes.push('Aproveitar benefícios do crédito integral');
-      impacto.recomendacoes.push('Revisar cadeia de fornecedores');
+    if (comparativo.diferenca.tipo === "reducao") {
+      impacto.recomendacoes.push("Aproveitar benefícios do crédito integral");
+      impacto.recomendacoes.push("Revisar cadeia de fornecedores");
     } else {
-      impacto.pontos_atencao.push('Aumento na carga tributária');
-      impacto.recomendacoes.push('Buscar otimizações fiscais');
+      impacto.pontos_atencao.push("Aumento na carga tributária");
+      impacto.recomendacoes.push("Buscar otimizações fiscais");
     }
 
     return impacto;
@@ -500,7 +568,7 @@ class RelatoriosFiscaisService {
       nfesEmitidas: 0,
       ticketMedio: 0,
       cargaTributaria: 0,
-      crescimentoMensal: 0
+      crescimentoMensal: 0,
     };
   }
 
@@ -510,7 +578,7 @@ class RelatoriosFiscaisService {
       faturamentoPorMes: [],
       impostosPorTipo: [],
       nfesPorStatus: [],
-      topClientes: []
+      topClientes: [],
     };
   }
 
@@ -522,17 +590,17 @@ class RelatoriosFiscaisService {
   // Métodos de geração de arquivos (PDF, Excel, XML)
   async gerarPDFLivroEntrada(dados, filtros) {
     // Implementar geração de PDF
-    return { caminho: '', nome: '' };
+    return { caminho: "", nome: "" };
   }
 
   async gerarExcelLivroEntrada(dados, filtros) {
     // Implementar geração de Excel
-    return { caminho: '', nome: '' };
+    return { caminho: "", nome: "" };
   }
 
   async gerarXMLLivroEntrada(dados, filtros) {
     // Implementar geração de XML
-    return { caminho: '', nome: '' };
+    return { caminho: "", nome: "" };
   }
 
   // Métodos de busca no banco de dados

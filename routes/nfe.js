@@ -1,10 +1,12 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const nfeService = require('../services/nfe-service');
-const { TaxCalculationService } = require('../services/tax-calculation-service');
-const validationService = require('../services/validation-service');
-const XmlValidatorService = require('../services/xml-validator-service');
-const authMiddleware = require('../middleware/auth');
+const nfeService = require("../services/nfe-service");
+const {
+  TaxCalculationService,
+} = require("../services/tax-calculation-service");
+const validationService = require("../services/validation-service");
+const XmlValidatorService = require("../services/xml-validator-service");
+const authMiddleware = require("../middleware/auth");
 
 const taxCalculationService = new TaxCalculationService();
 const xmlValidatorService = new XmlValidatorService();
@@ -159,47 +161,54 @@ const xmlValidatorService = new XmlValidatorService();
  *                           type: number
  *                           example: 5.00
  */
-router.post('/emitir', authMiddleware.verificarAutenticacao(), async (req, res) => {
-  try {
-    const dadosNfe = req.body;
-    
-    // Validar dados de entrada
+router.post(
+  "/emitir",
+  authMiddleware.verificarAutenticacao(),
+  async (req, res) => {
     try {
-      xmlValidatorService.validarDadosNfe(dadosNfe);
+      const dadosNfe = req.body;
+
+      // Validar dados de entrada
+      try {
+        xmlValidatorService.validarDadosNfe(dadosNfe);
+      } catch (error) {
+        return res.status(400).json({
+          sucesso: false,
+          erro: "Dados inválidos",
+          detalhes: error.message,
+        });
+      }
+
+      // Calcular impostos automaticamente baseado no regime tributário
+      const calculosImpostos = taxCalculationService.calcularImpostosCompleto(
+        dadosNfe.itens[0] || {},
+        {
+          regimeTributario:
+            dadosNfe.emitente?.regimeTributario || "simplesNacional",
+        },
+      );
+
+      // Aplicar cálculos aos dados da NFe
+      dadosNfe.calculosRealizados = calculosImpostos;
+
+      // Emitir NFe
+      const resultado = await nfeService.emitirNfe(dadosNfe, req.user);
+
+      res.json({
+        sucesso: true,
+        ...resultado,
+        calculosRealizados: calculosImpostos,
+      });
     } catch (error) {
-      return res.status(400).json({
+      console.error("Erro ao emitir NFe:", error);
+      res.status(500).json({
         sucesso: false,
-        erro: 'Dados inválidos',
-        detalhes: error.message
+        erro: "Erro interno do servidor",
+        detalhes: error.message,
       });
     }
-
-    // Calcular impostos automaticamente baseado no regime tributário
-    const calculosImpostos = taxCalculationService.calcularImpostosCompleto(dadosNfe.itens[0] || {}, {
-      regimeTributario: dadosNfe.emitente?.regimeTributario || 'simplesNacional'
-    });
-    
-    // Aplicar cálculos aos dados da NFe
-    dadosNfe.calculosRealizados = calculosImpostos;
-    
-    // Emitir NFe
-    const resultado = await nfeService.emitirNfe(dadosNfe, req.user);
-    
-    res.json({
-      sucesso: true,
-      ...resultado,
-      calculosRealizados: calculosImpostos
-    });
-    
-  } catch (error) {
-    console.error('Erro ao emitir NFe:', error);
-    res.status(500).json({
-      sucesso: false,
-      erro: 'Erro interno do servidor',
-      detalhes: error.message
-    });
-  }
-});
+  },
+);
 
 /**
  * @swagger
@@ -222,33 +231,36 @@ router.post('/emitir', authMiddleware.verificarAutenticacao(), async (req, res) 
  *       404:
  *         description: NFe não encontrada
  */
-router.get('/consultar/:chave', authMiddleware.verificarAutenticacao(), async (req, res) => {
-  try {
-    const { chave } = req.params;
-    
-    const nfe = await nfeService.consultarNfe(chave, req.user);
-    
-    if (!nfe) {
-      return res.status(404).json({
+router.get(
+  "/consultar/:chave",
+  authMiddleware.verificarAutenticacao(),
+  async (req, res) => {
+    try {
+      const { chave } = req.params;
+
+      const nfe = await nfeService.consultarNfe(chave, req.user);
+
+      if (!nfe) {
+        return res.status(404).json({
+          sucesso: false,
+          erro: "NFe não encontrada",
+        });
+      }
+
+      res.json({
+        sucesso: true,
+        nfe,
+      });
+    } catch (error) {
+      console.error("Erro ao consultar NFe:", error);
+      res.status(500).json({
         sucesso: false,
-        erro: 'NFe não encontrada'
+        erro: "Erro interno do servidor",
+        detalhes: error.message,
       });
     }
-    
-    res.json({
-      sucesso: true,
-      nfe
-    });
-    
-  } catch (error) {
-    console.error('Erro ao consultar NFe:', error);
-    res.status(500).json({
-      sucesso: false,
-      erro: 'Erro interno do servidor',
-      detalhes: error.message
-    });
-  }
-});
+  },
+);
 
 /**
  * @swagger
@@ -293,32 +305,35 @@ router.get('/consultar/:chave', authMiddleware.verificarAutenticacao(), async (r
  *       200:
  *         description: Lista de NFes
  */
-router.get('/historico', authMiddleware.verificarAutenticacao(), async (req, res) => {
-  try {
-    const filtros = {
-      page: parseInt(req.query.page) || 1,
-      limit: parseInt(req.query.limit) || 20,
-      dataInicio: req.query.dataInicio,
-      dataFim: req.query.dataFim,
-      situacao: req.query.situacao
-    };
-    
-    const resultado = await nfeService.listarNfes(req.user.id, filtros);
-    
-    res.json({
-      sucesso: true,
-      data: resultado
-    });
-    
-  } catch (error) {
-    console.error('Erro ao listar NFes:', error);
-    res.status(500).json({
-      sucesso: false,
-      erro: 'Erro interno do servidor',
-      detalhes: error.message
-    });
-  }
-});
+router.get(
+  "/historico",
+  authMiddleware.verificarAutenticacao(),
+  async (req, res) => {
+    try {
+      const filtros = {
+        page: parseInt(req.query.page) || 1,
+        limit: parseInt(req.query.limit) || 20,
+        dataInicio: req.query.dataInicio,
+        dataFim: req.query.dataFim,
+        situacao: req.query.situacao,
+      };
+
+      const resultado = await nfeService.listarNfes(filtros, req.user);
+
+      res.json({
+        sucesso: true,
+        ...resultado,
+      });
+    } catch (error) {
+      console.error("Erro ao listar NFes:", error);
+      res.status(500).json({
+        sucesso: false,
+        erro: "Erro interno do servidor",
+        detalhes: error.message,
+      });
+    }
+  },
+);
 
 /**
  * @swagger
@@ -355,26 +370,30 @@ router.get('/historico', authMiddleware.verificarAutenticacao(), async (req, res
  *       200:
  *         description: Cálculos realizados
  */
-router.post('/calcular-impostos', authMiddleware.verificarAutenticacao(), async (req, res) => {
-  try {
-    const dadosCalculo = req.body;
-    
-    const calculos = await taxCalculationService.calcularImpostos(dadosCalculo);
-    
-    res.json({
-      sucesso: true,
-      calculos
-    });
-    
-  } catch (error) {
-    console.error('Erro ao calcular impostos:', error);
-    res.status(500).json({
-      sucesso: false,
-      erro: 'Erro interno do servidor',
-      detalhes: error.message
-    });
-  }
-});
+router.post(
+  "/calcular-impostos",
+  authMiddleware.verificarAutenticacao(),
+  async (req, res) => {
+    try {
+      const dadosCalculo = req.body;
+
+      const calculos =
+        await taxCalculationService.calcularImpostos(dadosCalculo);
+
+      res.json({
+        sucesso: true,
+        calculos,
+      });
+    } catch (error) {
+      console.error("Erro ao calcular impostos:", error);
+      res.status(500).json({
+        sucesso: false,
+        erro: "Erro interno do servidor",
+        detalhes: error.message,
+      });
+    }
+  },
+);
 
 /**
  * @swagger
@@ -394,26 +413,29 @@ router.post('/calcular-impostos', authMiddleware.verificarAutenticacao(), async 
  *       200:
  *         description: Validação realizada
  */
-router.post('/validar-dados', authMiddleware.verificarAutenticacao(), async (req, res) => {
-  try {
-    const dadosNfe = req.body;
-    
-    const validacao = await validationService.validarDadosNfe(dadosNfe);
-    
-    res.json({
-      sucesso: true,
-      validacao
-    });
-    
-  } catch (error) {
-    console.error('Erro ao validar dados:', error);
-    res.status(500).json({
-      sucesso: false,
-      erro: 'Erro interno do servidor',
-      detalhes: error.message
-    });
-  }
-});
+router.post(
+  "/validar-dados",
+  authMiddleware.verificarAutenticacao(),
+  async (req, res) => {
+    try {
+      const dadosNfe = req.body;
+
+      const validacao = await validationService.validarDadosNfe(dadosNfe);
+
+      res.json({
+        sucesso: true,
+        validacao,
+      });
+    } catch (error) {
+      console.error("Erro ao validar dados:", error);
+      res.status(500).json({
+        sucesso: false,
+        erro: "Erro interno do servidor",
+        detalhes: error.message,
+      });
+    }
+  },
+);
 
 /**
  * @swagger
@@ -476,40 +498,54 @@ router.post('/validar-dados', authMiddleware.verificarAutenticacao(), async (req
  *       500:
  *         description: Erro interno do servidor
  */
-router.get('/status', authMiddleware.verificarAutenticacao(), async (req, res) => {
-  try {
-    const advancedLogger = req.app.get('advancedLogger');
-    
-    // Log da requisição
-    advancedLogger.logInfo('nfe', 'Solicitação de status das NFes', req, {
-      userId: req.user.id
-    });
+router.get(
+  "/status",
+  authMiddleware.verificarAutenticacao(),
+  async (req, res) => {
+    try {
+      const advancedLogger = req.app.get("advancedLogger");
 
-    // Obter estatísticas das NFes do usuário
-    const status = await nfeService.obterStatusNfes(req.user.id);
-    
-    advancedLogger.logInfo('nfe', 'Status das NFes retornado com sucesso', req, {
-      userId: req.user.id,
-      totalNfes: status.total
-    });
+      // Log da requisição
+      advancedLogger.logInfo("nfe", "Solicitação de status das NFes", req, {
+        userId: req.user.id,
+      });
 
-    res.json({
-      sucesso: true,
-      dados: status
-    });
-    
-  } catch (error) {
-    const advancedLogger = req.app.get('advancedLogger');
-    advancedLogger.logError('nfe', 'Erro ao obter status das NFes', req, error, {
-      userId: req.user?.id
-    });
+      // Obter estatísticas das NFes do usuário
+      const status = await nfeService.obterStatusNfes(req.user);
 
-    res.status(500).json({
-      sucesso: false,
-      erro: 'Erro interno do servidor',
-      codigo: 'INTERNAL_ERROR'
-    });
-  }
-});
+      advancedLogger.logInfo(
+        "nfe",
+        "Status das NFes retornado com sucesso",
+        req,
+        {
+          userId: req.user.id,
+          totalNfes: status.total,
+        },
+      );
+
+      res.json({
+        sucesso: true,
+        dados: status,
+      });
+    } catch (error) {
+      const advancedLogger = req.app.get("advancedLogger");
+      advancedLogger.logError(
+        "nfe",
+        "Erro ao obter status das NFes",
+        req,
+        error,
+        {
+          userId: req.user?.id,
+        },
+      );
+
+      res.status(500).json({
+        sucesso: false,
+        erro: "Erro interno do servidor",
+        codigo: "INTERNAL_ERROR",
+      });
+    }
+  },
+);
 
 module.exports = router;
