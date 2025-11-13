@@ -1,6 +1,7 @@
 # 🚀 MELHORIAS CRÍTICAS IMPLEMENTADAS NO WORKFLOW CI/CD
 
 ## 📅 Data: Janeiro 2025
+
 ## 🎯 Status: ✅ IMPLEMENTADO COM SUCESSO
 
 ---
@@ -8,9 +9,11 @@
 ## 🚨 **CORREÇÕES CRÍTICAS APLICADAS**
 
 ### 1. 🛡️ **PROTEÇÃO DE DADOS DE PRODUÇÃO** ⭐ CRÍTICO
+
 **Problema:** O workflow estava incluindo a pasta `data/` no deploy, podendo sobrescrever dados de produção.
 
 **Solução Implementada:**
+
 ```yaml
 # ANTES (PERIGOSO):
 tar -czf backend-deploy.tar.gz . --exclude=node_modules --exclude=data/logs.json
@@ -28,7 +31,8 @@ tar -czf backend-deploy.tar.gz \
   --exclude=data/*.json
 ```
 
-**Resultado:** 
+**Resultado:**
+
 - ✅ Dados de produção 100% protegidos
 - ✅ Pasta `data/` nunca será sobrescrita
 - ✅ Arquivos JSON de produção preservados
@@ -36,9 +40,11 @@ tar -czf backend-deploy.tar.gz \
 ---
 
 ### 2. 🔐 **SEGURANÇA SSH MODERNA** ⭐ CRÍTICO
+
 **Problema:** Uso de `sshpass` com senhas em texto plano (inseguro).
 
 **Solução Implementada:**
+
 ```yaml
 # ANTES (INSEGURO):
 - name: 🔐 Configurar autenticação SSH
@@ -64,6 +70,7 @@ tar -czf backend-deploy.tar.gz \
 ```
 
 **Resultado:**
+
 - ✅ Autenticação por chaves SSH (padrão da indústria)
 - ✅ Remoção completa do `sshpass` inseguro
 - ✅ Actions modernas e mantidas pela comunidade
@@ -71,9 +78,11 @@ tar -czf backend-deploy.tar.gz \
 ---
 
 ### 3. ⚡ **ZERO DOWNTIME DEPLOYMENT**
+
 **Problema:** `pm2 stop` + `pm2 start` causava downtime desnecessário.
 
 **Solução Implementada:**
+
 ```yaml
 # ANTES (COM DOWNTIME):
 pm2 stop ${{ env.PM2_APP_NAME }}
@@ -88,6 +97,7 @@ fi
 ```
 
 **Resultado:**
+
 - ✅ Deploy sem interrupção do serviço
 - ✅ Usuários não percebem a atualização
 - ✅ Fallback automático em caso de problemas
@@ -95,9 +105,11 @@ fi
 ---
 
 ### 4. 🛡️ **PROTEÇÃO ADICIONAL DE DADOS**
+
 **Problema:** Criação forçada da estrutura JSON poderia sobrescrever dados.
 
 **Solução Implementada:**
+
 ```yaml
 # ANTES (PERIGOSO):
 mkdir -p data
@@ -116,6 +128,7 @@ fi
 ```
 
 **Resultado:**
+
 - ✅ Dados existentes nunca são sobrescritos
 - ✅ Estrutura criada apenas em primeiro deploy
 - ✅ Logs claros sobre preservação de dados
@@ -125,17 +138,21 @@ fi
 ## 🔧 **CONFIGURAÇÃO NECESSÁRIA**
 
 ### Secret a ser configurado no GitHub:
+
 ```
 CONTABO_SSH_PRIVATE_KEY
 ```
 
 **Como configurar:**
+
 1. Gerar par de chaves SSH no servidor:
+
    ```bash
    ssh-keygen -t rsa -b 4096 -C "github-actions@brandaocontador.com.br"
    ```
 
 2. Adicionar chave pública ao servidor:
+
    ```bash
    cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
    ```
@@ -149,13 +166,13 @@ CONTABO_SSH_PRIVATE_KEY
 
 ## 📊 **RESUMO DAS MELHORIAS**
 
-| Aspecto | Antes | Depois | Status |
-|---------|-------|--------|--------|
-| **Proteção de Dados** | ❌ Dados em risco | ✅ 100% Protegido | ✅ CRÍTICO |
-| **Segurança SSH** | ❌ Senha em texto | ✅ Chaves SSH | ✅ CRÍTICO |
-| **Downtime** | ❌ Interrupção | ✅ Zero Downtime | ✅ MELHORIA |
-| **Actions** | ❌ Scripts manuais | ✅ Actions modernas | ✅ MELHORIA |
-| **Logs** | ❌ Básicos | ✅ Detalhados | ✅ MELHORIA |
+| Aspecto               | Antes              | Depois              | Status      |
+| --------------------- | ------------------ | ------------------- | ----------- |
+| **Proteção de Dados** | ❌ Dados em risco  | ✅ 100% Protegido   | ✅ CRÍTICO  |
+| **Segurança SSH**     | ❌ Senha em texto  | ✅ Chaves SSH       | ✅ CRÍTICO  |
+| **Downtime**          | ❌ Interrupção     | ✅ Zero Downtime    | ✅ MELHORIA |
+| **Actions**           | ❌ Scripts manuais | ✅ Actions modernas | ✅ MELHORIA |
+| **Logs**              | ❌ Básicos         | ✅ Detalhados       | ✅ MELHORIA |
 
 ---
 

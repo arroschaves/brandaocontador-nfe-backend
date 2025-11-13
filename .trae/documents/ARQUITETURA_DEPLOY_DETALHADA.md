@@ -1,4 +1,5 @@
 # ARQUITETURA E DEPLOY DETALHADO
+
 ## Sistema NFe Brandão Contador
 
 ---
@@ -12,41 +13,41 @@ graph TB
     subgraph "Cliente/Browser"
         U[Usuário]
     end
-    
+
     subgraph "Cloudflare Edge"
         CF[Cloudflare CDN/WAF]
         DNS[DNS Management]
     end
-    
+
     subgraph "Vercel Edge Network"
         FE[Frontend Next.js]
         AD[Admin Panel]
         EDGE[Edge Functions]
     end
-    
+
     subgraph "DigitalOcean Infrastructure"
         LB[Load Balancer]
         NG[Nginx Reverse Proxy]
-        
+
         subgraph "Application Layer"
             BE1[Backend Instance 1]
             BE2[Backend Instance 2]
             PM2[PM2 Cluster]
         end
-        
+
         subgraph "Data Layer"
             FS[File System - XMLs]
             LOGS[Log Files]
             CERTS[Certificates]
         end
     end
-    
+
     subgraph "External Services"
         SEFAZ[SEFAZ Webservices]
         EMAIL[Email Service]
         BACKUP[Backup Storage]
     end
-    
+
     U --> CF
     CF --> FE
     CF --> AD
@@ -68,6 +69,7 @@ graph TB
 ### 2. Especificações Técnicas
 
 #### 2.1 Frontend (Vercel)
+
 ```typescript
 // Tecnologias
 Next.js 15.5.4
@@ -87,6 +89,7 @@ NextAuth.js 4.24.11
 ```
 
 #### 2.2 Backend (DigitalOcean)
+
 ```javascript
 // Stack Tecnológico
 Node.js 18.x LTS
@@ -111,6 +114,7 @@ Ubuntu 22.04 LTS
 ### 1. GitHub Actions - CI/CD Pipeline
 
 #### 1.1 Workflow Principal
+
 ```yaml
 # .github/workflows/main.yml
 name: Deploy NFe System
@@ -122,7 +126,7 @@ on:
     branches: [main]
 
 env:
-  NODE_VERSION: '18'
+  NODE_VERSION: "18"
   VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
   VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
@@ -132,23 +136,23 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-          
+          cache: "npm"
+
       - name: Install dependencies
         run: |
           cd frontend && npm ci
           cd ../backend && npm ci
-          
+
       - name: Run tests
         run: |
           cd frontend && npm run test
           cd ../backend && npm run test
-          
+
       - name: Run linting
         run: |
           cd frontend && npm run lint
@@ -161,7 +165,7 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        
+
       - name: Deploy to Vercel
         uses: amondnet/vercel-action@v25
         with:
@@ -169,7 +173,7 @@ jobs:
           vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
           vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
           working-directory: ./frontend
-          vercel-args: '--prod'
+          vercel-args: "--prod"
 
   deploy-admin:
     needs: test
@@ -178,7 +182,7 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        
+
       - name: Deploy Admin to Vercel
         uses: amondnet/vercel-action@v25
         with:
@@ -186,7 +190,7 @@ jobs:
           vercel-org-id: ${{ secrets.VERCEL_ADMIN_ORG_ID }}
           vercel-project-id: ${{ secrets.VERCEL_ADMIN_PROJECT_ID }}
           working-directory: ./admin
-          vercel-args: '--prod'
+          vercel-args: "--prod"
 
   deploy-backend:
     needs: test
@@ -207,7 +211,7 @@ jobs:
             npm run build
             pm2 reload ecosystem.production.js
             pm2 save
-            
+
       - name: Health Check
         run: |
           sleep 30
@@ -215,6 +219,7 @@ jobs:
 ```
 
 #### 1.2 Secrets Necessários
+
 ```bash
 # GitHub Secrets
 VERCEL_TOKEN=your_vercel_token
@@ -231,6 +236,7 @@ DO_PORT=22
 ### 2. Vercel - Configuração Frontend
 
 #### 2.1 Configuração do Projeto Principal
+
 ```json
 // frontend/vercel.json
 {
@@ -280,6 +286,7 @@ DO_PORT=22
 ```
 
 #### 2.2 Variáveis de Ambiente - Frontend
+
 ```bash
 # Production Environment Variables
 NEXT_PUBLIC_API_URL=https://api.brandaocontador.com.br
@@ -300,6 +307,7 @@ GOOGLE_ANALYTICS_ID=your_ga_id
 ```
 
 #### 2.3 Configuração do Painel Admin
+
 ```json
 // admin/vercel.json
 {
@@ -337,6 +345,7 @@ GOOGLE_ANALYTICS_ID=your_ga_id
 ### 3. DigitalOcean - Configuração Backend
 
 #### 3.1 Especificações do Droplet
+
 ```yaml
 # Droplet Configuration
 Name: nfe-backend-prod
@@ -350,6 +359,7 @@ Firewall: nfe-backend-fw
 ```
 
 #### 3.2 Script de Setup Inicial
+
 ```bash
 #!/bin/bash
 # scripts/setup-production-server.sh
@@ -425,12 +435,13 @@ echo "   5. Configurar SSL com Certbot"
 ```
 
 #### 3.3 Configuração Nginx Completa
+
 ```nginx
 # /etc/nginx/sites-available/nfe-api
 server {
     listen 80;
     server_name api.brandaocontador.com.br;
-    
+
     # Redirect HTTP to HTTPS
     return 301 https://$server_name$request_uri;
 }
@@ -438,7 +449,7 @@ server {
 server {
     listen 443 ssl http2;
     server_name api.brandaocontador.com.br;
-    
+
     # SSL Configuration
     ssl_certificate /etc/letsencrypt/live/api.brandaocontador.com.br/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/api.brandaocontador.com.br/privkey.pem;
@@ -447,20 +458,20 @@ server {
     ssl_prefer_server_ciphers off;
     ssl_session_cache shared:SSL:10m;
     ssl_session_timeout 10m;
-    
+
     # Security Headers
     add_header X-Frame-Options "SAMEORIGIN" always;
     add_header X-Content-Type-Options "nosniff" always;
     add_header X-XSS-Protection "1; mode=block" always;
     add_header Referrer-Policy "strict-origin-when-cross-origin" always;
     add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self'; connect-src 'self' https://api.brandaocontador.com.br; frame-ancestors 'none';" always;
-    
+
     # CORS Headers
     add_header Access-Control-Allow-Origin "https://nfe.brandaocontador.com.br, https://admin.brandaocontador.com.br" always;
     add_header Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS" always;
     add_header Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With" always;
     add_header Access-Control-Allow-Credentials "true" always;
-    
+
     # Handle preflight requests
     if ($request_method = 'OPTIONS') {
         add_header Access-Control-Allow-Origin "https://nfe.brandaocontador.com.br, https://admin.brandaocontador.com.br";
@@ -471,21 +482,21 @@ server {
         add_header Content-Type text/plain;
         return 204;
     }
-    
+
     # Rate Limiting
     limit_req_zone $binary_remote_addr zone=api:10m rate=10r/s;
     limit_req zone=api burst=20 nodelay;
-    
+
     # Logging
     access_log /var/log/nginx/nfe-api.access.log;
     error_log /var/log/nginx/nfe-api.error.log;
-    
+
     # Gzip Compression
     gzip on;
     gzip_vary on;
     gzip_min_length 1024;
     gzip_types text/plain text/css text/xml text/javascript application/javascript application/xml+rss application/json;
-    
+
     # Main proxy configuration
     location / {
         proxy_pass http://127.0.0.1:3001;
@@ -497,25 +508,25 @@ server {
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
         proxy_cache_bypass $http_upgrade;
-        
+
         # Timeouts
         proxy_connect_timeout 60s;
         proxy_send_timeout 60s;
         proxy_read_timeout 60s;
-        
+
         # Buffer settings
         proxy_buffering on;
         proxy_buffer_size 128k;
         proxy_buffers 4 256k;
         proxy_busy_buffers_size 256k;
     }
-    
+
     # Health check endpoint
     location /health {
         proxy_pass http://127.0.0.1:3001/health;
         access_log off;
     }
-    
+
     # Static files (if any)
     location /static/ {
         alias /var/www/nfe-backend/public/;
@@ -526,68 +537,73 @@ server {
 ```
 
 #### 3.4 Configuração PM2 Avançada
+
 ```javascript
 // ecosystem.production.js
 module.exports = {
-  apps: [{
-    name: 'nfe-backend',
-    script: 'app.js',
-    cwd: '/var/www/nfe-backend',
-    instances: 2,
-    exec_mode: 'cluster',
-    
-    // Environment
-    env: {
-      NODE_ENV: 'production',
-      PORT: 3001
+  apps: [
+    {
+      name: "nfe-backend",
+      script: "app.js",
+      cwd: "/var/www/nfe-backend",
+      instances: 2,
+      exec_mode: "cluster",
+
+      // Environment
+      env: {
+        NODE_ENV: "production",
+        PORT: 3001,
+      },
+
+      // Logging
+      error_file: "/var/log/nfe/nfe-backend-error.log",
+      out_file: "/var/log/nfe/nfe-backend-out.log",
+      log_file: "/var/log/nfe/nfe-backend.log",
+      time: true,
+      log_date_format: "YYYY-MM-DD HH:mm:ss Z",
+
+      // Performance
+      max_memory_restart: "1G",
+      node_args: "--max-old-space-size=1024",
+
+      // Restart policies
+      autorestart: true,
+      max_restarts: 10,
+      min_uptime: "10s",
+
+      // Monitoring
+      watch: false,
+      ignore_watch: ["node_modules", "logs", "xmls"],
+
+      // Advanced options
+      kill_timeout: 5000,
+      listen_timeout: 3000,
+
+      // Health check
+      health_check_grace_period: 3000,
     },
-    
-    // Logging
-    error_file: '/var/log/nfe/nfe-backend-error.log',
-    out_file: '/var/log/nfe/nfe-backend-out.log',
-    log_file: '/var/log/nfe/nfe-backend.log',
-    time: true,
-    log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
-    
-    // Performance
-    max_memory_restart: '1G',
-    node_args: '--max-old-space-size=1024',
-    
-    // Restart policies
-    autorestart: true,
-    max_restarts: 10,
-    min_uptime: '10s',
-    
-    // Monitoring
-    watch: false,
-    ignore_watch: ['node_modules', 'logs', 'xmls'],
-    
-    // Advanced options
-    kill_timeout: 5000,
-    listen_timeout: 3000,
-    
-    // Health check
-    health_check_grace_period: 3000
-  }],
-  
+  ],
+
   deploy: {
     production: {
-      user: 'deploy',
-      host: 'api.brandaocontador.com.br',
-      ref: 'origin/main',
-      repo: 'git@github.com:brandaocontador/nfe-system.git',
-      path: '/var/www/nfe-backend',
-      'pre-deploy-local': '',
-      'post-deploy': 'npm install --production && pm2 reload ecosystem.production.js --env production && pm2 save',
-      'pre-setup': ''
-    }
-  }
+      user: "deploy",
+      host: "api.brandaocontador.com.br",
+      ref: "origin/main",
+      repo: "git@github.com:brandaocontador/nfe-system.git",
+      path: "/var/www/nfe-backend",
+      "pre-deploy-local": "",
+      "post-deploy":
+        "npm install --production && pm2 reload ecosystem.production.js --env production && pm2 save",
+      "pre-setup": "",
+    },
+  },
 };
 ```
 
 ### 4. Configuração de Domínios e DNS
 
 #### 4.1 Cloudflare DNS Records
+
 ```bash
 # DNS Configuration
 Type    Name                            Content                     TTL     Proxy
@@ -598,18 +614,19 @@ CNAME   www.brandaocontador.com.br      brandaocontador.com.br     Auto    ✅
 ```
 
 #### 4.2 Cloudflare Page Rules
+
 ```bash
 # Page Rules Configuration
 1. https://api.brandaocontador.com.br/*
    - SSL: Full (strict)
    - Security Level: Medium
    - Cache Level: Bypass
-   
+
 2. https://nfe.brandaocontador.com.br/*
    - SSL: Full (strict)
    - Security Level: Medium
    - Browser Cache TTL: 4 hours
-   
+
 3. https://admin.brandaocontador.com.br/*
    - SSL: Full (strict)
    - Security Level: High
@@ -619,71 +636,77 @@ CNAME   www.brandaocontador.com.br      brandaocontador.com.br     Auto    ✅
 ### 5. Monitoramento e Logs
 
 #### 5.1 Configuração de Monitoramento
+
 ```javascript
 // monitoring/health-check.js
-const express = require('express');
+const express = require("express");
 const app = express();
 
-app.get('/health', async (req, res) => {
+app.get("/health", async (req, res) => {
   const health = {
-    status: 'ok',
+    status: "ok",
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
     memory: process.memoryUsage(),
-    
+
     services: {
       database: await checkDatabase(),
       sefaz: await checkSefaz(),
       filesystem: await checkFilesystem(),
-      certificates: await checkCertificates()
-    }
+      certificates: await checkCertificates(),
+    },
   };
-  
-  const isHealthy = Object.values(health.services).every(service => service.status === 'ok');
-  
+
+  const isHealthy = Object.values(health.services).every(
+    (service) => service.status === "ok",
+  );
+
   res.status(isHealthy ? 200 : 503).json(health);
 });
 
-app.get('/metrics', (req, res) => {
+app.get("/metrics", (req, res) => {
   // Prometheus metrics
-  res.set('Content-Type', 'text/plain');
+  res.set("Content-Type", "text/plain");
   res.send(generateMetrics());
 });
 ```
 
 #### 5.2 Configuração de Logs
+
 ```javascript
 // config/logger.js
-const winston = require('winston');
-const path = require('path');
+const winston = require("winston");
+const path = require("path");
 
 const logger = winston.createLogger({
-  level: process.env.LOG_LEVEL || 'info',
+  level: process.env.LOG_LEVEL || "info",
   format: winston.format.combine(
     winston.format.timestamp(),
     winston.format.errors({ stack: true }),
-    winston.format.json()
+    winston.format.json(),
   ),
-  defaultMeta: { service: 'nfe-backend' },
+  defaultMeta: { service: "nfe-backend" },
   transports: [
     new winston.transports.File({
-      filename: '/var/log/nfe/error.log',
-      level: 'error',
+      filename: "/var/log/nfe/error.log",
+      level: "error",
       maxsize: 5242880, // 5MB
-      maxFiles: 10
+      maxFiles: 10,
     }),
     new winston.transports.File({
-      filename: '/var/log/nfe/combined.log',
+      filename: "/var/log/nfe/combined.log",
       maxsize: 5242880, // 5MB
-      maxFiles: 10
-    })
-  ]
+      maxFiles: 10,
+    }),
+  ],
 });
 
-if (process.env.NODE_ENV !== 'production') {
-  logger.add(new winston.transports.Console({
-    format: winston.format.simple()
-  }));
+if (process.env.NODE_ENV !== "production") {
+  logger.add(
+    new winston.transports.Console({
+      format: winston.format.simple(),
+    }),
+  );
 }
 
 module.exports = logger;
@@ -692,6 +715,7 @@ module.exports = logger;
 ### 6. Backup e Recuperação
 
 #### 6.1 Script de Backup
+
 ```bash
 #!/bin/bash
 # scripts/backup.sh
@@ -743,6 +767,7 @@ fi
 ```
 
 #### 6.2 Crontab para Backups Automáticos
+
 ```bash
 # Adicionar ao crontab do usuário deploy
 # crontab -e
@@ -764,6 +789,7 @@ fi
 ### 1. Configurações de Segurança
 
 #### 1.1 Firewall (UFW)
+
 ```bash
 # Configuração do firewall
 sudo ufw default deny incoming
@@ -779,6 +805,7 @@ sudo ufw deny 3001  # Bloquear acesso direto externo
 ```
 
 #### 1.2 Fail2Ban
+
 ```bash
 # Instalar e configurar Fail2Ban
 sudo apt install fail2ban -y
@@ -816,6 +843,7 @@ sudo systemctl start fail2ban
 ### 2. Certificados e Criptografia
 
 #### 2.1 Gestão de Certificados SSL
+
 ```bash
 # Gerar certificados SSL
 sudo certbot --nginx -d api.brandaocontador.com.br
@@ -830,6 +858,7 @@ sudo certbot renew --dry-run
 ```
 
 #### 2.2 Certificados Digitais NFe
+
 ```javascript
 // services/certificate-manager.js
 class CertificateManager {
@@ -837,21 +866,22 @@ class CertificateManager {
     this.certPath = process.env.CERT_PATH;
     this.certPassword = process.env.CERT_PASSWORD;
   }
-  
+
   async validateCertificate() {
     try {
       const cert = await this.loadCertificate();
       const now = new Date();
       const expiryDate = new Date(cert.validTo);
-      
+
       if (expiryDate <= now) {
-        throw new Error('Certificado expirado');
+        throw new Error("Certificado expirado");
       }
-      
-      if (expiryDate - now < 30 * 24 * 60 * 60 * 1000) { // 30 dias
-        console.warn('Certificado expira em menos de 30 dias');
+
+      if (expiryDate - now < 30 * 24 * 60 * 60 * 1000) {
+        // 30 dias
+        console.warn("Certificado expira em menos de 30 dias");
       }
-      
+
       return { valid: true, expiresAt: expiryDate };
     } catch (error) {
       return { valid: false, error: error.message };
@@ -867,6 +897,7 @@ class CertificateManager {
 ### 1. Monitoramento de Performance
 
 #### 1.1 Métricas de Sistema
+
 ```javascript
 // monitoring/metrics.js
 const promClient = require('prom-client');
@@ -886,4 +917,5 @@ const nfeEmissionDuration = new promClient.Histogram({
 
 const sefazResponseTime = new promClient.Histogram({
   name: 'sefaz_response_time_seconds',
-  help: 
+  help:
+```

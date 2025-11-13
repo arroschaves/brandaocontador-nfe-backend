@@ -9,6 +9,7 @@ Este documento descreve as correções críticas de segurança implementadas no 
 **Problema**: HTTPS desabilitado, tráfego HTTP sem criptografia
 
 **Correção**:
+
 - ✅ Bloco HTTPS descomentado e ativado
 - ✅ Redirecionamento automático HTTP → HTTPS (301)
 - ✅ Rate limiting ajustado: 2 req/s (API) e 1 req/s (auth)
@@ -21,6 +22,7 @@ Este documento descreve as correções críticas de segurança implementadas no 
 **Arquivo modificado**: `nginx-nfe.conf`
 
 **Próximos passos no servidor**:
+
 ```bash
 # 1. Instalar Certbot
 sudo apt install certbot python3-certbot-nginx
@@ -43,6 +45,7 @@ sudo systemctl reload nginx
 **Problema**: JWT_SECRET e API keys hardcoded no código
 
 **Correção**:
+
 - ✅ JWT_SECRET agora OBRIGATÓRIO via env var (min 32 chars)
 - ✅ Validação automática de tamanho e valores de exemplo
 - ✅ API Keys agora via `API_KEYS` env var (separadas por vírgula)
@@ -50,10 +53,12 @@ sudo systemctl reload nginx
 - ✅ Script `scripts/generate-secrets.js` criado para gerar secrets
 
 **Arquivos modificados**:
+
 - `middleware/auth.js`
 - `.env.example`
 
 **Gerar secrets seguros**:
+
 ```bash
 # Opção 1: Usar script automatizado
 node scripts/generate-secrets.js
@@ -76,6 +81,7 @@ echo "API_KEYS=$API_KEYS" >> .env
 **Problema**: Middleware de segurança desabilitado
 
 **Correção**:
+
 - ✅ Rate limiting global reabilitado
 - ✅ Rate limiting específico para auth reabilitado
 - ✅ Input sanitization (XSS, injection) reabilitado
@@ -90,6 +96,7 @@ echo "API_KEYS=$API_KEYS" >> .env
 **Problema**: Certificados digitais e senhas armazenados em plaintext
 
 **Correção**:
+
 - ✅ Novo serviço `encryption-service.js` criado (AES-256-GCM)
 - ✅ Certificados criptografados antes de salvar no disco
 - ✅ Senhas criptografadas com AES-256-GCM
@@ -97,16 +104,18 @@ echo "API_KEYS=$API_KEYS" >> .env
 - ✅ Auth tag para validação de integridade
 
 **Arquivos criados/modificados**:
+
 - `services/encryption-service.js` (NOVO)
 - `services/certificate-service.js`
 - `routes/configuracoes.js`
 
 **Uso**:
+
 ```javascript
-const encryptionService = require('./services/encryption-service');
+const encryptionService = require("./services/encryption-service");
 
 // Criptografar
-const encrypted = encryptionService.encrypt('senha123');
+const encrypted = encryptionService.encrypt("senha123");
 
 // Descriptografar
 const decrypted = encryptionService.decrypt(encrypted);
@@ -123,12 +132,14 @@ const decryptedBuffer = encryptionService.decryptBuffer(encryptedBuffer);
 **Problema**: Deploy executado como root (risco de comprometimento total)
 
 **Correção**:
+
 - ✅ Usuário alterado de `root` para `nfeapp`
 - ✅ Caminho alterado de `/var/www/` para `/home/nfeapp/`
 
 **Arquivo modificado**: `.github/workflows/deploy-contabo.yml`
 
 **Configurar servidor**:
+
 ```bash
 # No servidor Contabo
 sudo adduser nfeapp
@@ -151,6 +162,7 @@ pm2 startup
 **Problema**: `StrictHostKeyChecking=no` permite MITM attacks
 
 **Correção**:
+
 - ✅ `StrictHostKeyChecking=no` removido
 - ✅ `ssh-keyscan` adicionado para popular known_hosts
 - ✅ Verificação de fingerprint ativada
@@ -164,6 +176,7 @@ pm2 startup
 **Problema**: Cliente SEFAZ com `strictSSL: false` permite MITM
 
 **Correção**:
+
 - ✅ Fallback para SSL relaxado REMOVIDO
 - ✅ Sistema agora FALHA se SSL não validar corretamente
 - ✅ Ciphers modernos configurados (ECDHE, CHACHA20-POLY1305)
@@ -173,6 +186,7 @@ pm2 startup
 **Arquivo modificado**: `services/sefaz-client.js`
 
 **Troubleshooting SSL SEFAZ**:
+
 ```bash
 # Verificar certificado CA
 openssl s_client -connect nfe.sefaz.sp.gov.br:443 -showcerts
@@ -239,6 +253,7 @@ sudo cp /etc/nginx/sites-available/default \
 ### 2. Monitoramento
 
 Após deploy, monitore:
+
 - Logs do Nginx: `/var/log/nginx/nfe_ssl_error.log`
 - Logs do PM2: `pm2 logs nfe-backend`
 - Tentativas de login falhadas
@@ -247,6 +262,7 @@ Após deploy, monitore:
 ### 3. Rollback
 
 Se algo der errado:
+
 ```bash
 # Restaurar configuração anterior
 sudo cp /etc/nginx/sites-available/default.backup \
@@ -300,19 +316,20 @@ JWT_SECRET= node app.js
 
 ## 📊 Impacto das Mudanças
 
-| Mudança | Impacto | Mitigação |
-|---------|---------|-----------|
-| HTTPS obrigatório | Clientes HTTP falham | Automático (301 redirect) |
-| JWT expiry 4h | Sessões expiram mais rápido | Implementar refresh token |
-| Rate limiting | Requisições bloqueadas | Avisar usuários, ajustar limites |
-| SSL SEFAZ strict | Falha se cert inválido | Manter certificados atualizados |
-| Deploy não-root | Menos permissões | Ajustar permissões de arquivos |
+| Mudança           | Impacto                     | Mitigação                        |
+| ----------------- | --------------------------- | -------------------------------- |
+| HTTPS obrigatório | Clientes HTTP falham        | Automático (301 redirect)        |
+| JWT expiry 4h     | Sessões expiram mais rápido | Implementar refresh token        |
+| Rate limiting     | Requisições bloqueadas      | Avisar usuários, ajustar limites |
+| SSL SEFAZ strict  | Falha se cert inválido      | Manter certificados atualizados  |
+| Deploy não-root   | Menos permissões            | Ajustar permissões de arquivos   |
 
 ---
 
 ## 📝 Próximas Fases
 
 **Fase 2 - Funcionalidades Críticas** (próximo):
+
 - Implementar Substituição Tributária (ST)
 - Validação real de certificados (node-forge)
 - Corrigir race condition em numeração
@@ -320,12 +337,14 @@ JWT_SECRET= node app.js
 - Validação de Inscrição Estadual por UF
 
 **Fase 3 - Performance e Estabilidade**:
+
 - Corrigir memory leaks
 - Otimizar re-renders do frontend
 - Implementar retry logic
 - Log rotation
 
 **Fase 4 - Qualidade de Código**:
+
 - Remover tipos `any` do TypeScript
 - Consolidar validações duplicadas
 - Implementar testes automatizados

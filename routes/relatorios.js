@@ -2,11 +2,11 @@
  * Rotas para Relatórios Fiscais e Simulador 2026
  */
 
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const RelatoriosFiscaisService = require('../services/relatoriosFiscais');
-const authMiddleware = require('../middleware/auth');
-const { body, query, validationResult } = require('express-validator');
+const RelatoriosFiscaisService = require("../services/relatoriosFiscais");
+const authMiddleware = require("../middleware/auth");
+const { body, query, validationResult } = require("express-validator");
 
 const relatoriosService = new RelatoriosFiscaisService();
 
@@ -29,7 +29,7 @@ const relatoriosService = new RelatoriosFiscaisService();
  *           type: string
  *           enum: [pdf, excel, xml]
  *           description: Formato do relatório
- *     
+ *
  *     SimuladorFiltros:
  *       type: object
  *       properties:
@@ -66,12 +66,16 @@ const relatoriosService = new RelatoriosFiscaisService();
  *       401:
  *         description: Não autorizado
  */
-router.post('/livro-entrada', 
+router.post(
+  "/livro-entrada",
   authMiddleware.verificarAutenticacao(),
   [
-    body('dataInicial').isISO8601().withMessage('Data inicial inválida'),
-    body('dataFinal').isISO8601().withMessage('Data final inválida'),
-    body('formato').optional().isIn(['pdf', 'excel', 'xml']).withMessage('Formato inválido')
+    body("dataInicial").isISO8601().withMessage("Data inicial inválida"),
+    body("dataFinal").isISO8601().withMessage("Data final inválida"),
+    body("formato")
+      .optional()
+      .isIn(["pdf", "excel", "xml"])
+      .withMessage("Formato inválido"),
   ],
   async (req, res) => {
     try {
@@ -79,18 +83,18 @@ router.post('/livro-entrada',
       if (!errors.isEmpty()) {
         return res.status(400).json({
           sucesso: false,
-          erro: 'Dados inválidos',
-          detalhes: errors.array()
+          erro: "Dados inválidos",
+          detalhes: errors.array(),
         });
       }
 
-      const { dataInicial, dataFinal, formato = 'pdf' } = req.body;
-      
+      const { dataInicial, dataFinal, formato = "pdf" } = req.body;
+
       // Validar período
       if (new Date(dataFinal) < new Date(dataInicial)) {
         return res.status(400).json({
           sucesso: false,
-          erro: 'Data final deve ser maior que data inicial'
+          erro: "Data final deve ser maior que data inicial",
         });
       }
 
@@ -98,19 +102,18 @@ router.post('/livro-entrada',
         dataInicial,
         dataFinal,
         formato,
-        usuario: req.user
+        usuario: req.user,
       });
 
       res.json(resultado);
-
     } catch (error) {
-      console.error('Erro ao gerar livro de entrada:', error);
+      console.error("Erro ao gerar livro de entrada:", error);
       res.status(500).json({
         sucesso: false,
-        erro: error.message
+        erro: error.message,
       });
     }
-  }
+  },
 );
 
 /**
@@ -131,12 +134,16 @@ router.post('/livro-entrada',
  *       200:
  *         description: Livro de saída gerado com sucesso
  */
-router.post('/livro-saida', 
+router.post(
+  "/livro-saida",
   authMiddleware.verificarAutenticacao(),
   [
-    body('dataInicial').isISO8601().withMessage('Data inicial inválida'),
-    body('dataFinal').isISO8601().withMessage('Data final inválida'),
-    body('formato').optional().isIn(['pdf', 'excel', 'xml']).withMessage('Formato inválido')
+    body("dataInicial").isISO8601().withMessage("Data inicial inválida"),
+    body("dataFinal").isISO8601().withMessage("Data final inválida"),
+    body("formato")
+      .optional()
+      .isIn(["pdf", "excel", "xml"])
+      .withMessage("Formato inválido"),
   ],
   async (req, res) => {
     try {
@@ -144,17 +151,17 @@ router.post('/livro-saida',
       if (!errors.isEmpty()) {
         return res.status(400).json({
           sucesso: false,
-          erro: 'Dados inválidos',
-          detalhes: errors.array()
+          erro: "Dados inválidos",
+          detalhes: errors.array(),
         });
       }
 
-      const { dataInicial, dataFinal, formato = 'pdf' } = req.body;
-      
+      const { dataInicial, dataFinal, formato = "pdf" } = req.body;
+
       if (new Date(dataFinal) < new Date(dataInicial)) {
         return res.status(400).json({
           sucesso: false,
-          erro: 'Data final deve ser maior que data inicial'
+          erro: "Data final deve ser maior que data inicial",
         });
       }
 
@@ -162,19 +169,18 @@ router.post('/livro-saida',
         dataInicial,
         dataFinal,
         formato,
-        usuario: req.user
+        usuario: req.user,
       });
 
       res.json(resultado);
-
     } catch (error) {
-      console.error('Erro ao gerar livro de saída:', error);
+      console.error("Erro ao gerar livro de saída:", error);
       res.status(500).json({
         sucesso: false,
-        erro: error.message
+        erro: error.message,
       });
     }
-  }
+  },
 );
 
 /**
@@ -206,12 +212,16 @@ router.post('/livro-saida',
  *       200:
  *         description: Apuração de ICMS gerada com sucesso
  */
-router.post('/apuracao-icms', 
+router.post(
+  "/apuracao-icms",
   authMiddleware.verificarAutenticacao(),
   [
-    body('mes').isInt({ min: 1, max: 12 }).withMessage('Mês inválido'),
-    body('ano').isInt({ min: 2020 }).withMessage('Ano inválido'),
-    body('formato').optional().isIn(['pdf', 'excel']).withMessage('Formato inválido')
+    body("mes").isInt({ min: 1, max: 12 }).withMessage("Mês inválido"),
+    body("ano").isInt({ min: 2020 }).withMessage("Ano inválido"),
+    body("formato")
+      .optional()
+      .isIn(["pdf", "excel"])
+      .withMessage("Formato inválido"),
   ],
   async (req, res) => {
     try {
@@ -219,30 +229,29 @@ router.post('/apuracao-icms',
       if (!errors.isEmpty()) {
         return res.status(400).json({
           sucesso: false,
-          erro: 'Dados inválidos',
-          detalhes: errors.array()
+          erro: "Dados inválidos",
+          detalhes: errors.array(),
         });
       }
 
-      const { mes, ano, formato = 'pdf' } = req.body;
+      const { mes, ano, formato = "pdf" } = req.body;
 
       const resultado = await relatoriosService.gerarApuracaoICMS({
         mes,
         ano,
         formato,
-        usuario: req.user
+        usuario: req.user,
       });
 
       res.json(resultado);
-
     } catch (error) {
-      console.error('Erro ao gerar apuração de ICMS:', error);
+      console.error("Erro ao gerar apuração de ICMS:", error);
       res.status(500).json({
         sucesso: false,
-        erro: error.message
+        erro: error.message,
       });
     }
-  }
+  },
 );
 
 /**
@@ -282,12 +291,16 @@ router.post('/apuracao-icms',
  *                 analiseImpacto:
  *                   type: object
  */
-router.post('/simulador-2026', 
+router.post(
+  "/simulador-2026",
   authMiddleware.verificarAutenticacao(),
   [
-    body('dataInicial').isISO8601().withMessage('Data inicial inválida'),
-    body('dataFinal').isISO8601().withMessage('Data final inválida'),
-    body('incluirIS').optional().isBoolean().withMessage('incluirIS deve ser boolean')
+    body("dataInicial").isISO8601().withMessage("Data inicial inválida"),
+    body("dataFinal").isISO8601().withMessage("Data final inválida"),
+    body("incluirIS")
+      .optional()
+      .isBoolean()
+      .withMessage("incluirIS deve ser boolean"),
   ],
   async (req, res) => {
     try {
@@ -295,17 +308,17 @@ router.post('/simulador-2026',
       if (!errors.isEmpty()) {
         return res.status(400).json({
           sucesso: false,
-          erro: 'Dados inválidos',
-          detalhes: errors.array()
+          erro: "Dados inválidos",
+          detalhes: errors.array(),
         });
       }
 
       const { dataInicial, dataFinal, incluirIS = false } = req.body;
-      
+
       if (new Date(dataFinal) < new Date(dataInicial)) {
         return res.status(400).json({
           sucesso: false,
-          erro: 'Data final deve ser maior que data inicial'
+          erro: "Data final deve ser maior que data inicial",
         });
       }
 
@@ -313,19 +326,18 @@ router.post('/simulador-2026',
         dataInicial,
         dataFinal,
         incluirIS,
-        usuario: req.user
+        usuario: req.user,
       });
 
       res.json(resultado);
-
     } catch (error) {
-      console.error('Erro na simulação 2026:', error);
+      console.error("Erro na simulação 2026:", error);
       res.status(500).json({
         sucesso: false,
-        erro: error.message
+        erro: error.message,
       });
     }
-  }
+  },
 );
 
 /**
@@ -362,10 +374,14 @@ router.post('/simulador-2026',
  *                 alertas:
  *                   type: array
  */
-router.get('/dashboard', 
+router.get(
+  "/dashboard",
   authMiddleware.verificarAutenticacao(),
   [
-    query('periodo').optional().isIn(['mes', 'trimestre', 'ano']).withMessage('Período inválido')
+    query("periodo")
+      .optional()
+      .isIn(["mes", "trimestre", "ano"])
+      .withMessage("Período inválido"),
   ],
   async (req, res) => {
     try {
@@ -373,28 +389,27 @@ router.get('/dashboard',
       if (!errors.isEmpty()) {
         return res.status(400).json({
           sucesso: false,
-          erro: 'Parâmetros inválidos',
-          detalhes: errors.array()
+          erro: "Parâmetros inválidos",
+          detalhes: errors.array(),
         });
       }
 
-      const { periodo = 'mes' } = req.query;
+      const { periodo = "mes" } = req.query;
 
       const resultado = await relatoriosService.gerarDadosDashboard({
         periodo,
-        usuario: req.usuario
+        usuario: req.usuario,
       });
 
       res.json(resultado);
-
     } catch (error) {
-      console.error('Erro ao gerar dados do dashboard:', error);
+      console.error("Erro ao gerar dados do dashboard:", error);
       res.status(500).json({
         sucesso: false,
-        erro: error.message
+        erro: error.message,
       });
     }
-  }
+  },
 );
 
 /**
@@ -422,10 +437,14 @@ router.get('/dashboard',
  *       200:
  *         description: Histórico obtido com sucesso
  */
-router.get('/historico', 
+router.get(
+  "/historico",
   authMiddleware.verificarAutenticacao(),
   [
-    query('limite').optional().isInt({ min: 1, max: 100 }).withMessage('Limite inválido')
+    query("limite")
+      .optional()
+      .isInt({ min: 1, max: 100 })
+      .withMessage("Limite inválido"),
   ],
   async (req, res) => {
     try {
@@ -433,8 +452,8 @@ router.get('/historico',
       if (!errors.isEmpty()) {
         return res.status(400).json({
           sucesso: false,
-          erro: 'Parâmetros inválidos',
-          detalhes: errors.array()
+          erro: "Parâmetros inválidos",
+          detalhes: errors.array(),
         });
       }
 
@@ -444,23 +463,22 @@ router.get('/historico',
       const historico = await relatoriosService.buscarHistorico({
         tipo,
         limite,
-        usuario: req.usuario
+        usuario: req.usuario,
       });
 
       res.json({
         sucesso: true,
         historico,
-        total: historico.length
+        total: historico.length,
       });
-
     } catch (error) {
-      console.error('Erro ao buscar histórico:', error);
+      console.error("Erro ao buscar histórico:", error);
       res.status(500).json({
         sucesso: false,
-        erro: error.message
+        erro: error.message,
       });
     }
-  }
+  },
 );
 
 /**
@@ -484,46 +502,47 @@ router.get('/historico',
  *       404:
  *         description: Arquivo não encontrado
  */
-router.get('/download/:arquivo', 
+router.get(
+  "/download/:arquivo",
   authMiddleware.verificarAutenticacao(),
   async (req, res) => {
     try {
       const { arquivo } = req.params;
-      
+
       // Validar se o arquivo pertence ao usuário
       const arquivoValido = await relatoriosService.validarArquivoUsuario({
         arquivo,
-        usuario: req.user
+        usuario: req.user,
       });
 
       if (!arquivoValido) {
         return res.status(404).json({
           sucesso: false,
-          erro: 'Arquivo não encontrado'
+          erro: "Arquivo não encontrado",
         });
       }
 
       // Implementar download do arquivo
-      const caminhoArquivo = await relatoriosService.obterCaminhoArquivo(arquivo);
-      
+      const caminhoArquivo =
+        await relatoriosService.obterCaminhoArquivo(arquivo);
+
       res.download(caminhoArquivo, (err) => {
         if (err) {
-          console.error('Erro no download:', err);
+          console.error("Erro no download:", err);
           res.status(500).json({
             sucesso: false,
-            erro: 'Erro ao baixar arquivo'
+            erro: "Erro ao baixar arquivo",
           });
         }
       });
-
     } catch (error) {
-      console.error('Erro no download:', error);
+      console.error("Erro no download:", error);
       res.status(500).json({
         sucesso: false,
-        erro: error.message
+        erro: error.message,
       });
     }
-  }
+  },
 );
 
 /**
@@ -556,7 +575,8 @@ router.get('/download/:arquivo',
  *                 produtosSujeitosIS:
  *                   type: array
  */
-router.get('/aliquotas-2026', 
+router.get(
+  "/aliquotas-2026",
   authMiddleware.verificarAutenticacao(),
   async (req, res) => {
     try {
@@ -568,21 +588,20 @@ router.get('/aliquotas-2026',
         aliquotas,
         produtosSujeitosIS,
         observacoes: [
-          'Alíquotas baseadas na Reforma Tributária aprovada',
-          'Valores sujeitos a alterações até implementação final',
-          'IBS e CBS substituem ICMS, IPI, PIS e COFINS',
-          'IS incide sobre produtos específicos'
-        ]
+          "Alíquotas baseadas na Reforma Tributária aprovada",
+          "Valores sujeitos a alterações até implementação final",
+          "IBS e CBS substituem ICMS, IPI, PIS e COFINS",
+          "IS incide sobre produtos específicos",
+        ],
       });
-
     } catch (error) {
-      console.error('Erro ao consultar alíquotas 2026:', error);
+      console.error("Erro ao consultar alíquotas 2026:", error);
       res.status(500).json({
         sucesso: false,
-        erro: error.message
+        erro: error.message,
       });
     }
-  }
+  },
 );
 
 module.exports = router;

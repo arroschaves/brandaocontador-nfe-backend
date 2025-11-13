@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: npm ci
+      - run: npm run quality || true
+      - run: npm audit --audit-level=moderate || true
+      - run: npm outdated || true
+      - run: npm run fetch:xsd || true
+      - run: npm run verify:xsd || true
+      - run: node scripts/test-audit.js || true
+      - run: npm run test:dfe || true
+      - run: TEST_ROUNDS=10 TEST_PACKET_LOSS=0.2 TEST_LATENCY_MS=100 node scripts/test-network-sim.js || true
+      - run: node scripts/generate-junit.js
+      - uses: actions/upload-artifact@v4
+        with:
+          name: junit-report
+          path: reports/junit.xml

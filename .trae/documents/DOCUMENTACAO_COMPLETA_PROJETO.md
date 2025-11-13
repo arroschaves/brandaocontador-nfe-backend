@@ -11,6 +11,7 @@ O Sistema Brandão Contador NFe é uma aplicação completa para emissão e gest
 ### Tecnologias Utilizadas
 
 #### Frontend
+
 - **Framework**: Next.js 14 com TypeScript
 - **Styling**: Tailwind CSS
 - **Autenticação**: NextAuth.js
@@ -18,6 +19,7 @@ O Sistema Brandão Contador NFe é uma aplicação completa para emissão e gest
 - **Repositório**: GitHub
 
 #### Backend
+
 - **Runtime**: Node.js com Express
 - **Certificados**: Suporte a certificados A1/A3
 - **Deploy**: DigitalOcean (Ubuntu)
@@ -36,12 +38,12 @@ graph TD
     C --> D
     D --> E[SEFAZ]
     D --> F[Certificados A1/A3]
-    
+
     subgraph "Vercel"
         B
         C
     end
-    
+
     subgraph "DigitalOcean"
         D
         G[Nginx]
@@ -62,6 +64,7 @@ graph TD
 ### 3.1 Frontend (Vercel)
 
 #### Configuração Atual
+
 - **Repositório**: Conectado ao GitHub
 - **Branch Principal**: `main`
 - **Build Command**: `npm run build`
@@ -69,6 +72,7 @@ graph TD
 - **Deploy Automático**: Ativado para push na main
 
 #### Variáveis de Ambiente (Vercel)
+
 ```env
 NEXT_PUBLIC_BACKEND_URL=https://api.brandaocontador.com.br
 NEXTAUTH_URL=https://nfe.brandaocontador.com.br
@@ -82,6 +86,7 @@ FACEBOOK_CLIENT_SECRET=your-facebook-client-secret
 ### 3.2 Backend (DigitalOcean)
 
 #### Configuração do Servidor
+
 - **OS**: Ubuntu 20.04 LTS
 - **Node.js**: v18.x
 - **PM2**: Gerenciador de processos
@@ -89,6 +94,7 @@ FACEBOOK_CLIENT_SECRET=your-facebook-client-secret
 - **SSL**: Let's Encrypt (Certbot)
 
 #### Estrutura de Diretórios
+
 ```
 /var/www/brandao-contador-api/
 ├── app.js
@@ -100,26 +106,30 @@ FACEBOOK_CLIENT_SECRET=your-facebook-client-secret
 ```
 
 #### Configuração PM2 (ecosystem.config.js)
+
 ```javascript
 module.exports = {
-  apps: [{
-    name: 'brandao-contador-api',
-    script: 'app.js',
-    instances: 'max',
-    exec_mode: 'cluster',
-    env: {
-      NODE_ENV: 'production',
-      PORT: 3001
+  apps: [
+    {
+      name: "brandao-contador-api",
+      script: "app.js",
+      instances: "max",
+      exec_mode: "cluster",
+      env: {
+        NODE_ENV: "production",
+        PORT: 3001,
+      },
+      error_file: "./logs/err.log",
+      out_file: "./logs/out.log",
+      log_file: "./logs/combined.log",
+      time: true,
     },
-    error_file: './logs/err.log',
-    out_file: './logs/out.log',
-    log_file: './logs/combined.log',
-    time: true
-  }]
+  ],
 };
 ```
 
 #### Configuração Nginx
+
 ```nginx
 server {
     listen 80;
@@ -130,10 +140,10 @@ server {
 server {
     listen 443 ssl http2;
     server_name api.brandaocontador.com.br;
-    
+
     ssl_certificate /etc/letsencrypt/live/api.brandaocontador.com.br/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/api.brandaocontador.com.br/privkey.pem;
-    
+
     location / {
         proxy_pass http://localhost:3001;
         proxy_http_version 1.1;
@@ -159,32 +169,32 @@ name: Deploy Frontend
 
 on:
   push:
-    branches: [ main ]
-    paths: [ 'frontend/**' ]
+    branches: [main]
+    paths: ["frontend/**"]
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: '18'
-          cache: 'npm'
+          node-version: "18"
+          cache: "npm"
           cache-dependency-path: frontend/package-lock.json
-      
+
       - name: Install dependencies
         run: |
           cd frontend
           npm ci
-      
+
       - name: Build
         run: |
           cd frontend
           npm run build
-      
+
       - name: Deploy to Vercel
         uses: amondnet/vercel-action@v25
         with:
@@ -203,15 +213,15 @@ name: Deploy Backend
 
 on:
   push:
-    branches: [ main ]
-    paths: [ 'backend/**' ]
+    branches: [main]
+    paths: ["backend/**"]
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      
+
       - name: Deploy to DigitalOcean
         uses: appleboy/ssh-action@v0.1.5
         with:
@@ -255,6 +265,7 @@ frontend/src/app/admin/
 ### 5.2 Configuração de Subdomínio
 
 No Vercel, configurar domínio personalizado:
+
 - Adicionar `admin.brandaocontador.com.br`
 - Configurar DNS CNAME apontando para Vercel
 - Middleware para redirecionar rotas admin
@@ -263,17 +274,17 @@ No Vercel, configurar domínio personalizado:
 
 ```typescript
 // middleware.ts
-import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
 export function middleware(request: NextRequest) {
-  const hostname = request.headers.get('host')
-  
-  if (hostname === 'admin.brandaocontador.com.br') {
-    return NextResponse.rewrite(new URL('/admin', request.url))
+  const hostname = request.headers.get("host");
+
+  if (hostname === "admin.brandaocontador.com.br") {
+    return NextResponse.rewrite(new URL("/admin", request.url));
   }
-  
-  return NextResponse.next()
+
+  return NextResponse.next();
 }
 ```
 
@@ -282,12 +293,14 @@ export function middleware(request: NextRequest) {
 ### 6.1 Performance
 
 #### Frontend
+
 - **Implementar**: React Query para cache de dados
 - **Otimizar**: Imagens com Next.js Image
 - **Adicionar**: Service Worker para cache offline
 - **Configurar**: Bundle analyzer para otimização
 
 #### Backend
+
 - **Implementar**: Redis para cache
 - **Adicionar**: Rate limiting
 - **Otimizar**: Queries de banco de dados
@@ -296,6 +309,7 @@ export function middleware(request: NextRequest) {
 ### 6.2 Segurança
 
 #### Melhorias Recomendadas
+
 - **CORS**: Configuração restritiva
 - **Helmet**: Headers de segurança
 - **Rate Limiting**: Proteção contra ataques
@@ -305,6 +319,7 @@ export function middleware(request: NextRequest) {
 ### 6.3 Monitoramento
 
 #### Ferramentas Sugeridas
+
 - **Uptime**: UptimeRobot ou Pingdom
 - **Logs**: LogRocket ou Sentry
 - **Performance**: New Relic ou DataDog
@@ -315,6 +330,7 @@ export function middleware(request: NextRequest) {
 ### 7.1 Problemas Comuns
 
 #### Frontend não carrega
+
 ```bash
 # Verificar build no Vercel
 vercel logs
@@ -324,6 +340,7 @@ vercel env ls
 ```
 
 #### Backend não responde
+
 ```bash
 # Verificar status PM2
 pm2 status
@@ -336,6 +353,7 @@ pm2 restart brandao-contador-api
 ```
 
 #### SSL/HTTPS problemas
+
 ```bash
 # Renovar certificado
 sudo certbot renew
@@ -348,6 +366,7 @@ sudo systemctl reload nginx
 ### 7.2 Comandos de Manutenção
 
 #### Backup do Servidor
+
 ```bash
 # Backup da aplicação
 tar -czf backup-$(date +%Y%m%d).tar.gz /var/www/brandao-contador-api
@@ -357,6 +376,7 @@ sudo tar -czf certs-backup-$(date +%Y%m%d).tar.gz /etc/letsencrypt
 ```
 
 #### Atualização do Sistema
+
 ```bash
 # Atualizar pacotes
 sudo apt update && sudo apt upgrade -y
@@ -373,17 +393,20 @@ pm2 update
 ## 8. Checklist de Deploy
 
 ### 8.1 Antes do Deploy
+
 - [ ] Testes locais passando
 - [ ] Variáveis de ambiente configuradas
 - [ ] Certificados válidos
 - [ ] Backup realizado
 
 ### 8.2 Durante o Deploy
+
 - [ ] Monitorar logs em tempo real
 - [ ] Verificar status dos serviços
 - [ ] Testar endpoints críticos
 
 ### 8.3 Após o Deploy
+
 - [ ] Verificar funcionamento completo
 - [ ] Testar emissão de NFe
 - [ ] Confirmar logs sem erros
@@ -392,11 +415,13 @@ pm2 update
 ## 9. Contatos e Suporte
 
 ### 9.1 Responsáveis
+
 - **Desenvolvimento**: [Nome do desenvolvedor]
 - **Infraestrutura**: [Nome do responsável]
 - **Suporte**: [Contato de suporte]
 
 ### 9.2 Recursos
+
 - **Repositório**: [Link do GitHub]
 - **Vercel Dashboard**: [Link do Vercel]
 - **DigitalOcean**: [Link do painel]

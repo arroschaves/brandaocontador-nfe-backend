@@ -47,32 +47,33 @@ graph TD
 
 ## 3. Route Definitions
 
-| Route | Purpose |
-|-------|---------|
-| / | Dashboard principal com status SEFAZ e resumo fiscal |
-| /login | Autenticação com certificado digital |
-| /dashboard | Visão geral de documentos e alertas |
-| /nfe/emitir | Formulário de emissão de NFe com cálculos automáticos |
-| /nfe/consultar | Consulta de NFe por chave ou CNPJ |
-| /cte/emitir | Formulário de emissão de CTe |
-| /mdfe/emitir | Formulário de emissão de MDFe |
-| /eventos | Gestão de cancelamentos, correções e devoluções |
-| /eventos/cancelar/:id | Cancelamento de documento específico |
-| /eventos/corrigir/:id | Carta de correção eletrônica |
-| /eventos/devolver/:id | Processo de devolução/estorno |
-| /relatorios | Relatórios fiscais e apuração de impostos |
-| /relatorios/livros | Livros fiscais eletrônicos |
-| /configuracoes | Configurações de empresa e certificados |
-| /configuracoes/certificado | Gestão de certificados digitais |
-| /configuracoes/empresa | Dados da empresa e regime tributário |
-| /auditoria | Logs de sistema e rastreabilidade |
-| /usuarios | Gerenciamento de usuários (admin only) |
+| Route                      | Purpose                                               |
+| -------------------------- | ----------------------------------------------------- |
+| /                          | Dashboard principal com status SEFAZ e resumo fiscal  |
+| /login                     | Autenticação com certificado digital                  |
+| /dashboard                 | Visão geral de documentos e alertas                   |
+| /nfe/emitir                | Formulário de emissão de NFe com cálculos automáticos |
+| /nfe/consultar             | Consulta de NFe por chave ou CNPJ                     |
+| /cte/emitir                | Formulário de emissão de CTe                          |
+| /mdfe/emitir               | Formulário de emissão de MDFe                         |
+| /eventos                   | Gestão de cancelamentos, correções e devoluções       |
+| /eventos/cancelar/:id      | Cancelamento de documento específico                  |
+| /eventos/corrigir/:id      | Carta de correção eletrônica                          |
+| /eventos/devolver/:id      | Processo de devolução/estorno                         |
+| /relatorios                | Relatórios fiscais e apuração de impostos             |
+| /relatorios/livros         | Livros fiscais eletrônicos                            |
+| /configuracoes             | Configurações de empresa e certificados               |
+| /configuracoes/certificado | Gestão de certificados digitais                       |
+| /configuracoes/empresa     | Dados da empresa e regime tributário                  |
+| /auditoria                 | Logs de sistema e rastreabilidade                     |
+| /usuarios                  | Gerenciamento de usuários (admin only)                |
 
 ## 4. API Definitions
 
 ### 4.1 Core API
 
 #### Autenticação
+
 ```
 POST /api/auth/login
 ```
@@ -93,6 +94,7 @@ Response:
 | certificate | CertificateInfo | Informações do certificado |
 
 #### Emissão NFe
+
 ```
 POST /api/nfe/emitir
 ```
@@ -117,6 +119,7 @@ Response:
 | status | 'autorizada' \| 'rejeitada' \| 'pendente' | Status da NFe |
 
 #### Consulta Status SEFAZ
+
 ```
 GET /api/sefaz/status/:uf
 ```
@@ -129,6 +132,7 @@ Response:
 | ultimaVerificacao | string | Timestamp da última verificação |
 
 #### Cálculo de Impostos
+
 ```
 POST /api/impostos/calcular
 ```
@@ -159,7 +163,7 @@ interface UserData {
   id: string;
   name: string;
   email: string;
-  role: 'admin' | 'contador' | 'operador' | 'cliente';
+  role: "admin" | "contador" | "operador" | "cliente";
   permissions: string[];
   companies: string[];
 }
@@ -168,7 +172,7 @@ interface CompanyData {
   cnpj: string;
   razaoSocial: string;
   nomeFantasia: string;
-  regimeTributario: 'simples' | 'presumido' | 'real';
+  regimeTributario: "simples" | "presumido" | "real";
   inscricaoEstadual: string;
   inscricaoMunicipal?: string;
   endereco: Endereco;
@@ -176,7 +180,7 @@ interface CompanyData {
 }
 
 interface CertificateInfo {
-  tipo: 'A1' | 'A3';
+  tipo: "A1" | "A3";
   validade: string;
   emissor: string;
   serie: string;
@@ -304,7 +308,7 @@ erDiagram
     COMPANIES ||--o{ NFE_DOCUMENTS : emits
     COMPANIES ||--o{ CTE_DOCUMENTS : emits
     COMPANIES ||--o{ MDFE_DOCUMENTS : emits
-    
+
     NFE_DOCUMENTS ||--o{ NFE_ITEMS : contains
     NFE_DOCUMENTS ||--o{ NFE_EVENTS : has
     CTE_DOCUMENTS ||--o{ CTE_EVENTS : has
@@ -488,6 +492,7 @@ erDiagram
 ### 6.2 Data Definition Language
 
 #### Companies Table
+
 ```sql
 -- Create companies table
 CREATE TABLE companies (
@@ -515,7 +520,7 @@ ALTER TABLE companies ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users can only see their company" ON companies
     FOR ALL USING (
         id IN (
-            SELECT company_id FROM users 
+            SELECT company_id FROM users
             WHERE id = auth.uid()
         )
     );
@@ -526,6 +531,7 @@ GRANT SELECT ON companies TO anon;
 ```
 
 #### Users Table
+
 ```sql
 -- Create users table
 CREATE TABLE users (
@@ -552,7 +558,7 @@ ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users can see company users" ON users
     FOR ALL USING (
         company_id IN (
-            SELECT company_id FROM users 
+            SELECT company_id FROM users
             WHERE id = auth.uid()
         )
     );
@@ -562,6 +568,7 @@ GRANT ALL PRIVILEGES ON users TO authenticated;
 ```
 
 #### NFE Documents Table
+
 ```sql
 -- Create nfe_documents table
 CREATE TABLE nfe_documents (
@@ -606,6 +613,7 @@ GRANT ALL PRIVILEGES ON nfe_documents TO authenticated;
 ```
 
 #### Audit Logs Table
+
 ```sql
 -- Create audit_logs table
 CREATE TABLE audit_logs (
@@ -640,6 +648,7 @@ GRANT SELECT, INSERT ON audit_logs TO authenticated;
 ```
 
 #### Initial Data
+
 ```sql
 -- Insert default admin user
 INSERT INTO companies (cnpj, razao_social, nome_fantasia, regime_tributario, endereco)
@@ -672,12 +681,14 @@ VALUES (
 ## 7. Security Implementation
 
 ### 7.1 Certificate Management
+
 - **A1 Certificates**: Secure storage in database with encryption
 - **A3 Certificates**: Token/smartcard integration via PKCS#11
 - **Validation**: Real-time certificate validity and revocation checking
 - **Alerts**: Automatic notifications 30/15/7 days before expiration
 
 ### 7.2 API Security
+
 - **HTTPS Only**: TLS 1.2+ mandatory for all communications
 - **JWT Tokens**: Short-lived tokens with refresh mechanism
 - **Rate Limiting**: API calls limited by user role and endpoint
@@ -685,6 +696,7 @@ VALUES (
 - **Helmet**: Security headers for all responses
 
 ### 7.3 Data Protection
+
 - **Row Level Security**: Supabase RLS for multi-tenant isolation
 - **Encryption**: Sensitive data encrypted at rest
 - **Audit Trail**: Complete logging of all operations

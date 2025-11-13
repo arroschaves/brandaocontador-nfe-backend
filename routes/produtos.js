@@ -1,7 +1,7 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const ProdutoService = require('../services/produto-service');
-const authMiddleware = require('../middleware/auth');
+const ProdutoService = require("../services/produto-service");
+const authMiddleware = require("../middleware/auth");
 
 // ==================== MIDDLEWARE ====================
 
@@ -15,15 +15,18 @@ router.use(authMiddleware.verificarAutenticacao());
  * @desc    Criar novo produto
  * @access  Private
  */
-router.post('/', async (req, res) => {
+router.post("/", async (req, res) => {
   try {
-    const resultado = await ProdutoService.criarProduto(req.body, req.usuario.id);
-    
+    const resultado = await ProdutoService.criarProduto(
+      req.body,
+      req.usuario.id,
+    );
+
     if (!resultado.sucesso) {
       return res.status(400).json({
         sucesso: false,
         erros: resultado.erros,
-        avisos: resultado.avisos
+        avisos: resultado.avisos,
       });
     }
 
@@ -31,15 +34,15 @@ router.post('/', async (req, res) => {
       sucesso: true,
       produto: resultado.produto,
       avisos: resultado.avisos,
-      mensagem: 'Produto criado com sucesso'
+      mensagem: "Produto criado com sucesso",
     });
-
   } catch (error) {
-    console.error('❌ Erro na rota POST /produtos:', error.message);
+    console.error("❌ Erro na rota POST /produtos:", error.message);
     res.status(500).json({
       sucesso: false,
-      erro: 'Erro interno do servidor',
-      detalhes: process.env.NODE_ENV === 'development' ? error.message : undefined
+      erro: "Erro interno do servidor",
+      detalhes:
+        process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 });
@@ -49,31 +52,34 @@ router.post('/', async (req, res) => {
  * @desc    Listar produtos com filtros e paginação
  * @access  Private
  */
-router.get('/', async (req, res) => {
+router.get("/", async (req, res) => {
   try {
     const filtros = {
       pagina: parseInt(req.query.pagina) || 1,
       limite: parseInt(req.query.limite) || 20,
-      busca: req.query.busca || '',
-      categoria: req.query.categoria || '',
-      ativo: req.query.ativo !== undefined ? req.query.ativo === 'true' : true,
-      ordenacao: req.query.ordenacao || 'nome'
+      busca: req.query.busca || "",
+      categoria: req.query.categoria || "",
+      ativo: req.query.ativo !== undefined ? req.query.ativo === "true" : true,
+      ordenacao: req.query.ordenacao || "nome",
     };
 
-    const resultado = await ProdutoService.listarProdutos(filtros, req.usuario.id);
+    const resultado = await ProdutoService.listarProdutos(
+      filtros,
+      req.usuario.id,
+    );
 
     res.json({
       sucesso: true,
       produtos: resultado.produtos,
-      paginacao: resultado.paginacao
+      paginacao: resultado.paginacao,
     });
-
   } catch (error) {
-    console.error('❌ Erro na rota GET /produtos:', error.message);
+    console.error("❌ Erro na rota GET /produtos:", error.message);
     res.status(500).json({
       sucesso: false,
-      erro: 'Erro interno do servidor',
-      detalhes: process.env.NODE_ENV === 'development' ? error.message : undefined
+      erro: "Erro interno do servidor",
+      detalhes:
+        process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 });
@@ -83,28 +89,31 @@ router.get('/', async (req, res) => {
  * @desc    Buscar produto por ID
  * @access  Private
  */
-router.get('/:id', async (req, res) => {
+router.get("/:id", async (req, res) => {
   try {
-    const resultado = await ProdutoService.buscarProdutoPorId(req.params.id, req.usuario.id);
-    
+    const resultado = await ProdutoService.buscarProdutoPorId(
+      req.params.id,
+      req.usuario.id,
+    );
+
     if (!resultado.sucesso) {
       return res.status(404).json({
         sucesso: false,
-        erros: resultado.erros
+        erros: resultado.erros,
       });
     }
 
     res.json({
       sucesso: true,
-      produto: resultado.produto
+      produto: resultado.produto,
     });
-
   } catch (error) {
-    console.error('❌ Erro na rota GET /produtos/:id:', error.message);
+    console.error("❌ Erro na rota GET /produtos/:id:", error.message);
     res.status(500).json({
       sucesso: false,
-      erro: 'Erro interno do servidor',
-      detalhes: process.env.NODE_ENV === 'development' ? error.message : undefined
+      erro: "Erro interno do servidor",
+      detalhes:
+        process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 });
@@ -114,34 +123,34 @@ router.get('/:id', async (req, res) => {
  * @desc    Atualizar produto
  * @access  Private
  */
-router.put('/:id', async (req, res) => {
+router.put("/:id", async (req, res) => {
   try {
     const resultado = await ProdutoService.atualizarProduto(
-      req.params.id, 
-      req.body, 
-      req.usuario.id
+      req.params.id,
+      req.body,
+      req.usuario.id,
     );
-    
+
     if (!resultado.sucesso) {
       return res.status(400).json({
         sucesso: false,
         erros: resultado.erros,
-        avisos: resultado.avisos
+        avisos: resultado.avisos,
       });
     }
 
     res.json({
       sucesso: true,
       produto: resultado.produto,
-      mensagem: 'Produto atualizado com sucesso'
+      mensagem: "Produto atualizado com sucesso",
     });
-
   } catch (error) {
-    console.error('❌ Erro na rota PUT /produtos/:id:', error.message);
+    console.error("❌ Erro na rota PUT /produtos/:id:", error.message);
     res.status(500).json({
       sucesso: false,
-      erro: 'Erro interno do servidor',
-      detalhes: process.env.NODE_ENV === 'development' ? error.message : undefined
+      erro: "Erro interno do servidor",
+      detalhes:
+        process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 });
@@ -151,29 +160,32 @@ router.put('/:id', async (req, res) => {
  * @desc    Desativar produto (soft delete)
  * @access  Private
  */
-router.delete('/:id', async (req, res) => {
+router.delete("/:id", async (req, res) => {
   try {
-    const resultado = await ProdutoService.desativarProduto(req.params.id, req.usuario.id);
-    
+    const resultado = await ProdutoService.desativarProduto(
+      req.params.id,
+      req.usuario.id,
+    );
+
     if (!resultado.sucesso) {
       return res.status(404).json({
         sucesso: false,
-        erros: resultado.erros
+        erros: resultado.erros,
       });
     }
 
     res.json({
       sucesso: true,
       produto: resultado.produto,
-      mensagem: 'Produto desativado com sucesso'
+      mensagem: "Produto desativado com sucesso",
     });
-
   } catch (error) {
-    console.error('❌ Erro na rota DELETE /produtos/:id:', error.message);
+    console.error("❌ Erro na rota DELETE /produtos/:id:", error.message);
     res.status(500).json({
       sucesso: false,
-      erro: 'Erro interno do servidor',
-      detalhes: process.env.NODE_ENV === 'development' ? error.message : undefined
+      erro: "Erro interno do servidor",
+      detalhes:
+        process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 });
@@ -185,31 +197,34 @@ router.delete('/:id', async (req, res) => {
  * @desc    Buscar produto por código
  * @access  Private
  */
-router.get('/codigo/:codigo', async (req, res) => {
+router.get("/codigo/:codigo", async (req, res) => {
   try {
     const resultado = await ProdutoService.buscarProdutoPorCodigo(
-      req.params.codigo, 
-      req.usuario.id
+      req.params.codigo,
+      req.usuario.id,
     );
-    
+
     if (!resultado.sucesso) {
       return res.status(404).json({
         sucesso: false,
-        erros: resultado.erros
+        erros: resultado.erros,
       });
     }
 
     res.json({
       sucesso: true,
-      produto: resultado.produto
+      produto: resultado.produto,
     });
-
   } catch (error) {
-    console.error('❌ Erro na rota GET /produtos/codigo/:codigo:', error.message);
+    console.error(
+      "❌ Erro na rota GET /produtos/codigo/:codigo:",
+      error.message,
+    );
     res.status(500).json({
       sucesso: false,
-      erro: 'Erro interno do servidor',
-      detalhes: process.env.NODE_ENV === 'development' ? error.message : undefined
+      erro: "Erro interno do servidor",
+      detalhes:
+        process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 });
@@ -219,29 +234,35 @@ router.get('/codigo/:codigo', async (req, res) => {
  * @desc    Buscar produtos por categoria
  * @access  Private
  */
-router.get('/categoria/:categoria', async (req, res) => {
+router.get("/categoria/:categoria", async (req, res) => {
   try {
     const filtros = {
       categoria: req.params.categoria,
       pagina: parseInt(req.query.pagina) || 1,
       limite: parseInt(req.query.limite) || 20,
-      ativo: req.query.ativo !== undefined ? req.query.ativo === 'true' : true
+      ativo: req.query.ativo !== undefined ? req.query.ativo === "true" : true,
     };
 
-    const resultado = await ProdutoService.buscarProdutosPorCategoria(filtros, req.usuario.id);
+    const resultado = await ProdutoService.buscarProdutosPorCategoria(
+      filtros,
+      req.usuario.id,
+    );
 
     res.json({
       sucesso: true,
       produtos: resultado.produtos,
-      paginacao: resultado.paginacao
+      paginacao: resultado.paginacao,
     });
-
   } catch (error) {
-    console.error('❌ Erro na rota GET /produtos/categoria/:categoria:', error.message);
+    console.error(
+      "❌ Erro na rota GET /produtos/categoria/:categoria:",
+      error.message,
+    );
     res.status(500).json({
       sucesso: false,
-      erro: 'Erro interno do servidor',
-      detalhes: process.env.NODE_ENV === 'development' ? error.message : undefined
+      erro: "Erro interno do servidor",
+      detalhes:
+        process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 });

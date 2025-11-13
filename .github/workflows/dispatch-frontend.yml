@@ -1,0 +1,17 @@
+name: Dispatch Frontend Deploy
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  notify_frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger frontend repository dispatch
+        run: |
+          curl -X POST \
+           -H "Accept: application/vnd.github+json" \
+           -H "Authorization: Bearer ${{ secrets.FRONTEND_REPO_TOKEN }}" \
+           https://api.github.com/repos/arroschaves/brandaocontador-nfe-frontend/dispatches \
+           -d '{"event_type":"deploy","client_payload":{"source":"backend"}}'

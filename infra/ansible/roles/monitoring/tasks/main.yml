@@ -1,0 +1,10 @@
+---
+- name: Install monitoring agent (node-exporter placeholder)
+  apt:
+    name: prometheus-node-exporter
+    state: present
+- name: Ensure node-exporter running
+  service:
+    name: prometheus-node-exporter
+    state: started
+    enabled: yes

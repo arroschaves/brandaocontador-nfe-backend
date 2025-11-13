@@ -1,14 +1,15 @@
-const fs = require('fs');
-const path = require('path');
-const soap = require('soap');
-const WS_URLS = require('../ws_urls_uf');
+const fs = require("fs");
+const path = require("path");
+const soap = require("soap");
+const WS_URLS = require("../ws_urls_uf");
+const zlib = require("zlib");
 
 class SefazClient {
   constructor({ certPath, certPass, uf, ambiente, timeout = 30000 }) {
     this.certPath = certPath;
     this.certPass = certPass;
-    this.uf = uf || 'MS';
-    this.ambiente = ambiente || '2'; // 1=Produção, 2=Homologação
+    this.uf = uf || "MS";
+    this.ambiente = ambiente || "2"; // 1=Produção, 2=Homologação
     this.timeout = timeout;
     this.pfxData = null;
     this.client = null;
@@ -19,10 +20,33 @@ class SefazClient {
   loadBrazilianCACerts() {
     const certs = [];
     const certPaths = [
-      path.join(__dirname, '..', 'certs', 'Autoridade Certificadora Raiz Brasileira v10.cer'),
-      path.join(__dirname, '..', 'certs', 'cadeias_certificados_2024', 'AC SOLUTI SSL EV.cer'),
-      path.join(__dirname, '..', 'certs', 'cadeias_certificados_2024', 'AC_VALID_SSL_EV.cer'),
-      path.join(__dirname, '..', 'certs', 'cadeias_certificados_2024', 'Autoridade Certificadora Raiz Brasileira v10.cer')
+      path.join(
+        __dirname,
+        "..",
+        "certs",
+        "Autoridade Certificadora Raiz Brasileira v10.cer",
+      ),
+      path.join(
+        __dirname,
+        "..",
+        "certs",
+        "cadeias_certificados_2024",
+        "AC SOLUTI SSL EV.cer",
+      ),
+      path.join(
+        __dirname,
+        "..",
+        "certs",
+        "cadeias_certificados_2024",
+        "AC_VALID_SSL_EV.cer",
+      ),
+      path.join(
+        __dirname,
+        "..",
+        "certs",
+        "cadeias_certificados_2024",
+        "Autoridade Certificadora Raiz Brasileira v10.cer",
+      ),
     ];
 
     for (const certPath of certPaths) {
@@ -30,22 +54,28 @@ class SefazClient {
         try {
           const cert = fs.readFileSync(certPath);
           certs.push(cert);
-          console.log(`✓ Certificado CA brasileiro carregado: ${path.basename(certPath)}`);
+          console.log(
+            `✓ Certificado CA brasileiro carregado: ${path.basename(certPath)}`,
+          );
         } catch (error) {
-          console.log(`✗ Erro ao carregar certificado ${path.basename(certPath)}: ${error.message}`);
+          console.log(
+            `✗ Erro ao carregar certificado ${path.basename(certPath)}: ${error.message}`,
+          );
         }
       }
     }
 
     // Adicionar certificados do sistema se disponíveis
     try {
-      const systemCerts = require('tls').rootCertificates;
+      const systemCerts = require("tls").rootCertificates;
       if (systemCerts && systemCerts.length > 0) {
-        systemCerts.forEach(cert => certs.push(Buffer.from(cert)));
-        console.log(`✓ ${systemCerts.length} certificados do sistema adicionados`);
+        systemCerts.forEach((cert) => certs.push(Buffer.from(cert)));
+        console.log(
+          `✓ ${systemCerts.length} certificados do sistema adicionados`,
+        );
       }
     } catch (error) {
-      console.log('⚠️ Não foi possível carregar certificados do sistema');
+      console.log("⚠️ Não foi possível carregar certificados do sistema");
     }
 
     return certs;
@@ -54,20 +84,26 @@ class SefazClient {
   getWsdlUrl() {
     const url = WS_URLS[this.uf]?.[this.ambiente];
     if (!url) {
-      throw new Error(`URL WSDL não encontrada para UF=${this.uf}, Ambiente=${this.ambiente}`);
+      throw new Error(
+        `URL WSDL não encontrada para UF=${this.uf}, Ambiente=${this.ambiente}`,
+      );
     }
     return url;
   }
 
   async init() {
-    if (!this.certPath) throw new Error('CERT_PATH não definido');
-    if (!this.certPass || this.certPass.trim() === '' || this.certPass === 'ALTERE_AQUI_SUA_SENHA') {
-      throw new Error('CERT_PASS inválido ou não definido');
+    if (!this.certPath) throw new Error("CERT_PATH não definido");
+    if (
+      !this.certPass ||
+      this.certPass.trim() === "" ||
+      this.certPass === "ALTERE_AQUI_SUA_SENHA"
+    ) {
+      throw new Error("CERT_PASS inválido ou não definido");
     }
 
     const fullCertPath = path.isAbsolute(this.certPath)
       ? this.certPath
-      : path.resolve(path.join(__dirname, '..'), this.certPath);
+      : path.resolve(path.join(__dirname, ".."), this.certPath);
     if (!fs.existsSync(fullCertPath)) {
       throw new Error(`Certificado não encontrado em: ${fullCertPath}`);
     }
@@ -82,18 +118,21 @@ class SefazClient {
       strictSSL: true,
       rejectUnauthorized: true,
       ca: this.caCerts.length > 0 ? this.caCerts : undefined,
-      secureProtocol: 'TLSv1_2_method',
+      secureProtocol: "TLSv1_2_method",
       pfx: this.pfxData,
       passphrase: this.certPass,
       agent: false,
       headers: {
-        Connection: 'close',
-        'User-Agent': 'NFe-Node-Client/1.0'
+        Connection: "close",
+        "User-Agent": "NFe-Node-Client/1.0",
       },
       // Configurações adicionais para resolver problemas SSL
-      ciphers: 'ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-SHA256:ECDHE-RSA-AES256-SHA384',
+      ciphers:
+        "ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-SHA256:ECDHE-RSA-AES256-SHA384",
       honorCipherOrder: true,
-      secureOptions: require('constants').SSL_OP_NO_SSLv2 | require('constants').SSL_OP_NO_SSLv3
+      secureOptions:
+        require("constants").SSL_OP_NO_SSLv2 |
+        require("constants").SSL_OP_NO_SSLv3,
     };
 
     let sslSuccess = false;
@@ -101,14 +140,16 @@ class SefazClient {
 
     // Estratégia 1: SSL seguro com certificados brasileiros
     try {
-      console.log(`🔐 Tentando conexão SSL segura com certificados brasileiros...`);
+      console.log(
+        `🔐 Tentando conexão SSL segura com certificados brasileiros...`,
+      );
       this.client = await soap.createClientAsync(wsdlUrl, wsdlOptions);
       console.log(`✅ Conexão SSL segura estabelecida!`);
       sslSuccess = true;
     } catch (sslError) {
       console.log(`⚠️ Falha SSL segura: ${sslError.message}`);
       lastError = sslError;
-      
+
       // Estratégia 2: SSL com certificados do sistema apenas
       try {
         console.log(`🔄 Tentando com certificados do sistema...`);
@@ -117,22 +158,30 @@ class SefazClient {
         console.log(`✅ Conexão estabelecida com certificados do sistema!`);
         sslSuccess = true;
       } catch (systemError) {
-        console.log(`⚠️ Falha com certificados do sistema: ${systemError.message}`);
+        console.log(
+          `⚠️ Falha com certificados do sistema: ${systemError.message}`,
+        );
         lastError = systemError;
-        
+
         // SEGURANÇA: NÃO usar SSL relaxado - falhar se certificados não forem válidos
         console.error(`❌ Falha na validação SSL com SEFAZ. Verifique:`);
         console.error(`  1. Certificados CA estão atualizados`);
         console.error(`  2. Certificado digital está válido e não expirou`);
         console.error(`  3. Conexão não está sendo interceptada (MITM)`);
-        console.error(`  4. Arquivo certs/ca-bundle.pem existe e está atualizado`);
-        
-        throw new Error(`Falha na validação SSL/TLS com SEFAZ: ${systemError.message}. Sistema recusa conexões inseguras.`);
+        console.error(
+          `  4. Arquivo certs/ca-bundle.pem existe e está atualizado`,
+        );
+
+        throw new Error(
+          `Falha na validação SSL/TLS com SEFAZ: ${systemError.message}. Sistema recusa conexões inseguras.`,
+        );
       }
     }
 
     if (!sslSuccess) {
-      throw new Error(`Não foi possível estabelecer conexão SSL segura com SEFAZ: ${lastError.message}`);
+      throw new Error(
+        `Não foi possível estabelecer conexão SSL segura com SEFAZ: ${lastError.message}`,
+      );
     }
 
     // SSL Security - SEMPRE usar configuração segura
@@ -140,26 +189,30 @@ class SefazClient {
       strictSSL: true,
       rejectUnauthorized: true,
       ca: this.caCerts.length > 0 ? this.caCerts : undefined,
-      secureProtocol: 'TLSv1_2_method',
-      minVersion: 'TLSv1.2',
+      secureProtocol: "TLSv1_2_method",
+      minVersion: "TLSv1.2",
       ciphers: [
-        'ECDHE-ECDSA-AES128-GCM-SHA256',
-        'ECDHE-RSA-AES128-GCM-SHA256',
-        'ECDHE-ECDSA-AES256-GCM-SHA384',
-        'ECDHE-RSA-AES256-GCM-SHA384',
-        'ECDHE-ECDSA-CHACHA20-POLY1305',
-        'ECDHE-RSA-CHACHA20-POLY1305',
-        'DHE-RSA-AES128-GCM-SHA256',
-        'DHE-RSA-AES256-GCM-SHA384'
-      ].join(':'),
-      honorCipherOrder: true
+        "ECDHE-ECDSA-AES128-GCM-SHA256",
+        "ECDHE-RSA-AES128-GCM-SHA256",
+        "ECDHE-ECDSA-AES256-GCM-SHA384",
+        "ECDHE-RSA-AES256-GCM-SHA384",
+        "ECDHE-ECDSA-CHACHA20-POLY1305",
+        "ECDHE-RSA-CHACHA20-POLY1305",
+        "DHE-RSA-AES128-GCM-SHA256",
+        "DHE-RSA-AES256-GCM-SHA384",
+      ].join(":"),
+      honorCipherOrder: true,
     };
 
-    const security = new soap.ClientSSLSecurity(this.pfxData, this.certPass, securityOptions);
+    const security = new soap.ClientSSLSecurity(
+      this.pfxData,
+      this.certPass,
+      securityOptions,
+    );
     this.client.setSecurity(security);
 
     // Endpoint explícito
-    const endpoint = wsdlUrl.replace('?wsdl', '');
+    const endpoint = wsdlUrl.replace("?wsdl", "");
     this.client.setEndpoint(endpoint);
   }
 
@@ -192,9 +245,11 @@ class SefazClient {
     }
     // Dependendo do serviço, a consulta pode ser em outro endpoint. Placeholder.
     if (!this.client.NFeConsultaProtocolo4Async) {
-      throw new Error('Operação de consulta não disponível no WSDL carregado');
+      throw new Error("Operação de consulta não disponível no WSDL carregado");
     }
-    const args = { nfeDadosMsg: `<consSitNFe xmlns="http://www.portalfiscal.inf.br/nfe" versao="4.00"><tpAmb>${this.ambiente}</tpAmb><xServ>CONSULTAR</xServ><chNFe>${chave}</chNFe></consSitNFe>` };
+    const args = {
+      nfeDadosMsg: `<consSitNFe xmlns="http://www.portalfiscal.inf.br/nfe" versao="4.00"><tpAmb>${this.ambiente}</tpAmb><xServ>CONSULTAR</xServ><chNFe>${chave}</chNFe></consSitNFe>`,
+    };
     const [result] = await this.client.NFeConsultaProtocolo4Async(args);
     return result;
   }
@@ -204,10 +259,13 @@ class SefazClient {
       await this.init();
     }
     if (!this.client.RecepcaoEvento4Async && !this.client.recepcaoEventoAsync) {
-      throw new Error('Operação de cancelamento não disponível no WSDL carregado');
+      throw new Error(
+        "Operação de cancelamento não disponível no WSDL carregado",
+      );
     }
     const args = { nfeDadosMsg: xmlCancelamentoAssinado };
-    const op = this.client.RecepcaoEvento4Async || this.client.recepcaoEventoAsync;
+    const op =
+      this.client.RecepcaoEvento4Async || this.client.recepcaoEventoAsync;
     const [result] = await op.call(this.client, args);
     return result;
   }
@@ -217,15 +275,79 @@ class SefazClient {
       await this.init();
     }
     // Alguns UFs: NFeInutilizacao4; outros: nfeInutilizacaoNF ou nfeInutilizacao
-    const op = this.client.NFeInutilizacao4Async 
-      || this.client.nfeInutilizacaoNFAsync 
-      || this.client.nfeInutilizacaoAsync;
+    const op =
+      this.client.NFeInutilizacao4Async ||
+      this.client.nfeInutilizacaoNFAsync ||
+      this.client.nfeInutilizacaoAsync;
     if (!op) {
-      throw new Error('Operação de inutilização não disponível no WSDL carregado');
+      throw new Error(
+        "Operação de inutilização não disponível no WSDL carregado",
+      );
     }
     const args = { nfeDadosMsg: xmlInutilizacaoAssinado };
     const [result] = await op.call(this.client, args);
     return result;
+  }
+
+  async distribuicaoDFe(params) {
+    if (!this.client) {
+      await this.init();
+    }
+    const op =
+      this.client.NFeDistribuicaoDFeAsync ||
+      this.client.nfeDistDFeInteresseAsync ||
+      this.client.NfeDistribuicaoDFeAsync;
+    if (!op) {
+      throw new Error(
+        "Operação de distribuição DF-e não disponível no WSDL carregado",
+      );
+    }
+    const cUFAutor = this.uf;
+    const tpAmb = this.ambiente;
+    const distXml = `<?xml version="1.0" encoding="UTF-8"?>
+<distDFeInt xmlns="http://www.portalfiscal.inf.br/nfe" versao="1.01">
+  <tpAmb>${tpAmb}</tpAmb>
+  <cUFAutor>${cUFAutor}</cUFAutor>
+  ${params.chNFe ? `<chNFe>${params.chNFe}</chNFe>` : ""}
+  ${params.nsudist ? `<distNSU><ultNSU>${params.nsudist}</ultNSU></distNSU>` : ""}
+</distDFeInt>`;
+    const args = { nfeDadosMsg: distXml };
+    const [result] = await op.call(this.client, args);
+    const payload =
+      result?.nfeDistDFeInteresseResult ||
+      result?.NFeDistribuicaoDFeResult ||
+      result;
+    const docs = [];
+    const xml =
+      typeof payload === "string"
+        ? payload
+        : payload?.return || payload?.nfeResultMsg || "";
+    let meta = { ultNSU: null, maxNSU: null };
+    if (xml) {
+      try {
+        const xml2js = require("xml2js");
+        const p = new xml2js.Parser({ explicitArray: false });
+        const doc = await p.parseStringPromise(xml);
+        const ret = doc.retDistDFeInt || {};
+        meta.ultNSU = ret.ultNSU || null;
+        meta.maxNSU = ret.maxNSU || null;
+        const lote = ret.loteDistDFeInt;
+        const docArray = Array.isArray(lote?.docZip)
+          ? lote.docZip
+          : lote?.docZip
+            ? [lote.docZip]
+            : [];
+        for (const d of docArray) {
+          const conteudo = d?._ || d?.docZip || null;
+          if (conteudo) {
+            const zipped = Buffer.from(conteudo, "base64");
+            const unzipped = zlib.gunzipSync(zipped).toString("utf8");
+            docs.push({ tipo: d?.schema || "xml", xml: unzipped });
+          }
+        }
+      } catch {}
+    }
+    return { raw: payload, docs, meta };
   }
 }
 

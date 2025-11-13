@@ -11,6 +11,7 @@ Este documento detalha a **execução prática** da auditoria completa do sistem
 ### 1.1 Scripts de Verificação Automática
 
 **Script 1: Verificação de Rotas Backend**
+
 ```bash
 # Verificar todas as rotas registradas
 curl -s https://api.brandaocontador.com.br/api/health | jq .
@@ -20,6 +21,7 @@ curl -s https://api.brandaocontador.com.br/api/nfe/status | jq .
 ```
 
 **Script 2: Teste de Autenticação**
+
 ```bash
 # Testar login e obter token
 TOKEN=$(curl -s -X POST https://api.brandaocontador.com.br/api/auth/login \
@@ -31,6 +33,7 @@ curl -H "Authorization: Bearer $TOKEN" https://api.brandaocontador.com.br/api/da
 ```
 
 **Script 3: Verificação de Permissões**
+
 ```bash
 # Testar diferentes níveis de acesso
 for route in dashboard nfe/emitir configuracoes/certificado usuarios; do
@@ -43,6 +46,7 @@ done
 ### 1.2 Checklist de Verificação Manual
 
 **Arquivo: audit-checklist.json**
+
 ```json
 {
   "infrastructure": {
@@ -83,6 +87,7 @@ done
 **Objetivo**: Identificar o estado atual do sistema
 
 **Comandos SSH na Contabo:**
+
 ```bash
 # Conectar na Contabo
 ssh root@147.93.186.214
@@ -104,6 +109,7 @@ npm test 2>/dev/null || echo "Testes não configurados"
 ```
 
 **Resultado Esperado:**
+
 - [ ] PM2 com status "online"
 - [ ] Nginx ativo e funcionando
 - [ ] Espaço em disco > 10%
@@ -115,6 +121,7 @@ npm test 2>/dev/null || echo "Testes não configurados"
 **Objetivo**: Mapear todas as rotas e identificar 404s
 
 **Script de Verificação:**
+
 ```bash
 #!/bin/bash
 # audit-routes.sh
@@ -141,7 +148,7 @@ echo "=== AUDITORIA DE ROTAS ==="
 for route in "${ROUTES[@]}"; do
   status=$(curl -s -o /dev/null -w "%{http_code}" "$BASE_URL$route")
   echo "[$status] $route"
-  
+
   if [[ $status == "404" ]]; then
     echo "  ❌ ROTA NÃO ENCONTRADA"
   elif [[ $status == "401" ]]; then
@@ -159,7 +166,9 @@ done
 **Objetivo**: Validar sistema de login e permissões
 
 **Procedimento:**
+
 1. **Testar Login Admin:**
+
 ```bash
 curl -X POST https://api.brandaocontador.com.br/api/auth/login \
   -H "Content-Type: application/json" \
@@ -170,6 +179,7 @@ curl -X POST https://api.brandaocontador.com.br/api/auth/login \
 ```
 
 2. **Testar Registro de Usuário (ERRO 409):**
+
 ```bash
 curl -X POST https://api.brandaocontador.com.br/api/auth/register \
   -H "Content-Type: application/json" \
@@ -182,6 +192,7 @@ curl -X POST https://api.brandaocontador.com.br/api/auth/register \
 ```
 
 3. **Verificar Permissões:**
+
 ```bash
 # Com token válido
 curl -H "Authorization: Bearer $TOKEN" \
@@ -193,6 +204,7 @@ curl -H "Authorization: Bearer $TOKEN" \
 **Objetivo**: Testar cada funcionalidade principal
 
 **4.1 Upload de Certificado:**
+
 ```bash
 curl -X POST https://api.brandaocontador.com.br/api/configuracoes/certificado \
   -H "Authorization: Bearer $TOKEN" \
@@ -201,6 +213,7 @@ curl -X POST https://api.brandaocontador.com.br/api/configuracoes/certificado \
 ```
 
 **4.2 Configuração de Empresa:**
+
 ```bash
 curl -X PUT https://api.brandaocontador.com.br/api/configuracoes/empresa \
   -H "Authorization: Bearer $TOKEN" \
@@ -213,6 +226,7 @@ curl -X PUT https://api.brandaocontador.com.br/api/configuracoes/empresa \
 ```
 
 **4.3 Cadastro de Cliente:**
+
 ```bash
 curl -X POST https://api.brandaocontador.com.br/api/clientes \
   -H "Authorization: Bearer $TOKEN" \
@@ -229,6 +243,7 @@ curl -X POST https://api.brandaocontador.com.br/api/clientes \
 **Objetivo**: Corrigir problemas encontrados
 
 **5.1 Problemas Conhecidos:**
+
 - ❌ **409 Conflict** em registro de usuários
 - ❌ **503 Service Unavailable** em health checks
 - ❌ **500 Internal Server Error** em status NFe
@@ -261,17 +276,20 @@ curl -X POST https://api.brandaocontador.com.br/api/clientes \
 # RELATÓRIO DE AUDITORIA - [DATA]
 
 ## Status Geral
+
 - ✅ Concluído: X/Y funcionalidades
-- ⚠️ Em andamento: X funcionalidades  
+- ⚠️ Em andamento: X funcionalidades
 - ❌ Com problemas: X funcionalidades
 
 ## Problemas Críticos Encontrados
+
 1. [Descrição do problema]
    - Impacto: Alto/Médio/Baixo
    - Solução: [Descrição]
    - Status: Pendente/Em andamento/Resolvido
 
 ## Funcionalidades Testadas
+
 - [ ] Dashboard
 - [ ] Autenticação
 - [ ] Configurações
@@ -279,6 +297,7 @@ curl -X POST https://api.brandaocontador.com.br/api/clientes \
 - [ ] Gestão de dados
 
 ## Próximos Passos
+
 1. [Ação prioritária]
 2. [Ação secundária]
 ```
@@ -286,6 +305,7 @@ curl -X POST https://api.brandaocontador.com.br/api/clientes \
 ### 3.2 Métricas de Qualidade
 
 **Indicadores de Sucesso:**
+
 - **Disponibilidade**: > 99% das rotas funcionando
 - **Performance**: < 3s tempo de resposta
 - **Segurança**: 100% das rotas protegidas
@@ -298,6 +318,7 @@ curl -X POST https://api.brandaocontador.com.br/api/clientes \
 ### 4.1 Monitoramento Automático
 
 **Script de Monitoramento (monitor.sh):**
+
 ```bash
 #!/bin/bash
 # Executar a cada 15 minutos via cron
@@ -315,7 +336,7 @@ endpoints=(
 for endpoint in "${endpoints[@]}"; do
   status=$(curl -s -o /dev/null -w "%{http_code}" "$endpoint")
   echo "[$DATE] $endpoint: $status" >> $LOG_FILE
-  
+
   if [[ $status != "200" && $status != "401" ]]; then
     echo "[$DATE] ALERTA: $endpoint retornou $status" >> $LOG_FILE
     # Enviar notificação se necessário
@@ -326,6 +347,7 @@ done
 ### 4.2 Checklist de Deploy
 
 **Antes de cada deploy:**
+
 - [ ] Executar testes automatizados
 - [ ] Verificar sintaxe do código
 - [ ] Testar rotas críticas
@@ -333,6 +355,7 @@ done
 - [ ] Backup do banco de dados
 
 **Após cada deploy:**
+
 - [ ] Verificar status dos serviços
 - [ ] Testar funcionalidades core
 - [ ] Monitorar logs por 30 min
@@ -345,6 +368,7 @@ done
 ### 5.1 Rollback Rápido
 
 **Em caso de problemas críticos:**
+
 ```bash
 # Voltar para versão anterior
 cd /var/www/nfe-backend
@@ -356,6 +380,7 @@ pm2 restart all
 ### 5.2 Recuperação de Emergência
 
 **Procedimentos de emergência:**
+
 1. **Backup imediato** dos dados
 2. **Isolamento** do problema
 3. **Comunicação** com usuários

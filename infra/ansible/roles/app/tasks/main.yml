@@ -1,0 +1,11 @@
+---
+- name: Install app dependencies
+  npm:
+    path: /opt/app
+    production: yes
+- name: Configure environment
+  copy:
+    dest: /opt/app/.env
+    content: "# Managed externally\n"
+- name: Start app with PM2
+  command: pm2 start /opt/app/ecosystem-production.config.js

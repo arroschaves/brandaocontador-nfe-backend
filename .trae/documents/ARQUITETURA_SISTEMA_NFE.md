@@ -10,21 +10,21 @@ graph TD
     D --> E[SEFAZ Web Services]
     D --> F[Certificate Management]
     D --> G[Database Layer]
-    
+
     subgraph "Frontend Layer (Vercel)"
         B
         C
     end
-    
+
     subgraph "Backend Layer (DigitalOcean)"
         D
         F
     end
-    
+
     subgraph "Data Layer"
         G
     end
-    
+
     subgraph "External Services"
         E
     end
@@ -43,24 +43,25 @@ graph TD
 
 ## 3. Route definitions
 
-| Route | Purpose |
-|-------|----------|
-| / | Dashboard principal, exibe estatísticas e atalhos |
-| /login | Página de login, autenticação de usuários |
-| /register | Página de registro, criação de novas contas |
-| /nfe/emitir | Formulário de emissão de NFe |
-| /nfe/validar | Página de validação de NFe por chave ou XML |
-| /nfe/historico | Listagem e filtros do histórico de NFe |
-| /configuracoes | Configurações da empresa e certificados |
-| /admin | Painel administrativo (apenas admins) |
-| /admin/usuarios | Gestão de usuários do sistema |
-| /admin/monitoramento | Métricas e logs do sistema |
+| Route                | Purpose                                           |
+| -------------------- | ------------------------------------------------- |
+| /                    | Dashboard principal, exibe estatísticas e atalhos |
+| /login               | Página de login, autenticação de usuários         |
+| /register            | Página de registro, criação de novas contas       |
+| /nfe/emitir          | Formulário de emissão de NFe                      |
+| /nfe/validar         | Página de validação de NFe por chave ou XML       |
+| /nfe/historico       | Listagem e filtros do histórico de NFe            |
+| /configuracoes       | Configurações da empresa e certificados           |
+| /admin               | Painel administrativo (apenas admins)             |
+| /admin/usuarios      | Gestão de usuários do sistema                     |
+| /admin/monitoramento | Métricas e logs do sistema                        |
 
 ## 4. API definitions
 
 ### 4.1 Core API
 
 #### Autenticação
+
 ```
 POST /api/auth/login
 ```
@@ -79,6 +80,7 @@ Response:
 | user | object | Dados do usuário |
 
 Example:
+
 ```json
 {
   "email": "usuario@exemplo.com",
@@ -87,6 +89,7 @@ Example:
 ```
 
 #### Emissão de NFe
+
 ```
 POST /api/nfe/emitir
 ```
@@ -110,6 +113,7 @@ Response:
 | xml | string | XML da NFe autorizada |
 
 #### Validação de NFe
+
 ```
 GET /api/nfe/validar/:chave
 ```
@@ -127,6 +131,7 @@ Response:
 | dados | object | Dados da NFe |
 
 #### Histórico de NFe
+
 ```
 GET /api/nfe/historico
 ```
@@ -149,6 +154,7 @@ Response:
 | page | number | Página atual |
 
 #### Configurações da Empresa
+
 ```
 PUT /api/configuracoes/empresa
 ```
@@ -168,6 +174,7 @@ Response:
 | message | string | Mensagem de retorno |
 
 #### Upload de Certificado
+
 ```
 POST /api/certificados/upload
 ```
@@ -201,23 +208,23 @@ graph TD
     G --> J[(PostgreSQL Database)]
     H --> K[SEFAZ Web Services]
     I --> L[Certificate Storage]
-    
+
     subgraph "Middleware Layer"
         D
     end
-    
+
     subgraph "Controller Layer"
         E
     end
-    
+
     subgraph "Service Layer"
         F
     end
-    
+
     subgraph "Repository Layer"
         G
     end
-    
+
     subgraph "External Integration"
         H
         I
@@ -236,7 +243,7 @@ erDiagram
     COMPANIES ||--o{ NFES : issues
     NFES ||--o{ NFE_ITEMS : contains
     NFES ||--o{ NFE_LOGS : tracks
-    
+
     USERS {
         uuid id PK
         string email UK
@@ -247,7 +254,7 @@ erDiagram
         timestamp created_at
         timestamp updated_at
     }
-    
+
     COMPANIES {
         uuid id PK
         uuid user_id FK
@@ -260,7 +267,7 @@ erDiagram
         timestamp created_at
         timestamp updated_at
     }
-    
+
     CERTIFICATES {
         uuid id PK
         uuid user_id FK
@@ -272,7 +279,7 @@ erDiagram
         boolean active
         timestamp created_at
     }
-    
+
     NFES {
         uuid id PK
         uuid company_id FK
@@ -290,7 +297,7 @@ erDiagram
         timestamp created_at
         timestamp updated_at
     }
-    
+
     NFE_ITEMS {
         uuid id PK
         uuid nfe_id FK
@@ -303,7 +310,7 @@ erDiagram
         json impostos
         timestamp created_at
     }
-    
+
     NFE_LOGS {
         uuid id PK
         uuid nfe_id FK
@@ -318,6 +325,7 @@ erDiagram
 ### 6.2 Data Definition Language
 
 #### Tabela de Usuários
+
 ```sql
 -- Criar tabela de usuários
 CREATE TABLE users (
@@ -338,6 +346,7 @@ CREATE INDEX idx_users_active ON users(active);
 ```
 
 #### Tabela de Empresas
+
 ```sql
 -- Criar tabela de empresas
 CREATE TABLE companies (
@@ -360,6 +369,7 @@ CREATE INDEX idx_companies_active ON companies(active);
 ```
 
 #### Tabela de Certificados
+
 ```sql
 -- Criar tabela de certificados
 CREATE TABLE certificates (
@@ -381,6 +391,7 @@ CREATE INDEX idx_certificates_active ON certificates(active);
 ```
 
 #### Tabela de NFes
+
 ```sql
 -- Criar tabela de NFes
 CREATE TABLE nfes (
@@ -410,6 +421,7 @@ CREATE INDEX idx_nfes_created_at ON nfes(created_at DESC);
 ```
 
 #### Tabela de Itens da NFe
+
 ```sql
 -- Criar tabela de itens da NFe
 CREATE TABLE nfe_items (
@@ -431,6 +443,7 @@ CREATE INDEX idx_nfe_items_codigo ON nfe_items(codigo);
 ```
 
 #### Tabela de Logs da NFe
+
 ```sql
 -- Criar tabela de logs da NFe
 CREATE TABLE nfe_logs (
@@ -450,16 +463,17 @@ CREATE INDEX idx_nfe_logs_created_at ON nfe_logs(created_at DESC);
 ```
 
 #### Dados Iniciais
+
 ```sql
 -- Inserir usuário administrador padrão
-INSERT INTO users (email, password_hash, name, role) VALUES 
+INSERT INTO users (email, password_hash, name, role) VALUES
 ('admin@brandaocontador.com.br', '$2b$10$hash_da_senha', 'Administrador', 'admin');
 
 -- Inserir empresa exemplo
-INSERT INTO companies (user_id, cnpj, razao_social, endereco, regime_tributario) VALUES 
-((SELECT id FROM users WHERE email = 'admin@brandaocontador.com.br'), 
- '12345678000199', 
- 'Brandão Contador LTDA', 
- '{"logradouro": "Rua Exemplo, 123", "cidade": "São Paulo", "uf": "SP", "cep": "01234-567"}', 
+INSERT INTO companies (user_id, cnpj, razao_social, endereco, regime_tributario) VALUES
+((SELECT id FROM users WHERE email = 'admin@brandaocontador.com.br'),
+ '12345678000199',
+ 'Brandão Contador LTDA',
+ '{"logradouro": "Rua Exemplo, 123", "cidade": "São Paulo", "uf": "SP", "cep": "01234-567"}',
  'Lucro Presumido');
 ```

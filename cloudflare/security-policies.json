@@ -1,0 +1,11 @@
+{
+  "ddos_protection": true,
+  "waf": {
+    "enabled": true,
+    "rules": ["nfe-api", "common-threats"]
+  },
+  "rate_limit": {
+    "enabled": true,
+    "requests_per_minute": 600
+  }
+}

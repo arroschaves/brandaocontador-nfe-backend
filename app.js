@@ -1,64 +1,85 @@
 // ==================== CONFIGURAÇÃO DE AMBIENTE ====================
-require('dotenv').config();
+require("dotenv").config();
 
 // Auto-detecção de ambiente e configuração dinâmica
-const NODE_ENV = process.env.NODE_ENV || 'development';
+const NODE_ENV = process.env.NODE_ENV || "development";
 
 console.log(`🔧 Ambiente detectado: ${NODE_ENV}`);
 console.log(`💾 Banco de dados: Arquivo JSON`);
-console.log(`🧪 Modo simulação: ${process.env.SIMULATION_MODE === 'true' ? 'ATIVO' : 'DESATIVO'}`);
+console.log(
+  `🧪 Modo simulação: ${process.env.SIMULATION_MODE === "true" ? "ATIVO" : "DESATIVO"}`,
+);
 
 // ==================== IMPORTS ====================
-const express = require('express');
-const cors = require('cors');
-const helmet = require('helmet');
-const rateLimit = require('express-rate-limit');
-const morgan = require('morgan');
-const path = require('path');
-const fs = require('fs');
-const multer = require('multer');
+const express = require("express");
+const cors = require("cors");
+const helmet = require("helmet");
+const rateLimit = require("express-rate-limit");
+const morgan = require("morgan");
+const path = require("path");
+const fs = require("fs");
+const multer = require("multer");
 
 // Swagger para documentação da API
-const swaggerJSDoc = require('swagger-jsdoc');
-const swaggerUi = require('swagger-ui-express');
+const swaggerJSDoc = require("swagger-jsdoc");
+const swaggerUi = require("swagger-ui-express");
 
 // ==================== SISTEMA DE MONITORAMENTO ====================
-const { initialize: initializeMetrics, metricsHandler, collectNfeMetrics } = require('./monitoring/metrics');
+const {
+  initialize: initializeMetrics,
+  metricsHandler,
+  collectNfeMetrics,
+} = require("./monitoring/metrics");
 
-const { initialize: initializeHealthChecks, healthCheckHandler, detailedHealthCheckHandler } = require('./monitoring/health');
-const { initialize: initializeAPM, performanceMiddleware, performanceStatusHandler, recordNfeProcessing } = require('./monitoring/apm');
-const { initialize: initializeAlerts, alertsHandler, testAlertHandler, processAlerts } = require('./monitoring/alerts');
+const {
+  initialize: initializeHealthChecks,
+  healthCheckHandler,
+  detailedHealthCheckHandler,
+} = require("./monitoring/health");
+const {
+  initialize: initializeAPM,
+  performanceMiddleware,
+  performanceStatusHandler,
+  recordNfeProcessing,
+} = require("./monitoring/apm");
+const {
+  initialize: initializeAlerts,
+  alertsHandler,
+  testAlertHandler,
+  processAlerts,
+} = require("./monitoring/alerts");
 
 // Services
-const nfeService = require('./services/nfe-service');
-const validationService = require('./services/validation-service');
-const ValidationExternalService = require('./services/validation-external-service');
-const logService = require('./services/log-service');
-const emailService = require('./services/email-service');
-const CertificateService = require('./services/certificate-service');
+const nfeService = require("./services/nfe-service");
+const validationService = require("./services/validation-service");
+const ValidationExternalService = require("./services/validation-external-service");
+const logService = require("./services/log-service");
+const emailService = require("./services/email-service");
+const CertificateService = require("./services/certificate-service");
 
 // Sistema de logging avançado
-const AdvancedLogger = require('./services/advanced-logger');
+const AdvancedLogger = require("./services/advanced-logger");
 const advancedLogger = new AdvancedLogger();
 
 // Sistema usando apenas arquivos JSON - sem models MongoDB
 
 // Database e Auth (consolidados com detecção automática)
-const database = require('./config/database');
-const authMiddleware = require('./middleware/auth');
+const database = require("./config/database");
+const authMiddleware = require("./middleware/auth");
 
 // Importar rotas modernas
-const authRoutes = require('./routes/auth');
-const clientesRoutes = require('./routes/clientes');
-const produtosRoutes = require('./routes/produtos');
-const adminRoutes = require('./routes/admin');
-const nfeRoutes = require('./routes/nfe');
-const cteRoutes = require('./routes/cte');
-const mdfeRoutes = require('./routes/mdfe');
-const eventosRoutes = require('./routes/eventos');
-const relatoriosRoutes = require('./routes/relatorios');
-const configuracoesRoutes = require('./routes/configuracoes');
-const dashboardRoutes = require('./routes/dashboard');
+const authRoutes = require("./routes/auth");
+const clientesRoutes = require("./routes/clientes");
+const produtosRoutes = require("./routes/produtos");
+const adminRoutes = require("./routes/admin");
+const nfeRoutes = require("./routes/nfe");
+const cteRoutes = require("./routes/cte");
+const mdfeRoutes = require("./routes/mdfe");
+const eventosRoutes = require("./routes/eventos");
+const relatoriosRoutes = require("./routes/relatorios");
+const configuracoesRoutes = require("./routes/configuracoes");
+const dashboardRoutes = require("./routes/dashboard");
+const webhooksRoutes = require("./routes/webhooks");
 
 // Middlewares de segurança
 const {
@@ -70,8 +91,8 @@ const {
   securityLogging,
   timingAttackProtection,
   validateContentType,
-  securityLogger
-} = require('./middleware/security');
+  securityLogger,
+} = require("./middleware/security");
 
 // ==================== CONFIGURAÇÃO BÁSICA ====================
 
@@ -82,164 +103,161 @@ const PORT = process.env.PORT || 3000;
 const validationExternalService = new ValidationExternalService();
 
 // Configurar trust proxy para obter IPs corretos
-app.set('trust proxy', true);
+app.set("trust proxy", true);
 
 // ==================== CONFIGURAÇÃO DO SWAGGER ====================
 const swaggerOptions = {
   definition: {
-    openapi: '3.0.0',
+    openapi: "3.0.0",
     info: {
-      title: 'API NFe Brandão Contador',
-      version: '1.0.0',
-      description: 'API para emissão, consulta e gerenciamento de Notas Fiscais Eletrônicas (NFe)',
+      title: "API NFe Brandão Contador",
+      version: "1.0.0",
+      description:
+        "API para emissão, consulta e gerenciamento de Notas Fiscais Eletrônicas (NFe)",
       contact: {
-        name: 'Brandão Contador',
-        email: 'contato@brandaocontador.com.br'
+        name: "Brandão Contador",
+        email: "contato@brandaocontador.com.br",
       },
       license: {
-        name: 'ISC',
-        url: 'https://opensource.org/licenses/ISC'
-      }
+        name: "ISC",
+        url: "https://opensource.org/licenses/ISC",
+      },
     },
     servers: [
       {
         url: `http://localhost:${PORT}`,
-        description: 'Servidor de desenvolvimento'
+        description: "Servidor de desenvolvimento",
       },
       {
-        url: 'https://api.brandaocontador.com.br',
-        description: 'Servidor de produção'
-      }
+        url: "https://api.brandaocontador.com.br",
+        description: "Servidor de produção",
+      },
     ],
     components: {
       securitySchemes: {
         bearerAuth: {
-          type: 'http',
-          scheme: 'bearer',
-          bearerFormat: 'JWT'
+          type: "http",
+          scheme: "bearer",
+          bearerFormat: "JWT",
         },
         apiKey: {
-          type: 'apiKey',
-          in: 'header',
-          name: 'X-API-Key'
-        }
+          type: "apiKey",
+          in: "header",
+          name: "X-API-Key",
+        },
       },
       schemas: {
         Error: {
-          type: 'object',
+          type: "object",
           properties: {
             sucesso: {
-              type: 'boolean',
-              example: false
+              type: "boolean",
+              example: false,
             },
             erro: {
-              type: 'string',
-              example: 'Mensagem de erro'
+              type: "string",
+              example: "Mensagem de erro",
             },
             codigo: {
-              type: 'string',
-              example: 'ERROR_CODE'
+              type: "string",
+              example: "ERROR_CODE",
             },
             timestamp: {
-              type: 'string',
-              format: 'date-time',
-              example: '2024-01-01T00:00:00.000Z'
-            }
-          }
+              type: "string",
+              format: "date-time",
+              example: "2024-01-01T00:00:00.000Z",
+            },
+          },
         },
         Usuario: {
-          type: 'object',
+          type: "object",
           properties: {
             id: {
-              type: 'string',
-              example: '507f1f77bcf86cd799439011'
+              type: "string",
+              example: "507f1f77bcf86cd799439011",
             },
             nome: {
-              type: 'string',
-              example: 'João Silva'
+              type: "string",
+              example: "João Silva",
             },
             email: {
-              type: 'string',
-              format: 'email',
-              example: 'joao@empresa.com.br'
+              type: "string",
+              format: "email",
+              example: "joao@empresa.com.br",
             },
             tipoCliente: {
-              type: 'string',
-              enum: ['cpf', 'cnpj'],
-              example: 'cnpj'
+              type: "string",
+              enum: ["cpf", "cnpj"],
+              example: "cnpj",
             },
             documento: {
-              type: 'string',
-              example: '12345678000199'
+              type: "string",
+              example: "12345678000199",
             },
             telefone: {
-              type: 'string',
-              example: '(11) 99999-9999'
+              type: "string",
+              example: "(11) 99999-9999",
             },
             ativo: {
-              type: 'boolean',
-              example: true
-            }
-          }
+              type: "boolean",
+              example: true,
+            },
+          },
         },
         NFe: {
-          type: 'object',
+          type: "object",
           properties: {
             chave: {
-              type: 'string',
-              example: '35200714200166000187550010000000271023456789'
+              type: "string",
+              example: "35200714200166000187550010000000271023456789",
             },
             numero: {
-              type: 'integer',
-              example: 27
+              type: "integer",
+              example: 27,
             },
             serie: {
-              type: 'integer',
-              example: 1
+              type: "integer",
+              example: 1,
             },
             dataEmissao: {
-              type: 'string',
-              format: 'date-time',
-              example: '2024-01-01T10:00:00.000Z'
+              type: "string",
+              format: "date-time",
+              example: "2024-01-01T10:00:00.000Z",
             },
             situacao: {
-              type: 'string',
-              enum: ['autorizada', 'cancelada', 'rejeitada', 'pendente'],
-              example: 'autorizada'
+              type: "string",
+              enum: ["autorizada", "cancelada", "rejeitada", "pendente"],
+              example: "autorizada",
             },
             valorTotal: {
-              type: 'number',
-              format: 'float',
-              example: 1500.50
-            }
-          }
-        }
-      }
+              type: "number",
+              format: "float",
+              example: 1500.5,
+            },
+          },
+        },
+      },
     },
     security: [
       {
-        bearerAuth: []
-      }
-    ]
+        bearerAuth: [],
+      },
+    ],
   },
-  apis: [
-    './app.js',
-    './routes/*.js',
-    './controllers/*.js'
-  ]
+  apis: ["./app.js", "./routes/*.js", "./controllers/*.js"],
 };
 
 const swaggerSpec = swaggerJSDoc(swaggerOptions);
 
 // ==================== INICIALIZAÇÃO DO MONITORAMENTO ====================
 // Inicializar sistemas de monitoramento
-const { 
-  logger, 
-  requestLogging: requestLoggingMiddleware, 
-  errorLogging: errorLoggingMiddleware, 
+const {
+  logger,
+  requestLogging: requestLoggingMiddleware,
+  errorLogging: errorLoggingMiddleware,
   logSystemEvent,
-  initialize: initializeLogging 
-} = require('./monitoring/logger');
+  initialize: initializeLogging,
+} = require("./monitoring/logger");
 
 initializeLogging();
 initializeMetrics();
@@ -255,14 +273,14 @@ app.use(performanceMiddleware);
 app.use(requestLoggingMiddleware());
 
 // Sistema de logging avançado - deve vir após o middleware de performance
-app.set('advancedLogger', advancedLogger);
+app.set("advancedLogger", advancedLogger);
 app.use((req, res, next) => advancedLogger.logRequest(req, res, next));
 
 // Configurar handlers globais de erro
 advancedLogger.setupGlobalErrorHandlers();
 
 // ==================== CONFIGURAÇÃO DE UPLOAD ====================
-const certsDir = path.join(__dirname, 'certs');
+const certsDir = path.join(__dirname, "certs");
 if (!fs.existsSync(certsDir)) {
   fs.mkdirSync(certsDir, { recursive: true });
 }
@@ -273,27 +291,31 @@ const upload = multer({
   limits: { fileSize: 15 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
-    if (!['.pfx', '.p12'].includes(ext)) {
-      return cb(new Error('Formato de certificado inválido (use .pfx ou .p12)'));
+    if (![".pfx", ".p12"].includes(ext)) {
+      return cb(
+        new Error("Formato de certificado inválido (use .pfx ou .p12)"),
+      );
     }
     cb(null, true);
-  }
+  },
 });
 
 // ==================== MIDDLEWARE DE SEGURANÇA ====================
 
 // Importar middleware de segurança consolidado
-const securityMiddleware = require('./middleware/security');
+const securityMiddleware = require("./middleware/security");
 
 // Headers de segurança com Helmet
 app.use(securityMiddleware.configurarHelmet());
 
 // Logging de requisições
-app.use(morgan('combined', {
-  stream: {
-    write: (message) => console.log(message.trim())
-  }
-}));
+app.use(
+  morgan("combined", {
+    stream: {
+      write: (message) => console.log(message.trim()),
+    },
+  }),
+);
 
 // Detecção de ameaças
 app.use(securityMiddleware.detectarAmeacas());
@@ -309,39 +331,43 @@ app.use(securityMiddleware.configurarCORS());
 
 // Sanitização de entrada (XSS, NoSQL injection, validação)
 const sanitizationMiddlewares = securityMiddleware.configurarSanitizacao();
-sanitizationMiddlewares.forEach(middleware => app.use(middleware));
+sanitizationMiddlewares.forEach((middleware) => app.use(middleware));
 
 // Rate limiting específico para autenticação
-app.use('/auth/login', securityMiddleware.configurarRateLimitingAuth());
-app.use('/auth/register', securityMiddleware.configurarRateLimitingAuth());
+app.use("/auth/login", securityMiddleware.configurarRateLimitingAuth());
+app.use("/auth/register", securityMiddleware.configurarRateLimitingAuth());
 
 // Rate limiting para APIs
-app.use('/api', securityMiddleware.configurarRateLimitingAPI());
+app.use("/api", securityMiddleware.configurarRateLimitingAPI());
 
 // Middleware para parsing JSON com limite ajustado
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '5mb' }));
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true, limit: "5mb" }));
 
 // 9. Sanitização de entrada já aplicada acima
 
 // ==================== DOCUMENTAÇÃO DA API (SWAGGER) ====================
 // Rota para documentação da API (público)
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
-  explorer: true,
-  customCss: '.swagger-ui .topbar { display: none }',
-  customSiteTitle: 'API NFe Brandão Contador',
-  swaggerOptions: {
-    persistAuthorization: true,
-    displayRequestDuration: true,
-    filter: true,
-    showExtensions: true,
-    showCommonExtensions: true
-  }
-}));
+app.use(
+  "/api-docs",
+  swaggerUi.serve,
+  swaggerUi.setup(swaggerSpec, {
+    explorer: true,
+    customCss: ".swagger-ui .topbar { display: none }",
+    customSiteTitle: "API NFe Brandão Contador",
+    swaggerOptions: {
+      persistAuthorization: true,
+      displayRequestDuration: true,
+      filter: true,
+      showExtensions: true,
+      showCommonExtensions: true,
+    },
+  }),
+);
 
 // Rota para especificação JSON (público)
-app.get('/api-docs.json', (req, res) => {
-  res.setHeader('Content-Type', 'application/json');
+app.get("/api-docs.json", (req, res) => {
+  res.setHeader("Content-Type", "application/json");
   res.send(swaggerSpec);
 });
 
@@ -402,9 +428,9 @@ app.get('/api-docs.json', (req, res) => {
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-app.post('/auth/login', authMiddleware.login.bind(authMiddleware));
+app.post("/auth/login", authMiddleware.login.bind(authMiddleware));
 // Rota alternativa para compatibilidade com frontend
-app.post('/api/auth/login', authMiddleware.login.bind(authMiddleware));
+app.post("/api/auth/login", authMiddleware.login.bind(authMiddleware));
 app.post("/auth/register", authMiddleware.register.bind(authMiddleware));
 app.post("/api/auth/register", authMiddleware.register.bind(authMiddleware));
 
@@ -512,8 +538,9 @@ app.post("/api/auth/register", authMiddleware.register.bind(authMiddleware));
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-app.get('/auth/validate', 
-  authMiddleware.verificarAutenticacao(), 
+app.get(
+  "/auth/validate",
+  authMiddleware.verificarAutenticacao(),
   async (req, res) => {
     try {
       res.json({
@@ -523,20 +550,21 @@ app.get('/auth/validate',
           nome: req.usuario.nome,
           email: req.usuario.email,
           permissoes: req.usuario.permissoes || [],
-          tipo: req.usuario.tipo || req.usuario.tipoCliente
+          tipo: req.usuario.tipo || req.usuario.tipoCliente,
         },
-        tipoAuth: req.tipoAuth
+        tipoAuth: req.tipoAuth,
       });
     } catch (error) {
-      await logService.logErro('validate_token', error, { ip: req.ip });
-      res.status(500).json({ sucesso: false, erro: 'Erro ao validar token' });
+      await logService.logErro("validate_token", error, { ip: req.ip });
+      res.status(500).json({ sucesso: false, erro: "Erro ao validar token" });
     }
-  }
+  },
 );
 
 // Rota alternativa para compatibilidade com frontend
-app.get('/api/auth/validate', 
-  authMiddleware.verificarAutenticacao(), 
+app.get(
+  "/api/auth/validate",
+  authMiddleware.verificarAutenticacao(),
   async (req, res) => {
     try {
       res.json({
@@ -546,111 +574,125 @@ app.get('/api/auth/validate',
           nome: req.usuario.nome,
           email: req.usuario.email,
           permissoes: req.usuario.permissoes || [],
-          tipo: req.usuario.tipo || req.usuario.tipoCliente
+          tipo: req.usuario.tipo || req.usuario.tipoCliente,
         },
-        tipoAuth: req.tipoAuth
+        tipoAuth: req.tipoAuth,
       });
     } catch (error) {
-      await logService.logErro('validate_token', error, { ip: req.ip });
-      res.status(500).json({ sucesso: false, erro: 'Erro ao validar token' });
+      await logService.logErro("validate_token", error, { ip: req.ip });
+      res.status(500).json({ sucesso: false, erro: "Erro ao validar token" });
     }
-  }
+  },
 );
 
 // Rota social removida - sistema JSON apenas
 
 // Geração de API Key (apenas para admins)
-app.get('/auth/api-key', 
+app.get(
+  "/auth/api-key",
   authMiddleware.verificarAutenticacao(),
-  authMiddleware.verificarPermissao ? authMiddleware.verificarPermissao('admin') : (req, res, next) => next(),
+  authMiddleware.verificarPermissao
+    ? authMiddleware.verificarPermissao("admin")
+    : (req, res, next) => next(),
   (req, res) => {
     try {
-      const apiKey = authMiddleware.gerarApiKey ? authMiddleware.gerarApiKey() : `nfe-key-${Date.now()}`;
+      const apiKey = authMiddleware.gerarApiKey
+        ? authMiddleware.gerarApiKey()
+        : `nfe-key-${Date.now()}`;
       res.json({ sucesso: true, apiKey });
     } catch (error) {
-      res.status(500).json({ sucesso: false, erro: 'Erro ao gerar API key' });
+      res.status(500).json({ sucesso: false, erro: "Erro ao gerar API key" });
     }
-  }
+  },
 );
 
 // ==================== ROTAS DO USUÁRIO (/me) ====================
-app.get('/me',
-  authMiddleware.verificarAutenticacao(),
-  async (req, res) => {
-    try {
-      let usuario = await database.buscarUsuarioPorId(req.usuario.id);
-      if (usuario) {
-        const { senha, ...semSenha } = usuario;
-        usuario = semSenha;
-      }
-      
-      if (!usuario) {
-        return res.status(404).json({ sucesso: false, erro: 'Usuário não encontrado' });
-      }
-      
-      res.json({ sucesso: true, usuario });
-    } catch (error) {
-      await logService.logErro('me_get', error, { ip: req.ip });
-      res.status(500).json({ sucesso: false, erro: 'Erro ao obter dados do usuário' });
+app.get("/me", authMiddleware.verificarAutenticacao(), async (req, res) => {
+  try {
+    let usuario = await database.buscarUsuarioPorId(req.usuario.id);
+    if (usuario) {
+      const { senha, ...semSenha } = usuario;
+      usuario = semSenha;
     }
-  }
-);
 
-app.patch('/me',
-  authMiddleware.verificarAutenticacao(),
-  async (req, res) => {
-    try {
-      const dados = req.body || {};
-      const permitidos = ['nome', 'telefone'];
-      const atualizacoes = {};
-      
-      for (const campo of permitidos) {
-        if (dados[campo] !== undefined) atualizacoes[campo] = dados[campo];
-      }
-
-      let usuarioAtualizado = await database.atualizarUsuario(req.usuario.id, atualizacoes);
-      if (usuarioAtualizado) {
-        const { senha, ...semSenha } = usuarioAtualizado;
-        usuarioAtualizado = semSenha;
-      }
-      
-      res.json({ sucesso: true, usuario: usuarioAtualizado });
-    } catch (error) {
-      await logService.logErro('me_patch', error, { ip: req.ip });
-      res.status(500).json({ sucesso: false, erro: 'Erro ao atualizar usuário' });
+    if (!usuario) {
+      return res
+        .status(404)
+        .json({ sucesso: false, erro: "Usuário não encontrado" });
     }
+
+    res.json({ sucesso: true, usuario });
+  } catch (error) {
+    await logService.logErro("me_get", error, { ip: req.ip });
+    res
+      .status(500)
+      .json({ sucesso: false, erro: "Erro ao obter dados do usuário" });
   }
-);
+});
+
+app.patch("/me", authMiddleware.verificarAutenticacao(), async (req, res) => {
+  try {
+    const dados = req.body || {};
+    const permitidos = ["nome", "telefone"];
+    const atualizacoes = {};
+
+    for (const campo of permitidos) {
+      if (dados[campo] !== undefined) atualizacoes[campo] = dados[campo];
+    }
+
+    let usuarioAtualizado = await database.atualizarUsuario(
+      req.usuario.id,
+      atualizacoes,
+    );
+    if (usuarioAtualizado) {
+      const { senha, ...semSenha } = usuarioAtualizado;
+      usuarioAtualizado = semSenha;
+    }
+
+    res.json({ sucesso: true, usuario: usuarioAtualizado });
+  } catch (error) {
+    await logService.logErro("me_patch", error, { ip: req.ip });
+    res.status(500).json({ sucesso: false, erro: "Erro ao atualizar usuário" });
+  }
+});
 
 // Upload de certificado
-app.post('/me/certificado',
+app.post(
+  "/me/certificado",
   authMiddleware.verificarAutenticacao(),
-  upload.single('certificado'),
+  upload.single("certificado"),
   async (req, res) => {
     try {
-      const senha = (req.body?.senha || '').trim();
+      const senha = (req.body?.senha || "").trim();
       if (!req.file) {
-        return res.status(400).json({ sucesso: false, erro: 'Arquivo do certificado não enviado' });
+        return res
+          .status(400)
+          .json({ sucesso: false, erro: "Arquivo do certificado não enviado" });
       }
       if (!senha) {
-        return res.status(400).json({ sucesso: false, erro: 'Senha do certificado é obrigatória' });
+        return res
+          .status(400)
+          .json({ sucesso: false, erro: "Senha do certificado é obrigatória" });
       }
 
       // Salvar certificado no disco
-      const certPath = path.join(certsDir, 'certificado.pfx');
+      const certPath = path.join(certsDir, "certificado.pfx");
       fs.writeFileSync(certPath, req.file.buffer);
 
       // Validar certificado
       try {
         const certificateService = new CertificateService();
-        const validacao = await certificateService.validarCertificado(certPath, senha);
-        
+        const validacao = await certificateService.validarCertificado(
+          certPath,
+          senha,
+        );
+
         if (!validacao.valido) {
           fs.unlinkSync(certPath); // Remove arquivo inválido
           return res.status(400).json({
             sucesso: false,
-            erro: 'Certificado inválido',
-            detalhes: validacao.erro
+            erro: "Certificado inválido",
+            detalhes: validacao.erro,
           });
         }
 
@@ -659,56 +701,61 @@ app.post('/me/certificado',
           certificadoPath: certPath,
           certificadoSenha: senha,
           certificadoInfo: validacao.info,
-          certificadoUploadEm: new Date().toISOString()
+          certificadoUploadEm: new Date().toISOString(),
         };
 
-        await database.atualizarUsuario(req.usuario.id, { certificado: configCert });
+        await database.atualizarUsuario(req.usuario.id, {
+          certificado: configCert,
+        });
 
-        await logService.log('certificado_upload', 'SUCESSO', {
+        await logService.log("certificado_upload", "SUCESSO", {
           usuario: req.usuario.id,
-          certificadoInfo: validacao.info
+          certificadoInfo: validacao.info,
         });
 
         res.json({
           sucesso: true,
-          mensagem: 'Certificado enviado e validado com sucesso',
-          certificado: validacao.info
+          mensagem: "Certificado enviado e validado com sucesso",
+          certificado: validacao.info,
         });
-
       } catch (certError) {
         if (fs.existsSync(certPath)) {
           fs.unlinkSync(certPath);
         }
         throw certError;
       }
-
     } catch (error) {
-      await logService.logErro('certificado_upload', error, { ip: req.ip });
-      res.status(500).json({ sucesso: false, erro: 'Erro ao processar certificado' });
+      await logService.logErro("certificado_upload", error, { ip: req.ip });
+      res
+        .status(500)
+        .json({ sucesso: false, erro: "Erro ao processar certificado" });
     }
-  }
+  },
 );
 
 // ==================== ROTAS MODERNAS ====================
 // Usar as rotas modernas organizadas em arquivos separados
-const meRoutes = require('./routes/me');
-const logsRoutes = require('./routes/logs');
-const testErrorsRoutes = require('./routes/test-errors');
+const meRoutes = require("./routes/me");
+const logsRoutes = require("./routes/logs");
 
-app.use('/api/auth', authRoutes);
-app.use('/api/clientes', clientesRoutes);
-app.use('/api/produtos', produtosRoutes);
-app.use('/api/admin', adminRoutes);
-app.use('/api/nfe', nfeRoutes);
-app.use('/api/cte', cteRoutes);
-app.use('/api/mdfe', mdfeRoutes);
-app.use('/api/eventos', eventosRoutes);
-app.use('/api/relatorios', relatoriosRoutes);
-app.use('/api/configuracoes', configuracoesRoutes);
-app.use('/api/dashboard', authMiddleware.verificarAutenticacao(), dashboardRoutes);
-app.use('/api/me', meRoutes);
-app.use('/api/logs', logsRoutes);
-app.use('/api', testErrorsRoutes);
+app.use("/api/auth", authRoutes);
+app.use("/api/clientes", clientesRoutes);
+app.use("/api/produtos", produtosRoutes);
+app.use("/api/admin", adminRoutes);
+app.use("/api/nfe", nfeRoutes);
+app.use("/api/cte", cteRoutes);
+app.use("/api/mdfe", mdfeRoutes);
+app.use("/api/eventos", eventosRoutes);
+app.use("/api/relatorios", relatoriosRoutes);
+app.use("/api/configuracoes", configuracoesRoutes);
+app.use("/webhook", webhooksRoutes);
+app.use(
+  "/api/dashboard",
+  authMiddleware.verificarAutenticacao(),
+  dashboardRoutes,
+);
+app.use("/api/me", meRoutes);
+app.use("/api/logs", logsRoutes);
 
 // ==================== ENDPOINTS DE TESTE PARA LOGGING ====================
 
@@ -724,31 +771,6 @@ app.use('/api', testErrorsRoutes);
  *       500:
  *         description: Erro gerado propositalmente para teste
  */
-app.get('/api/test-error', (req, res) => {
-  const advancedLogger = req.app.get('advancedLogger');
-  
-  // Log da tentativa de teste
-  advancedLogger.logInfo('system', 'Endpoint de teste de erro acessado', req, {
-    userAgent: req.get('User-Agent'),
-    ip: req.ip
-  });
-  
-  // Gerar erro propositalmente
-  const erro = new Error('Erro de teste gerado propositalmente para verificar o sistema de logging');
-  erro.code = 'TEST_ERROR';
-  
-  advancedLogger.logError('system', 'Erro de teste gerado', req, erro, {
-    tipoTeste: 'erro_500',
-    proposital: true
-  });
-  
-  res.status(500).json({
-    sucesso: false,
-    erro: 'Erro de teste gerado propositalmente',
-    codigo: 'TEST_ERROR',
-    timestamp: new Date().toISOString()
-  });
-});
 
 /**
  * @swagger
@@ -762,21 +784,6 @@ app.get('/api/test-error', (req, res) => {
  *       404:
  *         description: Recurso não encontrado (teste)
  */
-app.get('/api/test-404', (req, res) => {
-  const advancedLogger = req.app.get('advancedLogger');
-  
-  advancedLogger.logWarning('system', 'Teste de erro 404', req, {
-    rota: '/api/test-404',
-    tipoTeste: 'not_found'
-  });
-  
-  res.status(404).json({
-    sucesso: false,
-    erro: 'Recurso não encontrado (teste)',
-    codigo: 'NOT_FOUND_TEST',
-    timestamp: new Date().toISOString()
-  });
-});
 
 // ==================== ENDPOINTS NFE (LEGADOS) ====================
 
@@ -824,33 +831,27 @@ app.get('/api/test-404', (req, res) => {
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-app.get('/nfe/status', async (req, res) => {
+app.get("/nfe/status", async (req, res) => {
   try {
     const status = await nfeService.verificarStatusSistema();
     res.json({ sucesso: true, status, timestamp: new Date().toISOString() });
   } catch (error) {
-    await logService.logErro('status', error, { ip: req.ip });
-    res.status(500).json({ sucesso: false, erro: 'Erro ao obter status do sistema' });
+    await logService.logErro("status", error, { ip: req.ip });
+    res
+      .status(500)
+      .json({ sucesso: false, erro: "Erro ao obter status do sistema" });
   }
 });
 
 // Status público (sem autenticação)
-app.get('/nfe/status-publico', async (req, res) => {
+app.get("/nfe/status-publico", async (req, res) => {
   try {
     const status = await nfeService.verificarStatusSistema();
     res.json({ sucesso: true, status });
   } catch (error) {
-    res.status(500).json({ sucesso: false, erro: 'Erro ao obter status do sistema' });
-  }
-});
-
-// Teste de conectividade
-app.get('/nfe/teste', async (req, res) => {
-  try {
-    const resultado = await nfeService.testarConectividade();
-    res.json(resultado);
-  } catch (error) {
-    res.status(500).json({ sucesso: false, erro: 'Erro no teste de conectividade' });
+    res
+      .status(500)
+      .json({ sucesso: false, erro: "Erro ao obter status do sistema" });
   }
 });
 
@@ -940,7 +941,8 @@ app.get('/nfe/teste', async (req, res) => {
  *               $ref: '#/components/schemas/Error'
  */
 // Histórico de NFes
-app.get('/nfe/historico', 
+app.get(
+  "/nfe/historico",
   authMiddleware.verificarAutenticacao(),
   async (req, res) => {
     try {
@@ -950,7 +952,7 @@ app.get('/nfe/historico',
         dataInicio: req.query.dataInicio,
         dataFim: req.query.dataFim,
         situacao: req.query.situacao,
-        usuarioId: req.usuario.id
+        usuarioId: req.usuario.id,
       };
 
       let nfes = [];
@@ -961,11 +963,11 @@ app.get('/nfe/historico',
       const inicio = (pagina - 1) * limite;
       nfes = todasNfes.slice(inicio, inicio + limite);
 
-      await logService.log('historico', 'SUCESSO', {
+      await logService.log("historico", "SUCESSO", {
         usuario: req.usuario.id,
         pagina,
         limite,
-        retornadas: nfes.length
+        retornadas: nfes.length,
       });
 
       res.json({
@@ -973,13 +975,15 @@ app.get('/nfe/historico',
         nfes,
         total,
         limite,
-        pagina
+        pagina,
       });
     } catch (error) {
-      await logService.logErro('historico', error, { ip: req.ip });
-      res.status(500).json({ sucesso: false, erro: 'Erro ao obter histórico de NFes' });
+      await logService.logErro("historico", error, { ip: req.ip });
+      res
+        .status(500)
+        .json({ sucesso: false, erro: "Erro ao obter histórico de NFes" });
     }
-  }
+  },
 );
 
 /**
@@ -1097,27 +1101,30 @@ app.get('/nfe/historico',
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-app.post('/nfe/emitir', 
+app.post(
+  "/nfe/emitir",
   authMiddleware.verificarAutenticacao(),
-  authMiddleware.verificarPermissao ? authMiddleware.verificarPermissao('nfe_emitir') : (req, res, next) => next(),
+  authMiddleware.verificarPermissao
+    ? authMiddleware.verificarPermissao("nfe_emitir")
+    : (req, res, next) => next(),
   async (req, res) => {
     try {
       // Validação dos dados
       const validacao = await validationService.validarDadosNfe(req.body);
-      
+
       if (!validacao.valido) {
         await logService.logValidacao(req.body, validacao);
         return res.status(400).json({
           sucesso: false,
-          erro: 'Dados inválidos',
+          erro: "Dados inválidos",
           erros: validacao.erros,
-          avisos: validacao.avisos
+          avisos: validacao.avisos,
         });
       }
 
       // Emissão da NFe
       const resultado = await nfeService.emitirNfe(req.body);
-      
+
       await logService.logEmissao(req.body, resultado);
 
       if (resultado.sucesso) {
@@ -1125,20 +1132,19 @@ app.post('/nfe/emitir',
       } else {
         res.status(400).json(resultado);
       }
-
     } catch (error) {
-      console.error('❌ ERRO DETALHADO NA EMISSÃO:', error);
-      await logService.logErro('emissao', error, { 
+      console.error("❌ ERRO DETALHADO NA EMISSÃO:", error);
+      await logService.logErro("emissao", error, {
         dados: req.body,
-        usuario: req.usuario.id 
+        usuario: req.usuario.id,
       });
       res.status(500).json({
         sucesso: false,
-        erro: 'Erro interno na emissão da NFe',
-        codigo: 'EMISSAO_ERROR'
+        erro: "Erro interno na emissão da NFe",
+        codigo: "EMISSAO_ERROR",
       });
     }
-  }
+  },
 );
 
 /**
@@ -1201,37 +1207,39 @@ app.post('/nfe/emitir',
  *               $ref: '#/components/schemas/Error'
  */
 // Consultar NFe
-app.get('/nfe/consultar/:chave', 
+app.get(
+  "/nfe/consultar/:chave",
   authMiddleware.verificarAutenticacao(),
-  authMiddleware.verificarPermissao ? authMiddleware.verificarPermissao('nfe_consultar') : (req, res, next) => next(),
+  authMiddleware.verificarPermissao
+    ? authMiddleware.verificarPermissao("nfe_consultar")
+    : (req, res, next) => next(),
   async (req, res) => {
     try {
       const { chave } = req.params;
-      
+
       if (!chave || chave.length !== 44) {
         return res.status(400).json({
           sucesso: false,
-          erro: 'Chave da NFe inválida. Deve ter 44 dígitos.',
-          codigo: 'CHAVE_INVALIDA'
+          erro: "Chave da NFe inválida. Deve ter 44 dígitos.",
+          codigo: "CHAVE_INVALIDA",
         });
       }
 
       const resultado = await nfeService.consultarNFe(chave);
       await logService.logConsulta(chave, resultado);
       res.json(resultado);
-
     } catch (error) {
-      await logService.logErro('consulta', error, { 
+      await logService.logErro("consulta", error, {
         chave: req.params.chave,
-        usuario: req.usuario.id 
+        usuario: req.usuario.id,
       });
       res.status(500).json({
         sucesso: false,
-        erro: 'Erro interno na consulta da NFe',
-        codigo: 'CONSULTA_ERROR'
+        erro: "Erro interno na consulta da NFe",
+        codigo: "CONSULTA_ERROR",
       });
     }
-  }
+  },
 );
 
 /**
@@ -1303,26 +1311,29 @@ app.get('/nfe/consultar/:chave',
  *               $ref: '#/components/schemas/Error'
  */
 // Cancelar NFe
-app.post('/nfe/cancelar', 
+app.post(
+  "/nfe/cancelar",
   authMiddleware.verificarAutenticacao(),
-  authMiddleware.verificarPermissao ? authMiddleware.verificarPermissao('nfe_cancelar') : (req, res, next) => next(),
+  authMiddleware.verificarPermissao
+    ? authMiddleware.verificarPermissao("nfe_cancelar")
+    : (req, res, next) => next(),
   async (req, res) => {
     try {
       const { chave, justificativa } = req.body;
-      
+
       if (!chave || !justificativa) {
         return res.status(400).json({
           sucesso: false,
-          erro: 'Chave e justificativa são obrigatórias',
-          codigo: 'DADOS_OBRIGATORIOS'
+          erro: "Chave e justificativa são obrigatórias",
+          codigo: "DADOS_OBRIGATORIOS",
         });
       }
 
       if (justificativa.length < 15) {
         return res.status(400).json({
           sucesso: false,
-          erro: 'Justificativa deve ter pelo menos 15 caracteres',
-          codigo: 'JUSTIFICATIVA_CURTA'
+          erro: "Justificativa deve ter pelo menos 15 caracteres",
+          codigo: "JUSTIFICATIVA_CURTA",
         });
       }
 
@@ -1334,20 +1345,19 @@ app.post('/nfe/cancelar',
       } else {
         res.status(400).json(resultado);
       }
-
     } catch (error) {
-      await logService.logErro('cancelamento', error, { 
+      await logService.logErro("cancelamento", error, {
         chave: req.body.chave,
         justificativa: req.body.justificativa,
-        usuario: req.usuario.id 
+        usuario: req.usuario.id,
       });
       res.status(500).json({
         sucesso: false,
-        erro: 'Erro interno no cancelamento da NFe',
-        codigo: 'CANCELAMENTO_ERROR'
+        erro: "Erro interno no cancelamento da NFe",
+        codigo: "CANCELAMENTO_ERROR",
       });
     }
-  }
+  },
 );
 
 /**
@@ -1437,58 +1447,76 @@ app.post('/nfe/cancelar',
  *               $ref: '#/components/schemas/Error'
  */
 // Inutilizar numeração NFe
-app.post('/nfe/inutilizar', 
+app.post(
+  "/nfe/inutilizar",
   authMiddleware.verificarAutenticacao(),
-  authMiddleware.verificarPermissao ? authMiddleware.verificarPermissao('nfe_inutilizar') : (req, res, next) => next(),
+  authMiddleware.verificarPermissao
+    ? authMiddleware.verificarPermissao("nfe_inutilizar")
+    : (req, res, next) => next(),
   async (req, res) => {
     try {
-      const { serie, numeroInicial, numeroFinal, justificativa, ano } = req.body;
+      const { serie, numeroInicial, numeroFinal, justificativa, ano } =
+        req.body;
 
-      if (serie === undefined || numeroInicial === undefined || numeroFinal === undefined || !justificativa) {
+      if (
+        serie === undefined ||
+        numeroInicial === undefined ||
+        numeroFinal === undefined ||
+        !justificativa
+      ) {
         return res.status(400).json({
           sucesso: false,
-          erro: 'Série, número inicial, número final e justificativa são obrigatórios',
-          codigo: 'DADOS_OBRIGATORIOS'
+          erro: "Série, número inicial, número final e justificativa são obrigatórios",
+          codigo: "DADOS_OBRIGATORIOS",
         });
       }
 
       if (String(justificativa).trim().length < 15) {
         return res.status(400).json({
           sucesso: false,
-          erro: 'Justificativa deve ter pelo menos 15 caracteres',
-          codigo: 'JUSTIFICATIVA_CURTA'
+          erro: "Justificativa deve ter pelo menos 15 caracteres",
+          codigo: "JUSTIFICATIVA_CURTA",
         });
       }
 
-      const resultado = await nfeService.inutilizarNumeracao({ serie, numeroInicial, numeroFinal, justificativa, ano });
-
-      await logService.log('inutilizacao', resultado?.sucesso ? 'SUCESSO' : 'ERRO', {
-        usuario: req.usuario.id,
+      const resultado = await nfeService.inutilizarNumeracao({
         serie,
         numeroInicial,
         numeroFinal,
         justificativa,
-        protocolo: resultado?.protocolo || null
+        ano,
       });
+
+      await logService.log(
+        "inutilizacao",
+        resultado?.sucesso ? "SUCESSO" : "ERRO",
+        {
+          usuario: req.usuario.id,
+          serie,
+          numeroInicial,
+          numeroFinal,
+          justificativa,
+          protocolo: resultado?.protocolo || null,
+        },
+      );
 
       if (resultado?.sucesso) {
         res.json(resultado);
       } else {
         res.status(400).json(resultado);
       }
-
     } catch (error) {
-      await logService.logErro('inutilizacao', error, { 
+      await logService.logErro("inutilizacao", error, {
         usuario: req.usuario.id,
-        dados: req.body 
+        dados: req.body,
       });
       res.status(500).json({
         sucesso: false,
-        erro: 'Erro interno na inutilização da numeração',
-        codigo: 'INUTILIZACAO_ERROR'
+        erro: "Erro interno na inutilização da numeração",
+        codigo: "INUTILIZACAO_ERROR",
       });
     }
-  }
+  },
 );
 
 /**
@@ -1555,62 +1583,64 @@ app.post('/nfe/inutilizar',
  *               $ref: '#/components/schemas/Error'
  */
 // Download de XML/PDF da NFe
-app.get('/nfe/download/:tipo/:chave',
+app.get(
+  "/nfe/download/:tipo/:chave",
   authMiddleware.verificarAutenticacao(),
-  authMiddleware.verificarPermissao ? authMiddleware.verificarPermissao('nfe_consultar') : (req, res, next) => next(),
+  authMiddleware.verificarPermissao
+    ? authMiddleware.verificarPermissao("nfe_consultar")
+    : (req, res, next) => next(),
   async (req, res) => {
     try {
       const { tipo, chave } = req.params;
 
       // Validações básicas
-      const chaveNumerica = (chave || '').replace(/\D/g, '');
+      const chaveNumerica = (chave || "").replace(/\D/g, "");
       if (chaveNumerica.length !== 44) {
         return res.status(400).json({
           sucesso: false,
-          erro: 'Chave da NFe inválida. Deve ter 44 dígitos.',
-          codigo: 'CHAVE_INVALIDA'
+          erro: "Chave da NFe inválida. Deve ter 44 dígitos.",
+          codigo: "CHAVE_INVALIDA",
         });
       }
 
-      if (!['xml', 'pdf'].includes(tipo)) {
+      if (!["xml", "pdf"].includes(tipo)) {
         return res.status(400).json({
           sucesso: false,
-          erro: 'Tipo de arquivo inválido. Use xml ou pdf.',
-          codigo: 'TIPO_INVALIDO'
+          erro: "Tipo de arquivo inválido. Use xml ou pdf.",
+          codigo: "TIPO_INVALIDO",
         });
       }
 
-      await logService.log('download', 'SUCESSO', { tipo, chave, usuario: req.usuario.id });
-
-      // Conteúdo simulado para desenvolvimento
-      if (tipo === 'xml') {
-        const xmlContent = `<?xml version="1.0" encoding="UTF-8"?>\n<NFe>\n  <chaveAcesso>${chaveNumerica}</chaveAcesso>\n  <situacao>Autorizada</situacao>\n  <geradoEm>${new Date().toISOString()}</geradoEm>\n</NFe>`;
-        res.setHeader('Content-Type', 'application/xml');
-        res.setHeader('Content-Disposition', `attachment; filename="NFe_${chaveNumerica}.xml"`);
-        return res.status(200).send(xmlContent);
+      const resultado = await nfeService.downloadDocumento(tipo, chave);
+      await logService.log("download", "SUCESSO", {
+        tipo,
+        chave,
+        usuario: req.usuario.id,
+      });
+      if (resultado.tipo === "xml") {
+        res.setHeader("Content-Type", "application/xml");
+        res.setHeader(
+          "Content-Disposition",
+          `attachment; filename="NFe_${chaveNumerica}.xml"`,
+        );
+        return res.status(200).send(resultado.data);
+      } else {
+        res.setHeader("Content-Type", "application/pdf");
+        res.setHeader(
+          "Content-Disposition",
+          `attachment; filename="NFe_${chaveNumerica}.pdf"`,
+        );
+        return res.status(200).send(resultado.data);
       }
-
-      // PDF mínimo (placeholder) para desenvolvimento
-      const pdfMinimal = Buffer.from(
-        '%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n' +
-        '2 0 obj<</Type/Pages/Count 1/Kids[3 0 R]>>endobj\n' +
-        '3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 595 842]/Contents 4 0 R>>endobj\n' +
-        '4 0 obj<</Length 55>>stream\nBT /F1 12 Tf 72 720 Td(Comprovante NFe ' + chaveNumerica + ')Tj ET\nendstream\nendobj\n' +
-        'xref\n0 5\n0000000000 65535 f \n0000000010 00000 n \n0000000061 00000 n \n0000000116 00000 n \n0000000221 00000 n \ntrailer<</Size 5/Root 1 0 R>>\nstartxref\n320\n%%EOF'
-      );
-      res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `attachment; filename="NFe_${chaveNumerica}.pdf"`);
-      return res.status(200).send(pdfMinimal);
-      
     } catch (error) {
-      await logService.logErro('download', error, { ip: req.ip });
+      await logService.logErro("download", error, { ip: req.ip });
       return res.status(500).json({
         sucesso: false,
-        erro: 'Erro ao gerar arquivo para download',
-        codigo: 'DOWNLOAD_ERROR'
+        erro: "Erro ao gerar arquivo para download",
+        codigo: "DOWNLOAD_ERROR",
       });
     }
-  }
+  },
 );
 
 /**
@@ -1697,8 +1727,11 @@ app.get('/nfe/download/:tipo/:chave',
  *               $ref: '#/components/schemas/Error'
  */
 // Validar dados da NFe
-app.post('/nfe/validar', 
-  authMiddleware.verificarAutenticacaoOpcional ? authMiddleware.verificarAutenticacaoOpcional() : (req, res, next) => next(),
+app.post(
+  "/nfe/validar",
+  authMiddleware.verificarAutenticacaoOpcional
+    ? authMiddleware.verificarAutenticacaoOpcional()
+    : (req, res, next) => next(),
   async (req, res) => {
     try {
       const validacao = await validationService.validarDadosNfe(req.body);
@@ -1706,22 +1739,21 @@ app.post('/nfe/validar',
 
       res.json({
         sucesso: true,
-        validacao
+        validacao,
       });
-
     } catch (error) {
-      await logService.logErro('validacao', error, { 
+      await logService.logErro("validacao", error, {
         dados: req.body,
-        usuario: req.usuario?.id 
+        usuario: req.usuario?.id,
       });
       res.status(500).json({
         sucesso: false,
-        erro: 'Erro interno na validação',
-        codigo: 'VALIDACAO_ERROR',
-        detalhes: error.message
+        erro: "Erro interno na validação",
+        codigo: "VALIDACAO_ERROR",
+        detalhes: error.message,
       });
     }
-  }
+  },
 );
 
 // ==================== ROTAS DE CLIENTES ====================
@@ -1771,7 +1803,8 @@ app.post('/nfe/validar',
  *       500:
  *         description: Erro interno do servidor
  */
-app.get('/clientes',
+app.get(
+  "/clientes",
   authMiddleware.verificarAutenticacao(),
   async (req, res) => {
     try {
@@ -1780,17 +1813,17 @@ app.get('/clientes',
         ativo: req.query.ativo,
         tipo: req.query.tipo,
         limite: parseInt(req.query.limite) || 50,
-        pagina: parseInt(req.query.pagina) || 1
+        pagina: parseInt(req.query.pagina) || 1,
       };
-      
+
       const clientes = await database.listarClientes(filtros);
-      
+
       res.json({ sucesso: true, clientes });
     } catch (error) {
-      await logService.logErro('clientes_listar', error, { ip: req.ip });
-      res.status(500).json({ sucesso: false, erro: 'Erro ao listar clientes' });
+      await logService.logErro("clientes_listar", error, { ip: req.ip });
+      res.status(500).json({ sucesso: false, erro: "Erro ao listar clientes" });
     }
-  }
+  },
 );
 
 /**
@@ -1872,61 +1905,66 @@ app.get('/clientes',
  *       500:
  *         description: Erro interno do servidor
  */
-app.post('/clientes',
+app.post(
+  "/clientes",
   authMiddleware.verificarAutenticacao(),
   async (req, res) => {
     try {
       // Validação e enriquecimento dos dados
-      const validacao = await validationExternalService.validarEEnriquecerCliente(req.body);
-      
+      const validacao =
+        await validationExternalService.validarEEnriquecerCliente(req.body);
+
       if (!validacao.valido) {
-        return res.status(400).json({ 
-          sucesso: false, 
-          erro: 'Dados inválidos', 
-          detalhes: validacao.erros 
+        return res.status(400).json({
+          sucesso: false,
+          erro: "Dados inválidos",
+          detalhes: validacao.erros,
         });
       }
 
       // Verificar se cliente já existe
-      const existente = await database.buscarClientePorDocumento(validacao.dados.documento, req.usuario.id);
-      
+      const existente = await database.buscarClientePorDocumento(
+        validacao.dados.documento,
+        req.usuario.id,
+      );
+
       if (existente) {
-        return res.status(409).json({ 
-          sucesso: false, 
-          erro: 'Cliente já cadastrado com este documento' 
+        return res.status(409).json({
+          sucesso: false,
+          erro: "Cliente já cadastrado com este documento",
         });
       }
-      
+
       // Criar cliente no arquivo JSON
       const cliente = await database.criarCliente({
         ...validacao.dados,
-        usuarioId: req.usuario.id
+        usuarioId: req.usuario.id,
       });
-      
-      await logService.log('cliente_criado', 'SUCESSO', { 
-        cliente: cliente.id || cliente._id, 
+
+      await logService.log("cliente_criado", "SUCESSO", {
+        cliente: cliente.id || cliente._id,
         usuario: req.usuario.id,
-        documento: validacao.dados.documento
+        documento: validacao.dados.documento,
       });
-      
-      res.status(201).json({ 
-        sucesso: true, 
+
+      res.status(201).json({
+        sucesso: true,
         cliente,
-        avisos: validacao.avisos
+        avisos: validacao.avisos,
       });
     } catch (error) {
-      await logService.logErro('cliente_criar', error, { ip: req.ip });
-      
+      await logService.logErro("cliente_criar", error, { ip: req.ip });
+
       if (error.code === 11000) {
-        return res.status(409).json({ 
-          sucesso: false, 
-          erro: 'Cliente já cadastrado com este documento' 
+        return res.status(409).json({
+          sucesso: false,
+          erro: "Cliente já cadastrado com este documento",
         });
       }
-      
-      res.status(500).json({ sucesso: false, erro: 'Erro ao criar cliente' });
+
+      res.status(500).json({ sucesso: false, erro: "Erro ao criar cliente" });
     }
-  }
+  },
 );
 
 /**
@@ -1952,24 +1990,27 @@ app.post('/clientes',
  *       500:
  *         description: Erro interno do servidor
  */
-app.get('/clientes/:id',
+app.get(
+  "/clientes/:id",
   authMiddleware.verificarAutenticacao(),
   async (req, res) => {
     try {
       let cliente;
-      
-        cliente = await database.buscarClientePorId(req.params.id);
+
+      cliente = await database.buscarClientePorId(req.params.id);
 
       if (!cliente) {
-        return res.status(404).json({ sucesso: false, erro: 'Cliente não encontrado' });
+        return res
+          .status(404)
+          .json({ sucesso: false, erro: "Cliente não encontrado" });
       }
-      
+
       res.json({ sucesso: true, cliente });
     } catch (error) {
-      await logService.logErro('cliente_buscar', error, { ip: req.ip });
-      res.status(500).json({ sucesso: false, erro: 'Erro ao buscar cliente' });
+      await logService.logErro("cliente_buscar", error, { ip: req.ip });
+      res.status(500).json({ sucesso: false, erro: "Erro ao buscar cliente" });
     }
-  }
+  },
 );
 
 /**
@@ -2013,7 +2054,8 @@ app.get('/clientes/:id',
  *       500:
  *         description: Erro interno do servidor
  */
-app.patch('/clientes/:id',
+app.patch(
+  "/clientes/:id",
   authMiddleware.verificarAutenticacao(),
   async (req, res) => {
     try {
@@ -2021,40 +2063,50 @@ app.patch('/clientes/:id',
       const dadosAtualizacao = { ...req.body };
       delete dadosAtualizacao.documento; // Não permitir alterar documento
       delete dadosAtualizacao.tipo; // Não permitir alterar tipo
-      
+
       // Se tem CEP, validar
       if (dadosAtualizacao.endereco?.cep) {
         try {
-          const dadosCEP = await validationExternalService.consultarCEP(dadosAtualizacao.endereco.cep);
+          const dadosCEP = await validationExternalService.consultarCEP(
+            dadosAtualizacao.endereco.cep,
+          );
           dadosAtualizacao.endereco = {
             ...dadosAtualizacao.endereco,
-            logradouro: dadosCEP.logradouro || dadosAtualizacao.endereco.logradouro,
+            logradouro:
+              dadosCEP.logradouro || dadosAtualizacao.endereco.logradouro,
             bairro: dadosCEP.bairro || dadosAtualizacao.endereco.bairro,
             cidade: dadosCEP.municipio || dadosAtualizacao.endereco.cidade,
-            uf: dadosCEP.uf || dadosAtualizacao.endereco.uf
+            uf: dadosCEP.uf || dadosAtualizacao.endereco.uf,
           };
         } catch (error) {
-          console.warn('Erro ao validar CEP na atualização:', error.message);
+          console.warn("Erro ao validar CEP na atualização:", error.message);
         }
       }
 
-      let cliente = await database.atualizarCliente(req.params.id, dadosAtualizacao);
-      
+      let cliente = await database.atualizarCliente(
+        req.params.id,
+        dadosAtualizacao,
+      );
+
       if (!cliente) {
-        return res.status(404).json({ sucesso: false, erro: 'Cliente não encontrado' });
+        return res
+          .status(404)
+          .json({ sucesso: false, erro: "Cliente não encontrado" });
       }
-      
-      await logService.log('cliente_atualizado', 'SUCESSO', { 
-        cliente: cliente.id || cliente._id, 
-        usuario: req.usuario.id 
+
+      await logService.log("cliente_atualizado", "SUCESSO", {
+        cliente: cliente.id || cliente._id,
+        usuario: req.usuario.id,
       });
-      
+
       res.json({ sucesso: true, cliente });
     } catch (error) {
-      await logService.logErro('cliente_atualizar', error, { ip: req.ip });
-      res.status(500).json({ sucesso: false, erro: 'Erro ao atualizar cliente' });
+      await logService.logErro("cliente_atualizar", error, { ip: req.ip });
+      res
+        .status(500)
+        .json({ sucesso: false, erro: "Erro ao atualizar cliente" });
     }
-  }
+  },
 );
 
 /**
@@ -2080,29 +2132,32 @@ app.patch('/clientes/:id',
  *       500:
  *         description: Erro interno do servidor
  */
-app.delete('/clientes/:id',
+app.delete(
+  "/clientes/:id",
   authMiddleware.verificarAutenticacao(),
   async (req, res) => {
     try {
       let removido;
-      
-        removido = await database.removerCliente(req.params.id);
+
+      removido = await database.removerCliente(req.params.id);
 
       if (!removido) {
-        return res.status(404).json({ sucesso: false, erro: 'Cliente não encontrado' });
+        return res
+          .status(404)
+          .json({ sucesso: false, erro: "Cliente não encontrado" });
       }
-      
-      await logService.log('cliente_removido', 'SUCESSO', { 
-        cliente: req.params.id, 
-        usuario: req.usuario.id 
+
+      await logService.log("cliente_removido", "SUCESSO", {
+        cliente: req.params.id,
+        usuario: req.usuario.id,
       });
-      
-      res.json({ sucesso: true, mensagem: 'Cliente removido com sucesso' });
+
+      res.json({ sucesso: true, mensagem: "Cliente removido com sucesso" });
     } catch (error) {
-      await logService.logErro('cliente_remover', error, { ip: req.ip });
-      res.status(500).json({ sucesso: false, erro: 'Erro ao remover cliente' });
+      await logService.logErro("cliente_remover", error, { ip: req.ip });
+      res.status(500).json({ sucesso: false, erro: "Erro ao remover cliente" });
     }
-  }
+  },
 );
 
 // ==================== ROTAS DE VALIDAÇÃO EXTERNA ====================
@@ -2132,22 +2187,25 @@ app.delete('/clientes/:id',
  *       500:
  *         description: Erro interno do servidor
  */
-app.get('/validacao/cnpj/:cnpj',
+app.get(
+  "/validacao/cnpj/:cnpj",
   authMiddleware.verificarAutenticacao(),
   async (req, res) => {
     try {
-      const dados = await validationExternalService.consultarCNPJ(req.params.cnpj);
+      const dados = await validationExternalService.consultarCNPJ(
+        req.params.cnpj,
+      );
       res.json({ sucesso: true, dados });
     } catch (error) {
-      if (error.message.includes('formato inválido')) {
+      if (error.message.includes("formato inválido")) {
         return res.status(400).json({ sucesso: false, erro: error.message });
       }
-      if (error.message.includes('não encontrado')) {
+      if (error.message.includes("não encontrado")) {
         return res.status(404).json({ sucesso: false, erro: error.message });
       }
-      res.status(500).json({ sucesso: false, erro: 'Erro ao consultar CNPJ' });
+      res.status(500).json({ sucesso: false, erro: "Erro ao consultar CNPJ" });
     }
-  }
+  },
 );
 
 /**
@@ -2175,22 +2233,25 @@ app.get('/validacao/cnpj/:cnpj',
  *       500:
  *         description: Erro interno do servidor
  */
-app.get('/validacao/cep/:cep',
+app.get(
+  "/validacao/cep/:cep",
   authMiddleware.verificarAutenticacao(),
   async (req, res) => {
     try {
-      const dados = await validationExternalService.consultarCEP(req.params.cep);
+      const dados = await validationExternalService.consultarCEP(
+        req.params.cep,
+      );
       res.json({ sucesso: true, dados });
     } catch (error) {
-      if (error.message.includes('8 dígitos')) {
+      if (error.message.includes("8 dígitos")) {
         return res.status(400).json({ sucesso: false, erro: error.message });
       }
-      if (error.message.includes('não encontrado')) {
+      if (error.message.includes("não encontrado")) {
         return res.status(404).json({ sucesso: false, erro: error.message });
       }
-      res.status(500).json({ sucesso: false, erro: 'Erro ao consultar CEP' });
+      res.status(500).json({ sucesso: false, erro: "Erro ao consultar CEP" });
     }
-  }
+  },
 );
 
 /**
@@ -2207,16 +2268,17 @@ app.get('/validacao/cep/:cep',
  *       500:
  *         description: Erro interno do servidor
  */
-app.get('/validacao/estados',
+app.get(
+  "/validacao/estados",
   authMiddleware.verificarAutenticacao(),
   async (req, res) => {
     try {
       const estados = await validationExternalService.listarEstados();
       res.json({ sucesso: true, estados });
     } catch (error) {
-      res.status(500).json({ sucesso: false, erro: 'Erro ao listar estados' });
+      res.status(500).json({ sucesso: false, erro: "Erro ao listar estados" });
     }
-  }
+  },
 );
 
 /**
@@ -2242,70 +2304,86 @@ app.get('/validacao/estados',
  *       500:
  *         description: Erro interno do servidor
  */
-app.get('/validacao/municipios/:uf',
+app.get(
+  "/validacao/municipios/:uf",
   authMiddleware.verificarAutenticacao(),
   async (req, res) => {
     try {
-      const municipios = await validationExternalService.listarMunicipios(req.params.uf);
+      const municipios = await validationExternalService.listarMunicipios(
+        req.params.uf,
+      );
       res.json({ sucesso: true, municipios });
     } catch (error) {
-      if (error.message.includes('2 caracteres')) {
+      if (error.message.includes("2 caracteres")) {
         return res.status(400).json({ sucesso: false, erro: error.message });
       }
-      res.status(500).json({ sucesso: false, erro: 'Erro ao listar municípios' });
+      res
+        .status(500)
+        .json({ sucesso: false, erro: "Erro ao listar municípios" });
     }
-  }
+  },
 );
 
 // ==================== ROTAS DE PRODUTOS ====================
 // Rotas para produtos (sistema JSON)
-app.get('/produtos', authMiddleware.verificarAutenticacao(), async (req, res) => {
-  try {
-    const produtos = await database.listarProdutos(req.query);
-    res.json({ sucesso: true, produtos });
-  } catch (error) {
-    await logService.logErro('produtos_listar', error, { ip: req.ip });
-    res.status(500).json({ sucesso: false, erro: 'Erro ao listar produtos' });
-  }
-});
+app.get(
+  "/produtos",
+  authMiddleware.verificarAutenticacao(),
+  async (req, res) => {
+    try {
+      const produtos = await database.listarProdutos(req.query);
+      res.json({ sucesso: true, produtos });
+    } catch (error) {
+      await logService.logErro("produtos_listar", error, { ip: req.ip });
+      res.status(500).json({ sucesso: false, erro: "Erro ao listar produtos" });
+    }
+  },
+);
 
-app.post('/produtos', authMiddleware.verificarAutenticacao(), async (req, res) => {
-  try {
-    const produto = await database.criarProduto(req.body);
-    res.status(201).json({ sucesso: true, produto });
-  } catch (error) {
-    await logService.logErro('produto_criar', error, { ip: req.ip });
-    res.status(500).json({ sucesso: false, erro: 'Erro ao criar produto' });
-  }
-});
+app.post(
+  "/produtos",
+  authMiddleware.verificarAutenticacao(),
+  async (req, res) => {
+    try {
+      const produto = await database.criarProduto(req.body);
+      res.status(201).json({ sucesso: true, produto });
+    } catch (error) {
+      await logService.logErro("produto_criar", error, { ip: req.ip });
+      res.status(500).json({ sucesso: false, erro: "Erro ao criar produto" });
+    }
+  },
+);
 
 // ==================== ROTAS ADMINISTRATIVAS ====================
 
 // Rota para obter token CSRF
-app.get('/csrf-token', (req, res) => {
+app.get("/csrf-token", (req, res) => {
   securityMiddleware.obterTokenCSRF(req, res);
 });
 
 // Rota para status de segurança (apenas admin)
-app.get('/admin/security-status', 
+app.get(
+  "/admin/security-status",
   authMiddleware.verificarAutenticacao(),
-  authMiddleware.verificarPermissao ? authMiddleware.verificarPermissao('admin') : (req, res, next) => next(),
+  authMiddleware.verificarPermissao
+    ? authMiddleware.verificarPermissao("admin")
+    : (req, res, next) => next(),
   async (req, res) => {
     try {
       const status = securityMiddleware.obterStatusSeguranca();
       res.json({
         sucesso: true,
-        status
+        status,
       });
     } catch (error) {
-      await logService.logErro('admin_security_status', error, { ip: req.ip });
+      await logService.logErro("admin_security_status", error, { ip: req.ip });
       res.status(500).json({
         sucesso: false,
-        erro: 'Erro interno do servidor',
-        codigo: 'INTERNAL_ERROR'
+        erro: "Erro interno do servidor",
+        codigo: "INTERNAL_ERROR",
       });
     }
-  }
+  },
 );
 
 /**
@@ -2381,23 +2459,26 @@ app.get('/admin/security-status',
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-app.get('/admin/usuarios',
+app.get(
+  "/admin/usuarios",
   authMiddleware.verificarAutenticacao(),
-  authMiddleware.verificarPermissao ? authMiddleware.verificarPermissao('admin') : (req, res, next) => next(),
+  authMiddleware.verificarPermissao
+    ? authMiddleware.verificarPermissao("admin")
+    : (req, res, next) => next(),
   async (req, res) => {
     try {
       let usuarios = await database.listarUsuarios();
-      usuarios = usuarios.map(u => {
+      usuarios = usuarios.map((u) => {
         const { senha, ...semSenha } = u;
         return semSenha;
       });
-      
+
       res.json({ sucesso: true, usuarios });
     } catch (error) {
-      await logService.logErro('admin_usuarios', error, { ip: req.ip });
-      res.status(500).json({ sucesso: false, erro: 'Erro ao listar usuários' });
+      await logService.logErro("admin_usuarios", error, { ip: req.ip });
+      res.status(500).json({ sucesso: false, erro: "Erro ao listar usuários" });
     }
-  }
+  },
 );
 
 /**
@@ -2473,28 +2554,33 @@ app.get('/admin/usuarios',
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-app.get('/admin/health',
+app.get(
+  "/admin/health",
   authMiddleware.verificarAutenticacao(),
-  authMiddleware.verificarPermissao ? authMiddleware.verificarPermissao('admin') : (req, res, next) => next(),
+  authMiddleware.verificarPermissao
+    ? authMiddleware.verificarPermissao("admin")
+    : (req, res, next) => next(),
   async (req, res) => {
     try {
       const health = {
-        status: 'ok',
+        status: "ok",
         timestamp: new Date().toISOString(),
         uptime: process.uptime(),
         versaoNode: process.version,
         ambiente: NODE_ENV,
-        bancoDados: 'Arquivo JSON',
+        bancoDados: "Arquivo JSON",
         conectado: database.isConnected ? database.isConnected() : true,
-        simulacao: process.env.SIMULATION_MODE === 'true'
+        simulacao: process.env.SIMULATION_MODE === "true",
       };
-      
+
       res.json({ sucesso: true, health });
     } catch (error) {
-      await logService.logErro('admin_health', error, { ip: req.ip });
-      res.status(500).json({ sucesso: false, erro: 'Erro ao verificar saúde do sistema' });
+      await logService.logErro("admin_health", error, { ip: req.ip });
+      res
+        .status(500)
+        .json({ sucesso: false, erro: "Erro ao verificar saúde do sistema" });
     }
-  }
+  },
 );
 
 // ==================== ENDPOINTS DE MONITORAMENTO ====================
@@ -2544,10 +2630,10 @@ app.get('/admin/health',
  *                   example: "Sistema temporariamente indisponível"
  */
 // Health check básico (público)
-app.get('/health', healthCheckHandler);
+app.get("/health", healthCheckHandler);
 
 // Rota alternativa para compatibilidade com frontend
-app.get('/api/health', healthCheckHandler);
+app.get("/api/health", healthCheckHandler);
 
 /**
  * @swagger
@@ -2646,9 +2732,10 @@ app.get('/api/health', healthCheckHandler);
  *               $ref: '#/components/schemas/Error'
  */
 // Health check detalhado (requer autenticação)
-app.get('/health/detailed', 
+app.get(
+  "/health/detailed",
   authMiddleware.verificarAutenticacao(),
-  detailedHealthCheckHandler
+  detailedHealthCheckHandler,
 );
 
 /**
@@ -2670,15 +2757,15 @@ app.get('/health/detailed',
  *                 # HELP nodejs_heap_size_total_bytes Process heap size from Node.js in bytes.
  *                 # TYPE nodejs_heap_size_total_bytes gauge
  *                 nodejs_heap_size_total_bytes 38797312
- *                 
+ *
  *                 # HELP nodejs_heap_size_used_bytes Process heap size used from Node.js in bytes.
  *                 # TYPE nodejs_heap_size_used_bytes gauge
  *                 nodejs_heap_size_used_bytes 36700160
- *                 
+ *
  *                 # HELP http_requests_total Total number of HTTP requests
  *                 # TYPE http_requests_total counter
  *                 http_requests_total{method="GET",status_code="200"} 156
- *                 
+ *
  *                 # HELP http_request_duration_seconds HTTP request duration in seconds
  *                 # TYPE http_request_duration_seconds histogram
  *                 http_request_duration_seconds_bucket{le="0.1"} 120
@@ -2687,7 +2774,7 @@ app.get('/health/detailed',
  *                 http_request_duration_seconds_bucket{le="+Inf"} 156
  *                 http_request_duration_seconds_sum 245.6
  *                 http_request_duration_seconds_count 156
- *                 
+ *
  *                 # HELP nfe_operations_total Total number of NFe operations
  *                 # TYPE nfe_operations_total counter
  *                 nfe_operations_total{operation="emitir",status="success"} 45
@@ -2701,7 +2788,7 @@ app.get('/health/detailed',
  *               $ref: '#/components/schemas/Error'
  */
 // Métricas Prometheus (público para scraping)
-app.get('/metrics', metricsHandler);
+app.get("/metrics", metricsHandler);
 
 /**
  * @swagger
@@ -2825,9 +2912,10 @@ app.get('/metrics', metricsHandler);
  *               $ref: '#/components/schemas/Error'
  */
 // Status de performance (requer autenticação)
-app.get('/status/performance', 
+app.get(
+  "/status/performance",
   authMiddleware.verificarAutenticacao(),
-  performanceStatusHandler
+  performanceStatusHandler,
 );
 
 // Alertas (requer autenticação admin)
@@ -2945,10 +3033,13 @@ app.get('/status/performance',
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-app.get('/admin/alerts', 
+app.get(
+  "/admin/alerts",
   authMiddleware.verificarAutenticacao(),
-  authMiddleware.verificarPermissao ? authMiddleware.verificarPermissao('admin') : (req, res, next) => next(),
-  alertsHandler
+  authMiddleware.verificarPermissao
+    ? authMiddleware.verificarPermissao("admin")
+    : (req, res, next) => next(),
+  alertsHandler,
 );
 
 /**
@@ -3052,10 +3143,13 @@ app.get('/admin/alerts',
  *               $ref: '#/components/schemas/Error'
  */
 // Teste de alertas (requer autenticação admin)
-app.post('/admin/alerts/test', 
+app.post(
+  "/admin/alerts/test",
   authMiddleware.verificarAutenticacao(),
-  authMiddleware.verificarPermissao ? authMiddleware.verificarPermissao('admin') : (req, res, next) => next(),
-  testAlertHandler
+  authMiddleware.verificarPermissao
+    ? authMiddleware.verificarPermissao("admin")
+    : (req, res, next) => next(),
+  testAlertHandler,
 );
 
 // ==================== MIDDLEWARE DE ERRO AVANÇADO ====================
@@ -3063,7 +3157,7 @@ app.post('/admin/alerts/test',
 app.use(errorLoggingMiddleware());
 
 // Middleware para rotas não encontradas (404) - deve vir antes do handler de erro global
-app.use('*', advancedLogger.notFoundHandler());
+app.use("*", advancedLogger.notFoundHandler());
 
 // Middleware global de captura de erros - deve ser o último
 app.use(advancedLogger.globalErrorHandler());
@@ -3101,39 +3195,44 @@ app.use(advancedLogger.globalErrorHandler());
 
 // ==================== CONFIGURAÇÕES DE PRODUÇÃO ====================
 // Configurar compressão para produção
-if (NODE_ENV === 'production') {
-  const compression = require('compression');
-  app.use(compression({
-    level: parseInt(process.env.COMPRESSION_LEVEL) || 6,
-    threshold: 1024,
-    filter: (req, res) => {
-      if (req.headers['x-no-compression']) {
-        return false;
-      }
-      return compression.filter(req, res);
-    }
-  }));
-  
-  console.log('✅ Compressão habilitada para produção');
+if (NODE_ENV === "production") {
+  const compression = require("compression");
+  app.use(
+    compression({
+      level: parseInt(process.env.COMPRESSION_LEVEL) || 6,
+      threshold: 1024,
+      filter: (req, res) => {
+        if (req.headers["x-no-compression"]) {
+          return false;
+        }
+        return compression.filter(req, res);
+      },
+    }),
+  );
+
+  console.log("✅ Compressão habilitada para produção");
 }
 
 // Configurar cache para produção
-if (NODE_ENV === 'production' && process.env.ENABLE_CACHE === 'true') {
-  app.use('/static', express.static(path.join(__dirname, 'public'), {
-    maxAge: '1y',
-    etag: true,
-    lastModified: true
-  }));
-  
-  console.log('✅ Cache estático habilitado');
+if (NODE_ENV === "production" && process.env.ENABLE_CACHE === "true") {
+  app.use(
+    "/static",
+    express.static(path.join(__dirname, "public"), {
+      maxAge: "1y",
+      etag: true,
+      lastModified: true,
+    }),
+  );
+
+  console.log("✅ Cache estático habilitado");
 }
 
 // Graceful shutdown
-process.on('SIGTERM', () => {
-  console.log('📡 Recebido SIGTERM, iniciando shutdown graceful...');
+process.on("SIGTERM", () => {
+  console.log("📡 Recebido SIGTERM, iniciando shutdown graceful...");
   if (global.server) {
     global.server.close(() => {
-      console.log('✅ Servidor HTTP fechado');
+      console.log("✅ Servidor HTTP fechado");
       process.exit(0);
     });
   } else {
@@ -3141,11 +3240,11 @@ process.on('SIGTERM', () => {
   }
 });
 
-process.on('SIGINT', () => {
-  console.log('📡 Recebido SIGINT, iniciando shutdown graceful...');
+process.on("SIGINT", () => {
+  console.log("📡 Recebido SIGINT, iniciando shutdown graceful...");
   if (global.server) {
     global.server.close(() => {
-      console.log('✅ Servidor HTTP fechado');
+      console.log("✅ Servidor HTTP fechado");
       process.exit(0);
     });
   } else {
@@ -3156,24 +3255,24 @@ process.on('SIGINT', () => {
 // ==================== INICIALIZAÇÃO DO SERVIDOR ====================
 async function iniciarServidor() {
   try {
-    console.log('🚀 Iniciando servidor consolidado...');
+    console.log("🚀 Iniciando servidor consolidado...");
     console.log(`🔧 Ambiente: ${NODE_ENV}`);
     console.log(`🔧 Porta: ${PORT}`);
-    console.log(`🔧 Workers: ${process.env.WORKERS || 'auto'}`);
-    
+    console.log(`🔧 Workers: ${process.env.WORKERS || "auto"}`);
+
     // Tentar conectar ao banco de dados
     try {
       await database.conectarBanco();
-      console.log('✅ Banco de dados JSON conectado');
+      console.log("✅ Banco de dados JSON conectado");
     } catch (dbError) {
-      console.warn('⚠️ Falha ao conectar banco de dados:', dbError.message);
-      console.log('🔄 Servidor continuará sem banco de dados...');
+      console.warn("⚠️ Falha ao conectar banco de dados:", dbError.message);
+      console.log("🔄 Servidor continuará sem banco de dados...");
     }
 
     // Seed automático removido - usando apenas arquivos JSON
 
-    console.log('✅ Servidor configurado com sucesso!');
-    
+    console.log("✅ Servidor configurado com sucesso!");
+
     // ==================== MONITORAMENTO PERIÓDICO ====================
     // Iniciar monitoramento periódico de métricas e alertas
     setInterval(async () => {
@@ -3187,21 +3286,20 @@ async function iniciarServidor() {
           avgResponseTime: 0, // Será atualizado pelo APM
           errorRate: 0, // Será calculado baseado nos logs
           nfeErrorRate: 0, // Será calculado baseado nas operações NFe
-          sefazConnectivity: true // Será verificado pelo health check
+          sefazConnectivity: true, // Será verificado pelo health check
         };
-        
+
         // Processar alertas baseados nas métricas
         processAlerts(metrics);
-        
       } catch (error) {
-        console.error('Erro no monitoramento periódico:', error.message);
+        console.error("Erro no monitoramento periódico:", error.message);
       }
     }, 60000); // A cada 1 minuto
-    
+
     // Iniciar servidor Express
-    const server = app.listen(PORT, '0.0.0.0', () => {
+    const server = app.listen(PORT, "0.0.0.0", () => {
       console.log(`🌐 Servidor rodando em http://localhost:${PORT}`);
-      console.log('📋 Endpoints disponíveis:');
+      console.log("📋 Endpoints disponíveis:");
       console.log(`   - POST http://localhost:${PORT}/auth/login`);
       console.log(`   - POST http://localhost:${PORT}/auth/register`);
       console.log(`   - GET  http://localhost:${PORT}/auth/validate`);
@@ -3220,45 +3318,108 @@ async function iniciarServidor() {
       console.log(`   - GET  http://localhost:${PORT}/nfe/consultar/:chave`);
       console.log(`   - POST http://localhost:${PORT}/nfe/cancelar`);
       console.log(`   - POST http://localhost:${PORT}/nfe/inutilizar`);
-      console.log(`   - GET  http://localhost:${PORT}/nfe/download/:tipo/:chave`);
+      console.log(
+        `   - GET  http://localhost:${PORT}/nfe/download/:tipo/:chave`,
+      );
       console.log(`   - POST http://localhost:${PORT}/nfe/validar`);
       console.log(`   - GET  http://localhost:${PORT}/admin/usuarios`);
       console.log(`   - GET  http://localhost:${PORT}/admin/health`);
       console.log(`   - GET  http://localhost:${PORT}/admin/alerts`);
       console.log(`   - POST http://localhost:${PORT}/admin/alerts/test`);
       console.log(`   - GET  http://localhost:${PORT}/status/performance`);
-      
+
       console.log(`   - GET  http://localhost:${PORT}/clientes`);
       console.log(`   - POST http://localhost:${PORT}/clientes`);
       console.log(`   - GET  http://localhost:${PORT}/produtos`);
       console.log(`   - POST http://localhost:${PORT}/produtos`);
-      
-      console.log('');
-      const ambiente = process.env.AMBIENTE === "1" ? "PRODUÇÃO" : "HOMOLOGAÇÃO";
-      const simulacao = process.env.SIMULATION_MODE === 'true' ? " (SIMULAÇÃO)" : "";
+
+      console.log("");
+      const ambiente =
+        process.env.AMBIENTE === "1" ? "PRODUÇÃO" : "HOMOLOGAÇÃO";
+      const simulacao =
+        process.env.SIMULATION_MODE === "true" ? " (SIMULAÇÃO)" : "";
       console.log(`✅ SISTEMA ${ambiente}: Certificado A1 configurado e ativo`);
       console.log(`✅ NFe em modo ${ambiente}${simulacao} - SEFAZ ativa`);
-      console.log('');
-      console.log('🔐 Login padrão: admin@brandaocontador.com.br');
-      
+      console.log("");
+      console.log("🔐 Login padrão: admin@brandaocontador.com.br");
+
       // Notificar que o servidor está pronto (para PM2)
       if (process.send) {
-        process.send('ready');
+        process.send("ready");
       }
     });
 
+    // ==================== JOBS PERIÓDICOS ====================
+    const cron = require("node-cron");
+    function reqAppLogger() {
+      return {
+        logInfo: (dom, msg, req, meta) => logService.log(dom, "INFO", meta || {}),
+        logError: (dom, msg, req, err, meta) => logService.logErro(dom, err, meta || {}),
+      };
+    }
+    const dfeCron = process.env.DFE_CRON || "*/30 * * * *";
+  const cacheCleanCron = process.env.CACHE_CLEAN_CRON || "0 3 * * *";
+  const backupCron = process.env.BACKUP_CRON || "0 2 * * *";
+  const xsdValidationCron = process.env.XSD_VALIDATION_CRON || "0 1 * * *";
+  try {
+      cron.schedule(dfeCron, async () => {
+        const logger = reqAppLogger();
+        const inicio = Date.now();
+        const batchId = `DFE-${Date.now()}`;
+        logger.logInfo("jobs", "Execução DF-e contínuo iniciada", null, { batchId });
+        try {
+          await nfeService.processarDistribuicaoContinua();
+          logger.logInfo("jobs", "Execução DF-e contínuo concluída", null, { batchId, duracao: (Date.now() - inicio) / 1000 });
+        } catch (err) {
+          logger.logError("jobs", "Falha em DF-e contínuo", null, err, { batchId });
+        }
+      });
+      cron.schedule(cacheCleanCron, async () => {
+        const logger = reqAppLogger();
+        logger.logInfo("jobs", "Limpeza de cache iniciada");
+        try {
+          const maxAge = parseInt(process.env.CACHE_MAX_AGE_DAYS || "30");
+          const maxSize = parseInt(process.env.CACHE_MAX_SIZE_MB || "200");
+          await nfeService.limparCache(maxAge, maxSize);
+          logger.logInfo("jobs", "Limpeza de cache concluída");
+    } catch (err) {
+      logger.logError("jobs", "Falha na limpeza de cache", null, err);
+    }
+  });
+  cron.schedule(xsdValidationCron, async () => {
+    const logger = reqAppLogger();
+    logger.logInfo("jobs", "Validação XSD iniciada");
+    try {
+      require("child_process").execSync("node scripts/verify-xsd.js", { stdio: "inherit" });
+      logger.logInfo("jobs", "Validação XSD concluída");
+    } catch (err) {
+      logger.logError("jobs", "Falha na validação XSD", null, err);
+    }
+  });
+  cron.schedule(backupCron, async () => {
+    const logger = reqAppLogger();
+    logger.logInfo("jobs", "Backup iniciado");
+    try {
+      require("child_process").execSync("node scripts/backup.js", { stdio: "inherit" });
+      logger.logInfo("jobs", "Backup concluído");
+    } catch (err) {
+      logger.logError("jobs", "Falha no backup", null, err);
+    }
+  });
+    } catch {}
+
     // Salvar referência do servidor para graceful shutdown
     global.server = server;
-    
+
     // Configurar timeouts para produção
-    if (NODE_ENV === 'production') {
+    if (NODE_ENV === "production") {
       server.timeout = parseInt(process.env.SERVER_TIMEOUT) || 30000;
-      server.keepAliveTimeout = parseInt(process.env.KEEP_ALIVE_TIMEOUT) || 5000;
+      server.keepAliveTimeout =
+        parseInt(process.env.KEEP_ALIVE_TIMEOUT) || 5000;
       server.headersTimeout = parseInt(process.env.HEADERS_TIMEOUT) || 6000;
     }
-
   } catch (error) {
-    console.error('❌ Erro ao iniciar servidor:', error.message);
+    console.error("❌ Erro ao iniciar servidor:", error.message);
     process.exit(1);
   }
 }

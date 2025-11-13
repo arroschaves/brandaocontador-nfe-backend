@@ -12,12 +12,12 @@ Sistema completo de emissão de documentos fiscais eletrônicos (NFe, CTe, MDFe)
 
 ### 2.1 User Roles
 
-| Role | Registration Method | Core Permissions |
-|------|---------------------|------------------|
+| Role          | Registration Method        | Core Permissions                                                           |
+| ------------- | -------------------------- | -------------------------------------------------------------------------- |
 | Administrador | Cadastro direto no sistema | Gerenciar usuários, configurações globais, certificados, logs de auditoria |
-| Contador | Convite do administrador | Emitir todos os documentos, gerenciar clientes, configurar empresas |
-| Operador | Convite do contador | Emitir documentos básicos, consultar status, visualizar relatórios |
-| Cliente | Convite do contador | Visualizar seus documentos, consultar status, baixar XMLs/PDFs |
+| Contador      | Convite do administrador   | Emitir todos os documentos, gerenciar clientes, configurar empresas        |
+| Operador      | Convite do contador        | Emitir documentos básicos, consultar status, visualizar relatórios         |
+| Cliente       | Convite do contador        | Visualizar seus documentos, consultar status, baixar XMLs/PDFs             |
 
 ### 2.2 Feature Module
 
@@ -35,36 +35,37 @@ Nosso sistema de documentos fiscais consiste nas seguintes páginas principais:
 
 ### 2.3 Page Details
 
-| Page Name | Module Name | Feature description |
-|-----------|-------------|---------------------|
-| Dashboard | Status Overview | Display real-time SEFAZ status, certificate validity, monthly tax summary, pending operations alerts |
-| Dashboard | Quick Actions | Quick access to emit NFe/CTe/MDFe, check document status, download XMLs |
-| Dashboard | Tax Calculator | Preview tax calculations by regime, IBS/CBS simulator for 2026 |
-| Emissão NFe | Product/Service Form | Add products with automatic GTIN validation, service descriptions, CFOP selection |
-| Emissão NFe | Tax Calculation | Automatic calculation by tax regime (Simples, Presumido, Real), ICMS-ST, PIS/COFINS |
-| Emissão NFe | 2026 Fields | IBS/CBS fields (optional 2025, mandatory 2026), IS for selective products |
-| Emissão NFe | Validation Engine | Real-time XSD validation, SEFAZ rules check, duplicate prevention |
-| Emissão CTe | Transport Data | Origin/destination, cargo details, freight calculation, modal selection |
-| Emissão CTe | MDFe Integration | Link to existing MDFe, automatic cancellation rules, 24h/168h validation |
-| Emissão MDFe | Document Management | Include CTe/NFe, conductor management, route planning |
-| Emissão MDFe | Closure Control | Automatic closure, mileage tracking, fuel consumption |
-| Gestão de Eventos | Cancellation | Time-based validation by state, MDFe/CTe dependency check, justification required |
-| Gestão de Eventos | Correction Letter | Field validation (allowed/forbidden), correction history, automatic numbering |
-| Gestão de Eventos | Return/Reversal | Symbolic return for ICMS taxpayers, reversal for expired cancellation |
-| Gestão de Eventos | Referenced Invoice | Link original documents, justification, operation type selection |
-| Consultas SEFAZ | Document Status | Query by access key, CNPJ batch query, real-time SEFAZ communication |
-| Consultas SEFAZ | Recipient Manifestation | Confirm operation, unknown operation, operation not performed |
-| Relatórios Fiscais | Tax Books | ICMS register, IPI register, ISS register, electronic books generation |
-| Relatórios Fiscais | Tax Calculation | Monthly tax summary by regime, credit/debit analysis, 2026 simulation |
-| Configurações | Digital Certificate | A1/A3 certificate management, validity alerts, automatic renewal reminders |
-| Configurações | Company Data | Tax regime configuration, CNAE, state registration, municipal registration |
-| Configurações | SEFAZ Parameters | Environment selection (homolog/production), timeout settings, retry logic |
-| Auditoria | System Logs | All SEFAZ communications, user actions, error tracking, performance metrics |
-| Auditoria | Compliance Reports | Legal compliance status, missing documents, tax inconsistencies |
+| Page Name          | Module Name             | Feature description                                                                                  |
+| ------------------ | ----------------------- | ---------------------------------------------------------------------------------------------------- |
+| Dashboard          | Status Overview         | Display real-time SEFAZ status, certificate validity, monthly tax summary, pending operations alerts |
+| Dashboard          | Quick Actions           | Quick access to emit NFe/CTe/MDFe, check document status, download XMLs                              |
+| Dashboard          | Tax Calculator          | Preview tax calculations by regime, IBS/CBS simulator for 2026                                       |
+| Emissão NFe        | Product/Service Form    | Add products with automatic GTIN validation, service descriptions, CFOP selection                    |
+| Emissão NFe        | Tax Calculation         | Automatic calculation by tax regime (Simples, Presumido, Real), ICMS-ST, PIS/COFINS                  |
+| Emissão NFe        | 2026 Fields             | IBS/CBS fields (optional 2025, mandatory 2026), IS for selective products                            |
+| Emissão NFe        | Validation Engine       | Real-time XSD validation, SEFAZ rules check, duplicate prevention                                    |
+| Emissão CTe        | Transport Data          | Origin/destination, cargo details, freight calculation, modal selection                              |
+| Emissão CTe        | MDFe Integration        | Link to existing MDFe, automatic cancellation rules, 24h/168h validation                             |
+| Emissão MDFe       | Document Management     | Include CTe/NFe, conductor management, route planning                                                |
+| Emissão MDFe       | Closure Control         | Automatic closure, mileage tracking, fuel consumption                                                |
+| Gestão de Eventos  | Cancellation            | Time-based validation by state, MDFe/CTe dependency check, justification required                    |
+| Gestão de Eventos  | Correction Letter       | Field validation (allowed/forbidden), correction history, automatic numbering                        |
+| Gestão de Eventos  | Return/Reversal         | Symbolic return for ICMS taxpayers, reversal for expired cancellation                                |
+| Gestão de Eventos  | Referenced Invoice      | Link original documents, justification, operation type selection                                     |
+| Consultas SEFAZ    | Document Status         | Query by access key, CNPJ batch query, real-time SEFAZ communication                                 |
+| Consultas SEFAZ    | Recipient Manifestation | Confirm operation, unknown operation, operation not performed                                        |
+| Relatórios Fiscais | Tax Books               | ICMS register, IPI register, ISS register, electronic books generation                               |
+| Relatórios Fiscais | Tax Calculation         | Monthly tax summary by regime, credit/debit analysis, 2026 simulation                                |
+| Configurações      | Digital Certificate     | A1/A3 certificate management, validity alerts, automatic renewal reminders                           |
+| Configurações      | Company Data            | Tax regime configuration, CNAE, state registration, municipal registration                           |
+| Configurações      | SEFAZ Parameters        | Environment selection (homolog/production), timeout settings, retry logic                            |
+| Auditoria          | System Logs             | All SEFAZ communications, user actions, error tracking, performance metrics                          |
+| Auditoria          | Compliance Reports      | Legal compliance status, missing documents, tax inconsistencies                                      |
 
 ## 3. Core Process
 
 ### Fluxo Principal do Contador:
+
 1. **Login** → Autenticação com certificado digital
 2. **Dashboard** → Visualização geral do status
 3. **Configuração Empresa** → Definir regime tributário e parâmetros
@@ -74,6 +75,7 @@ Nosso sistema de documentos fiscais consiste nas seguintes páginas principais:
 7. **Relatórios** → Apuração fiscal e compliance
 
 ### Fluxo do Cliente:
+
 1. **Login** → Acesso restrito aos seus documentos
 2. **Consulta Documentos** → Visualização de NFes emitidas
 3. **Download** → XMLs e PDFs dos documentos
@@ -104,7 +106,7 @@ graph TD
 
 ### 4.1 Design Style
 
-- **Cores Primárias**: 
+- **Cores Primárias**:
   - Azul Profissional: #1e40af (confiança, segurança)
   - Verde Sucesso: #059669 (aprovação, conformidade)
   - Vermelho Alerta: #dc2626 (erros, pendências)
@@ -112,7 +114,7 @@ graph TD
   - Cinza Neutro: #6b7280 (textos secundários)
   - Azul Claro: #dbeafe (backgrounds, cards)
 - **Botões**: Estilo moderno com bordas arredondadas (8px), sombras sutis, estados hover/active
-- **Tipografia**: 
+- **Tipografia**:
   - Fonte: Inter (legibilidade profissional)
   - Tamanhos: 14px (texto), 16px (labels), 18px (títulos), 24px (headers)
 - **Layout**: Design baseado em cards, navegação lateral fixa, breadcrumbs, grid responsivo
@@ -120,24 +122,24 @@ graph TD
 
 ### 4.2 Page Design Overview
 
-| Page Name | Module Name | UI Elements |
-|-----------|-------------|-------------|
-| Dashboard | Status Cards | Cards com bordas coloridas (verde=ok, vermelho=erro), ícones de status, números grandes para KPIs |
-| Dashboard | Quick Actions | Botões grandes com ícones, cores diferenciadas por tipo de documento, hover effects |
-| Emissão NFe | Form Layout | Layout em 2 colunas, campos agrupados por seção, validação em tempo real com bordas coloridas |
-| Emissão NFe | Tax Display | Cards destacados para cálculos, tabela de impostos com cores alternadas, totais em destaque |
-| Gestão de Eventos | Action Buttons | Botões com confirmação modal, cores específicas (vermelho=cancelar, azul=corrigir) |
-| Relatórios | Data Tables | Tabelas responsivas com filtros, paginação, exportação, gráficos Chart.js |
-| Configurações | Form Sections | Abas organizadas, campos de upload para certificados, indicadores de status |
+| Page Name         | Module Name    | UI Elements                                                                                       |
+| ----------------- | -------------- | ------------------------------------------------------------------------------------------------- |
+| Dashboard         | Status Cards   | Cards com bordas coloridas (verde=ok, vermelho=erro), ícones de status, números grandes para KPIs |
+| Dashboard         | Quick Actions  | Botões grandes com ícones, cores diferenciadas por tipo de documento, hover effects               |
+| Emissão NFe       | Form Layout    | Layout em 2 colunas, campos agrupados por seção, validação em tempo real com bordas coloridas     |
+| Emissão NFe       | Tax Display    | Cards destacados para cálculos, tabela de impostos com cores alternadas, totais em destaque       |
+| Gestão de Eventos | Action Buttons | Botões com confirmação modal, cores específicas (vermelho=cancelar, azul=corrigir)                |
+| Relatórios        | Data Tables    | Tabelas responsivas com filtros, paginação, exportação, gráficos Chart.js                         |
+| Configurações     | Form Sections  | Abas organizadas, campos de upload para certificados, indicadores de status                       |
 
 ### 4.3 Responsiveness
 
 - **Desktop-first**: Otimizado para uso profissional em desktop
 - **Mobile-adaptive**: Navegação colapsável, tabelas horizontalmente scrolláveis, formulários empilhados
 - **Touch-friendly**: Botões com tamanho mínimo 44px, espaçamento adequado para touch
-- **Breakpoints**: 
+- **Breakpoints**:
   - Desktop: 1024px+
-  - Tablet: 768px-1023px  
+  - Tablet: 768px-1023px
   - Mobile: 320px-767px
 
 ## 5. Funcionalidades Específicas 2025/2026

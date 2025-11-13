@@ -17,6 +17,7 @@ Este documento explica como configurar o deploy automático do backend NFe para 
 Clique em **New repository secret** e adicione os seguintes secrets:
 
 #### 🔐 CONTABO_SSH_PASSWORD
+
 - **Nome:** `CONTABO_SSH_PASSWORD`
 - **Valor:** A senha SSH do servidor CONTABO
 - **Descrição:** Senha para autenticação SSH no servidor
@@ -28,6 +29,7 @@ Valor: [SENHA_DO_SERVIDOR_CONTABO]
 ## 📊 Configurações do Servidor
 
 ### Informações do Servidor CONTABO
+
 - **IP:** 147.93.186.214
 - **Porta SSH:** 22
 - **Usuário:** root
@@ -38,14 +40,18 @@ Valor: [SENHA_DO_SERVIDOR_CONTABO]
 ## 🔄 Como Funciona o Deploy
 
 ### Trigger Automático
+
 O deploy é executado automaticamente quando:
+
 - Há push na branch `main` ou `master`
 - Arquivos na pasta `backend/` são modificados
 - O arquivo `ecosystem.config.js` é modificado
 - O próprio workflow é modificado
 
 ### Trigger Manual
+
 Você também pode executar o deploy manualmente:
+
 1. Vá para **Actions** no repositório
 2. Selecione **🚀 Deploy Backend NFe para Contabo**
 3. Clique em **Run workflow**
@@ -56,11 +62,13 @@ Você também pode executar o deploy manualmente:
 ## 📝 Processo de Deploy
 
 ### 1. Testes e Validação
+
 - ✅ Verificação de sintaxe do código
 - ✅ Validação dos arquivos JSON
 - ✅ Verificação da estrutura de arquivos
 
 ### 2. Deploy no Servidor
+
 - 📦 Preparação dos arquivos
 - 🚀 Transferência para CONTABO
 - 💾 Backup automático
@@ -70,6 +78,7 @@ Você também pode executar o deploy manualmente:
 - 🚀 Reinício da aplicação
 
 ### 3. Verificação de Saúde
+
 - ✅ Verificação do PM2
 - ✅ Teste de conectividade
 - ✅ Verificação da estrutura JSON
@@ -100,6 +109,7 @@ pm2 save
 ## 📊 Estrutura de Arquivos JSON
 
 O sistema mantém os seguintes arquivos JSON:
+
 - `data/clientes.json` - Dados dos clientes
 - `data/configuracoes.json` - Configurações do sistema
 - `data/database.json` - Base de dados principal
@@ -111,11 +121,13 @@ O sistema mantém os seguintes arquivos JSON:
 ## 🔍 Monitoramento
 
 ### Verificar Status do Deploy
+
 1. Vá para **Actions** no GitHub
 2. Veja o status do último deploy
 3. Clique no deploy para ver logs detalhados
 
 ### Verificar Aplicação no Servidor
+
 ```bash
 # Conectar ao servidor
 ssh root@147.93.186.214
@@ -136,11 +148,13 @@ curl http://localhost:3000/api/health
 ### Problemas Comuns
 
 #### 1. Falha na Conexão SSH
+
 - ✅ Verificar se o secret `CONTABO_SSH_PASSWORD` está correto
 - ✅ Verificar se o servidor está acessível
 - ✅ Verificar firewall do servidor
 
 #### 2. Falha no PM2
+
 ```bash
 # No servidor, verificar PM2
 pm2 list
@@ -149,6 +163,7 @@ pm2 logs nfe-backend --lines 50
 ```
 
 #### 3. Falha na Instalação de Dependências
+
 ```bash
 # No servidor, reinstalar dependências
 cd /var/www/brandaocontador-nfe-backend
@@ -157,6 +172,7 @@ npm install --production
 ```
 
 #### 4. Problemas com Arquivos JSON
+
 ```bash
 # Verificar estrutura JSON
 cd /var/www/brandaocontador-nfe-backend
@@ -168,10 +184,12 @@ echo "[]" > data/clientes.json
 ### Logs Importantes
 
 #### GitHub Actions
+
 - Logs completos disponíveis na aba **Actions**
 - Cada step mostra detalhes específicos
 
 #### Servidor CONTABO
+
 ```bash
 # Logs da aplicação
 pm2 logs nfe-backend
@@ -186,6 +204,7 @@ sudo tail -f /var/log/nginx/error.log
 ## 🔄 Rollback
 
 ### Em Caso de Problemas
+
 ```bash
 # 1. Conectar ao servidor
 ssh root@147.93.186.214
@@ -203,11 +222,13 @@ pm2 restart nfe-backend
 ## 📞 Suporte
 
 ### Contatos
+
 - **Desenvolvedor:** arroschaves
 - **Email:** professormatms@bo.com.br
 - **Repositório:** https://github.com/arroschaves/brandaocontador-nfe-backend
 
 ### Informações Técnicas
+
 - **Servidor:** CONTABO VPS
 - **Sistema:** Ubuntu 24.04.3 LTS
 - **Node.js:** 22.x

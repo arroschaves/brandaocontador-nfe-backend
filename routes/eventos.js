@@ -1,8 +1,8 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const eventosService = require('../services/eventos-service');
-const validationService = require('../services/validation-service');
-const authMiddleware = require('../middleware/auth');
+const eventosService = require("../services/eventos-service");
+const validationService = require("../services/validation-service");
+const authMiddleware = require("../middleware/auth");
 
 /**
  * @swagger
@@ -66,64 +66,73 @@ const authMiddleware = require('../middleware/auth');
  *       400:
  *         description: Prazo para cancelamento expirado ou dados inválidos
  */
-router.post('/cancelar-nfe', authMiddleware.verificarAutenticacao(), async (req, res) => {
-  try {
-    const { chave, protocolo, justificativa, uf } = req.body;
-    
-    // Validar dados de entrada
-    const validacao = await validationService.validarDadosCancelamento({
-      chave,
-      protocolo,
-      justificativa,
-      uf
-    });
-    
-    if (!validacao.valido) {
-      return res.status(400).json({
-        sucesso: false,
-        erro: 'Dados inválidos',
-        detalhes: validacao.erros
-      });
-    }
+router.post(
+  "/cancelar-nfe",
+  authMiddleware.verificarAutenticacao(),
+  async (req, res) => {
+    try {
+      const { chave, protocolo, justificativa, uf } = req.body;
 
-    // Validar prazo de cancelamento por UF
-    const validacaoPrazo = await eventosService.validarPrazoCancelamento(chave, uf);
-    if (!validacaoPrazo.dentroDoprazo) {
-      return res.status(400).json({
-        sucesso: false,
-        erro: 'Prazo para cancelamento expirado',
-        detalhes: {
+      // Validar dados de entrada
+      const validacao = await validationService.validarDadosCancelamento({
+        chave,
+        protocolo,
+        justificativa,
+        uf,
+      });
+
+      if (!validacao.valido) {
+        return res.status(400).json({
+          sucesso: false,
+          erro: "Dados inválidos",
+          detalhes: validacao.erros,
+        });
+      }
+
+      // Validar prazo de cancelamento por UF
+      const validacaoPrazo = await eventosService.validarPrazoCancelamento(
+        chave,
+        uf,
+      );
+      if (!validacaoPrazo.dentroDoprazo) {
+        return res.status(400).json({
+          sucesso: false,
+          erro: "Prazo para cancelamento expirado",
+          detalhes: {
+            uf,
+            prazoHoras: validacaoPrazo.prazoHoras,
+            horasDecorridas: validacaoPrazo.horasDecorridas,
+            dataLimite: validacaoPrazo.dataLimite,
+          },
+        });
+      }
+
+      // Cancelar NFe
+      const resultado = await eventosService.cancelarNfe(
+        {
+          chave,
+          protocolo,
+          justificativa,
           uf,
-          prazoHoras: validacaoPrazo.prazoHoras,
-          horasDecorridas: validacaoPrazo.horasDecorridas,
-          dataLimite: validacaoPrazo.dataLimite
-        }
+        },
+        req.user,
+      );
+
+      res.json({
+        sucesso: true,
+        ...resultado,
+        prazoValidado: validacaoPrazo,
+      });
+    } catch (error) {
+      console.error("Erro ao cancelar NFe:", error);
+      res.status(500).json({
+        sucesso: false,
+        erro: "Erro interno do servidor",
+        detalhes: error.message,
       });
     }
-    
-    // Cancelar NFe
-    const resultado = await eventosService.cancelarNfe({
-      chave,
-      protocolo,
-      justificativa,
-      uf
-    }, req.user);
-    
-    res.json({
-      sucesso: true,
-      ...resultado,
-      prazoValidado: validacaoPrazo
-    });
-    
-  } catch (error) {
-    console.error('Erro ao cancelar NFe:', error);
-    res.status(500).json({
-      sucesso: false,
-      erro: 'Erro interno do servidor',
-      detalhes: error.message
-    });
-  }
-});
+  },
+);
 
 /**
  * @swagger
@@ -195,59 +204,66 @@ router.post('/cancelar-nfe', authMiddleware.verificarAutenticacao(), async (req,
  *       400:
  *         description: Campos não permitidos para correção ou dados inválidos
  */
-router.post('/carta-correcao', authMiddleware.verificarAutenticacao(), async (req, res) => {
-  try {
-    const { chave, sequencia, correcao, camposPermitidos } = req.body;
-    
-    // Validar dados de entrada
-    const validacao = await validationService.validarDadosCartaCorrecao({
-      chave,
-      sequencia,
-      correcao,
-      camposPermitidos
-    });
-    
-    if (!validacao.valido) {
-      return res.status(400).json({
-        sucesso: false,
-        erro: 'Dados inválidos',
-        detalhes: validacao.erros
-      });
-    }
+router.post(
+  "/carta-correcao",
+  authMiddleware.verificarAutenticacao(),
+  async (req, res) => {
+    try {
+      const { chave, sequencia, correcao, camposPermitidos } = req.body;
 
-    // Validar campos permitidos para correção
-    const validacaoCampos = await eventosService.validarCamposCorrecao(camposPermitidos);
-    if (!validacaoCampos.valido) {
-      return res.status(400).json({
+      // Validar dados de entrada
+      const validacao = await validationService.validarDadosCartaCorrecao({
+        chave,
+        sequencia,
+        correcao,
+        camposPermitidos,
+      });
+
+      if (!validacao.valido) {
+        return res.status(400).json({
+          sucesso: false,
+          erro: "Dados inválidos",
+          detalhes: validacao.erros,
+        });
+      }
+
+      // Validar campos permitidos para correção
+      const validacaoCampos =
+        await eventosService.validarCamposCorrecao(camposPermitidos);
+      if (!validacaoCampos.valido) {
+        return res.status(400).json({
+          sucesso: false,
+          erro: "Campos não permitidos para correção",
+          detalhes: validacaoCampos,
+        });
+      }
+
+      // Emitir CCe
+      const resultado = await eventosService.emitirCartaCorrecao(
+        {
+          chave,
+          sequencia,
+          correcao,
+          camposPermitidos,
+        },
+        req.user,
+      );
+
+      res.json({
+        sucesso: true,
+        ...resultado,
+        validacaoCampos,
+      });
+    } catch (error) {
+      console.error("Erro ao emitir CCe:", error);
+      res.status(500).json({
         sucesso: false,
-        erro: 'Campos não permitidos para correção',
-        detalhes: validacaoCampos
+        erro: "Erro interno do servidor",
+        detalhes: error.message,
       });
     }
-    
-    // Emitir CCe
-    const resultado = await eventosService.emitirCartaCorrecao({
-      chave,
-      sequencia,
-      correcao,
-      camposPermitidos
-    }, req.user);
-    
-    res.json({
-      sucesso: true,
-      ...resultado,
-      validacaoCampos
-    });
-    
-  } catch (error) {
-    console.error('Erro ao emitir CCe:', error);
-    res.status(500).json({
-      sucesso: false,
-      erro: 'Erro interno do servidor',
-      detalhes: error.message
-    });
-  }
-});
+  },
+);
 
 /**
  * @swagger
@@ -301,37 +317,44 @@ router.post('/carta-correcao', authMiddleware.verificarAutenticacao(), async (re
  *       200:
  *         description: Devolução processada com sucesso
  */
-router.post('/devolucao', authMiddleware.verificarAutenticacao(), async (req, res) => {
-  try {
-    const dadosDevolucao = req.body;
-    
-    // Validar dados de devolução
-    const validacao = await validationService.validarDadosDevolucao(dadosDevolucao);
-    if (!validacao.valido) {
-      return res.status(400).json({
+router.post(
+  "/devolucao",
+  authMiddleware.verificarAutenticacao(),
+  async (req, res) => {
+    try {
+      const dadosDevolucao = req.body;
+
+      // Validar dados de devolução
+      const validacao =
+        await validationService.validarDadosDevolucao(dadosDevolucao);
+      if (!validacao.valido) {
+        return res.status(400).json({
+          sucesso: false,
+          erro: "Dados inválidos",
+          detalhes: validacao.erros,
+        });
+      }
+
+      // Processar devolução
+      const resultado = await eventosService.processarDevolucao(
+        dadosDevolucao,
+        req.user,
+      );
+
+      res.json({
+        sucesso: true,
+        ...resultado,
+      });
+    } catch (error) {
+      console.error("Erro ao processar devolução:", error);
+      res.status(500).json({
         sucesso: false,
-        erro: 'Dados inválidos',
-        detalhes: validacao.erros
+        erro: "Erro interno do servidor",
+        detalhes: error.message,
       });
     }
-
-    // Processar devolução
-    const resultado = await eventosService.processarDevolucao(dadosDevolucao, req.user);
-    
-    res.json({
-      sucesso: true,
-      ...resultado
-    });
-    
-  } catch (error) {
-    console.error('Erro ao processar devolução:', error);
-    res.status(500).json({
-      sucesso: false,
-      erro: 'Erro interno do servidor',
-      detalhes: error.message
-    });
-  }
-});
+  },
+);
 
 /**
  * @swagger
@@ -365,37 +388,44 @@ router.post('/devolucao', authMiddleware.verificarAutenticacao(), async (req, re
  *       200:
  *         description: Estorno processado com sucesso
  */
-router.post('/estorno', authMiddleware.verificarAutenticacao(), async (req, res) => {
-  try {
-    const dadosEstorno = req.body;
-    
-    // Validar dados de estorno
-    const validacao = await validationService.validarDadosEstorno(dadosEstorno);
-    if (!validacao.valido) {
-      return res.status(400).json({
+router.post(
+  "/estorno",
+  authMiddleware.verificarAutenticacao(),
+  async (req, res) => {
+    try {
+      const dadosEstorno = req.body;
+
+      // Validar dados de estorno
+      const validacao =
+        await validationService.validarDadosEstorno(dadosEstorno);
+      if (!validacao.valido) {
+        return res.status(400).json({
+          sucesso: false,
+          erro: "Dados inválidos",
+          detalhes: validacao.erros,
+        });
+      }
+
+      // Processar estorno
+      const resultado = await eventosService.processarEstorno(
+        dadosEstorno,
+        req.user,
+      );
+
+      res.json({
+        sucesso: true,
+        ...resultado,
+      });
+    } catch (error) {
+      console.error("Erro ao processar estorno:", error);
+      res.status(500).json({
         sucesso: false,
-        erro: 'Dados inválidos',
-        detalhes: validacao.erros
+        erro: "Erro interno do servidor",
+        detalhes: error.message,
       });
     }
-
-    // Processar estorno
-    const resultado = await eventosService.processarEstorno(dadosEstorno, req.user);
-    
-    res.json({
-      sucesso: true,
-      ...resultado
-    });
-    
-  } catch (error) {
-    console.error('Erro ao processar estorno:', error);
-    res.status(500).json({
-      sucesso: false,
-      erro: 'Erro interno do servidor',
-      detalhes: error.message
-    });
-  }
-});
+  },
+);
 
 /**
  * @swagger
@@ -466,47 +496,55 @@ router.post('/estorno', authMiddleware.verificarAutenticacao(), async (req, res)
  *                       type: integer
  *                       example: 6
  */
-router.post('/inutilizar', authMiddleware.verificarAutenticacao(), async (req, res) => {
-  try {
-    const dadosInutilizacao = req.body;
-    
-    // Validar dados de inutilização
-    const validacao = await validationService.validarDadosInutilizacao(dadosInutilizacao);
-    if (!validacao.valido) {
-      return res.status(400).json({
-        sucesso: false,
-        erro: 'Dados inválidos',
-        detalhes: validacao.erros
-      });
-    }
+router.post(
+  "/inutilizar",
+  authMiddleware.verificarAutenticacao(),
+  async (req, res) => {
+    try {
+      const dadosInutilizacao = req.body;
 
-    // Validar sequência de numeração
-    const validacaoSequencia = await eventosService.validarSequenciaNumeracao(dadosInutilizacao);
-    if (!validacaoSequencia.valido) {
-      return res.status(400).json({
+      // Validar dados de inutilização
+      const validacao =
+        await validationService.validarDadosInutilizacao(dadosInutilizacao);
+      if (!validacao.valido) {
+        return res.status(400).json({
+          sucesso: false,
+          erro: "Dados inválidos",
+          detalhes: validacao.erros,
+        });
+      }
+
+      // Validar sequência de numeração
+      const validacaoSequencia =
+        await eventosService.validarSequenciaNumeracao(dadosInutilizacao);
+      if (!validacaoSequencia.valido) {
+        return res.status(400).json({
+          sucesso: false,
+          erro: "Sequência de numeração inválida",
+          detalhes: validacaoSequencia.erros,
+        });
+      }
+
+      // Inutilizar numeração
+      const resultado = await eventosService.inutilizarNumeracao(
+        dadosInutilizacao,
+        req.user,
+      );
+
+      res.json({
+        sucesso: true,
+        ...resultado,
+      });
+    } catch (error) {
+      console.error("Erro ao inutilizar numeração:", error);
+      res.status(500).json({
         sucesso: false,
-        erro: 'Sequência de numeração inválida',
-        detalhes: validacaoSequencia.erros
+        erro: "Erro interno do servidor",
+        detalhes: error.message,
       });
     }
-    
-    // Inutilizar numeração
-    const resultado = await eventosService.inutilizarNumeracao(dadosInutilizacao, req.user);
-    
-    res.json({
-      sucesso: true,
-      ...resultado
-    });
-    
-  } catch (error) {
-    console.error('Erro ao inutilizar numeração:', error);
-    res.status(500).json({
-      sucesso: false,
-      erro: 'Erro interno do servidor',
-      detalhes: error.message
-    });
-  }
-});
+  },
+);
 
 /**
  * @swagger
@@ -561,27 +599,33 @@ router.post('/inutilizar', authMiddleware.verificarAutenticacao(), async (req, r
  *                         type: string
  *                         example: "admin@brandaocontador.com.br"
  */
-router.get('/historico/:chave', authMiddleware.verificarAutenticacao(), async (req, res) => {
-  try {
-    const { chave } = req.params;
-    
-    const historico = await eventosService.consultarHistoricoEventos(chave, req.user);
-    
-    res.json({
-      sucesso: true,
-      chave,
-      eventos: historico
-    });
-    
-  } catch (error) {
-    console.error('Erro ao consultar histórico de eventos:', error);
-    res.status(500).json({
-      sucesso: false,
-      erro: 'Erro interno do servidor',
-      detalhes: error.message
-    });
-  }
-});
+router.get(
+  "/historico/:chave",
+  authMiddleware.verificarAutenticacao(),
+  async (req, res) => {
+    try {
+      const { chave } = req.params;
+
+      const historico = await eventosService.consultarHistoricoEventos(
+        chave,
+        req.user,
+      );
+
+      res.json({
+        sucesso: true,
+        chave,
+        eventos: historico,
+      });
+    } catch (error) {
+      console.error("Erro ao consultar histórico de eventos:", error);
+      res.status(500).json({
+        sucesso: false,
+        erro: "Erro interno do servidor",
+        detalhes: error.message,
+      });
+    }
+  },
+);
 
 /**
  * @swagger
@@ -617,23 +661,26 @@ router.get('/historico/:chave', authMiddleware.verificarAutenticacao(), async (r
  *                         type: string
  *                         example: "24 horas após autorização"
  */
-router.get('/prazos-uf', authMiddleware.verificarAutenticacao(), async (req, res) => {
-  try {
-    const prazos = await eventosService.consultarPrazosUF();
-    
-    res.json({
-      sucesso: true,
-      prazos
-    });
-    
-  } catch (error) {
-    console.error('Erro ao consultar prazos por UF:', error);
-    res.status(500).json({
-      sucesso: false,
-      erro: 'Erro interno do servidor',
-      detalhes: error.message
-    });
-  }
-});
+router.get(
+  "/prazos-uf",
+  authMiddleware.verificarAutenticacao(),
+  async (req, res) => {
+    try {
+      const prazos = await eventosService.consultarPrazosUF();
+
+      res.json({
+        sucesso: true,
+        prazos,
+      });
+    } catch (error) {
+      console.error("Erro ao consultar prazos por UF:", error);
+      res.status(500).json({
+        sucesso: false,
+        erro: "Erro interno do servidor",
+        detalhes: error.message,
+      });
+    }
+  },
+);
 
 module.exports = router;

@@ -1,8 +1,8 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const mdfeService = require('../services/mdfe-service');
-const validationService = require('../services/validation-service');
-const authMiddleware = require('../middleware/auth');
+const mdfeService = require("../services/mdfe-service");
+const validationService = require("../services/validation-service");
+const authMiddleware = require("../middleware/auth");
 
 /**
  * @swagger
@@ -169,47 +169,52 @@ const authMiddleware = require('../middleware/auth');
  *                   type: string
  *                   format: date-time
  */
-router.post('/emitir', authMiddleware.verificarAutenticacao(), async (req, res) => {
-  try {
-    const dadosMdfe = req.body;
-    
-    // Validar dados de entrada
-    const validacao = await validationService.validarDadosMdfe(dadosMdfe);
-    if (!validacao.valido) {
-      return res.status(400).json({
-        sucesso: false,
-        erro: 'Dados inválidos',
-        detalhes: validacao.erros
-      });
-    }
+router.post(
+  "/emitir",
+  authMiddleware.verificarAutenticacao(),
+  async (req, res) => {
+    try {
+      const dadosMdfe = req.body;
 
-    // Validar documentos vinculados
-    const validacaoDocumentos = await mdfeService.validarDocumentosVinculados(dadosMdfe.documentosTransportados);
-    if (!validacaoDocumentos.valido) {
-      return res.status(400).json({
+      // Validar dados de entrada
+      const validacao = await validationService.validarDadosMdfe(dadosMdfe);
+      if (!validacao.valido) {
+        return res.status(400).json({
+          sucesso: false,
+          erro: "Dados inválidos",
+          detalhes: validacao.erros,
+        });
+      }
+
+      // Validar documentos vinculados
+      const validacaoDocumentos = await mdfeService.validarDocumentosVinculados(
+        dadosMdfe.documentosTransportados,
+      );
+      if (!validacaoDocumentos.valido) {
+        return res.status(400).json({
+          sucesso: false,
+          erro: "Documentos vinculados inválidos",
+          detalhes: validacaoDocumentos.erros,
+        });
+      }
+
+      // Emitir MDFe
+      const resultado = await mdfeService.emitirMdfe(dadosMdfe, req.user);
+
+      res.json({
+        sucesso: true,
+        ...resultado,
+      });
+    } catch (error) {
+      console.error("Erro ao emitir MDFe:", error);
+      res.status(500).json({
         sucesso: false,
-        erro: 'Documentos vinculados inválidos',
-        detalhes: validacaoDocumentos.erros
+        erro: "Erro interno do servidor",
+        detalhes: error.message,
       });
     }
-    
-    // Emitir MDFe
-    const resultado = await mdfeService.emitirMdfe(dadosMdfe, req.user);
-    
-    res.json({
-      sucesso: true,
-      ...resultado
-    });
-    
-  } catch (error) {
-    console.error('Erro ao emitir MDFe:', error);
-    res.status(500).json({
-      sucesso: false,
-      erro: 'Erro interno do servidor',
-      detalhes: error.message
-    });
-  }
-});
+  },
+);
 
 /**
  * @swagger
@@ -232,33 +237,36 @@ router.post('/emitir', authMiddleware.verificarAutenticacao(), async (req, res) 
  *       404:
  *         description: MDFe não encontrado
  */
-router.get('/consultar/:chave', authMiddleware.verificarAutenticacao(), async (req, res) => {
-  try {
-    const { chave } = req.params;
-    
-    const mdfe = await mdfeService.consultarMdfe(chave, req.user);
-    
-    if (!mdfe) {
-      return res.status(404).json({
+router.get(
+  "/consultar/:chave",
+  authMiddleware.verificarAutenticacao(),
+  async (req, res) => {
+    try {
+      const { chave } = req.params;
+
+      const mdfe = await mdfeService.consultarMdfe(chave, req.user);
+
+      if (!mdfe) {
+        return res.status(404).json({
+          sucesso: false,
+          erro: "MDFe não encontrado",
+        });
+      }
+
+      res.json({
+        sucesso: true,
+        mdfe,
+      });
+    } catch (error) {
+      console.error("Erro ao consultar MDFe:", error);
+      res.status(500).json({
         sucesso: false,
-        erro: 'MDFe não encontrado'
+        erro: "Erro interno do servidor",
+        detalhes: error.message,
       });
     }
-    
-    res.json({
-      sucesso: true,
-      mdfe
-    });
-    
-  } catch (error) {
-    console.error('Erro ao consultar MDFe:', error);
-    res.status(500).json({
-      sucesso: false,
-      erro: 'Erro interno do servidor',
-      detalhes: error.message
-    });
-  }
-});
+  },
+);
 
 /**
  * @swagger
@@ -303,32 +311,35 @@ router.get('/consultar/:chave', authMiddleware.verificarAutenticacao(), async (r
  *       200:
  *         description: Lista de MDFes
  */
-router.get('/historico', authMiddleware.verificarAutenticacao(), async (req, res) => {
-  try {
-    const filtros = {
-      page: parseInt(req.query.page) || 1,
-      limit: parseInt(req.query.limit) || 20,
-      dataInicio: req.query.dataInicio,
-      dataFim: req.query.dataFim,
-      situacao: req.query.situacao
-    };
-    
-    const resultado = await mdfeService.listarMdfes(filtros, req.user);
-    
-    res.json({
-      sucesso: true,
-      ...resultado
-    });
-    
-  } catch (error) {
-    console.error('Erro ao listar MDFes:', error);
-    res.status(500).json({
-      sucesso: false,
-      erro: 'Erro interno do servidor',
-      detalhes: error.message
-    });
-  }
-});
+router.get(
+  "/historico",
+  authMiddleware.verificarAutenticacao(),
+  async (req, res) => {
+    try {
+      const filtros = {
+        page: parseInt(req.query.page) || 1,
+        limit: parseInt(req.query.limit) || 20,
+        dataInicio: req.query.dataInicio,
+        dataFim: req.query.dataFim,
+        situacao: req.query.situacao,
+      };
+
+      const resultado = await mdfeService.listarMdfes(filtros, req.user);
+
+      res.json({
+        sucesso: true,
+        ...resultado,
+      });
+    } catch (error) {
+      console.error("Erro ao listar MDFes:", error);
+      res.status(500).json({
+        sucesso: false,
+        erro: "Erro interno do servidor",
+        detalhes: error.message,
+      });
+    }
+  },
+);
 
 /**
  * @swagger
@@ -365,36 +376,43 @@ router.get('/historico', authMiddleware.verificarAutenticacao(), async (req, res
  *       200:
  *         description: MDFe encerrado com sucesso
  */
-router.post('/encerrar', authMiddleware.verificarAutenticacao(), async (req, res) => {
-  try {
-    const dadosEncerramento = req.body;
-    
-    // Validar dados de encerramento
-    const validacao = await validationService.validarDadosEncerramentoMdfe(dadosEncerramento);
-    if (!validacao.valido) {
-      return res.status(400).json({
+router.post(
+  "/encerrar",
+  authMiddleware.verificarAutenticacao(),
+  async (req, res) => {
+    try {
+      const dadosEncerramento = req.body;
+
+      // Validar dados de encerramento
+      const validacao =
+        await validationService.validarDadosEncerramentoMdfe(dadosEncerramento);
+      if (!validacao.valido) {
+        return res.status(400).json({
+          sucesso: false,
+          erro: "Dados de encerramento inválidos",
+          detalhes: validacao.erros,
+        });
+      }
+
+      const resultado = await mdfeService.encerrarMdfe(
+        dadosEncerramento,
+        req.user,
+      );
+
+      res.json({
+        sucesso: true,
+        ...resultado,
+      });
+    } catch (error) {
+      console.error("Erro ao encerrar MDFe:", error);
+      res.status(500).json({
         sucesso: false,
-        erro: 'Dados de encerramento inválidos',
-        detalhes: validacao.erros
+        erro: "Erro interno do servidor",
+        detalhes: error.message,
       });
     }
-    
-    const resultado = await mdfeService.encerrarMdfe(dadosEncerramento, req.user);
-    
-    res.json({
-      sucesso: true,
-      ...resultado
-    });
-    
-  } catch (error) {
-    console.error('Erro ao encerrar MDFe:', error);
-    res.status(500).json({
-      sucesso: false,
-      erro: 'Erro interno do servidor',
-      detalhes: error.message
-    });
-  }
-});
+  },
+);
 
 /**
  * @swagger
@@ -430,36 +448,43 @@ router.post('/encerrar', authMiddleware.verificarAutenticacao(), async (req, res
  *       200:
  *         description: Condutor incluído com sucesso
  */
-router.post('/incluir-condutor', authMiddleware.verificarAutenticacao(), async (req, res) => {
-  try {
-    const { chave, condutor } = req.body;
-    
-    // Validar dados do condutor
-    const validacao = await validationService.validarDadosCondutor(condutor);
-    if (!validacao.valido) {
-      return res.status(400).json({
+router.post(
+  "/incluir-condutor",
+  authMiddleware.verificarAutenticacao(),
+  async (req, res) => {
+    try {
+      const { chave, condutor } = req.body;
+
+      // Validar dados do condutor
+      const validacao = await validationService.validarDadosCondutor(condutor);
+      if (!validacao.valido) {
+        return res.status(400).json({
+          sucesso: false,
+          erro: "Dados do condutor inválidos",
+          detalhes: validacao.erros,
+        });
+      }
+
+      const resultado = await mdfeService.incluirCondutor(
+        chave,
+        condutor,
+        req.user,
+      );
+
+      res.json({
+        sucesso: true,
+        ...resultado,
+      });
+    } catch (error) {
+      console.error("Erro ao incluir condutor:", error);
+      res.status(500).json({
         sucesso: false,
-        erro: 'Dados do condutor inválidos',
-        detalhes: validacao.erros
+        erro: "Erro interno do servidor",
+        detalhes: error.message,
       });
     }
-    
-    const resultado = await mdfeService.incluirCondutor(chave, condutor, req.user);
-    
-    res.json({
-      sucesso: true,
-      ...resultado
-    });
-    
-  } catch (error) {
-    console.error('Erro ao incluir condutor:', error);
-    res.status(500).json({
-      sucesso: false,
-      erro: 'Erro interno do servidor',
-      detalhes: error.message
-    });
-  }
-});
+  },
+);
 
 /**
  * @swagger
@@ -501,35 +526,43 @@ router.post('/incluir-condutor', authMiddleware.verificarAutenticacao(), async (
  *       200:
  *         description: DFes incluídos com sucesso
  */
-router.post('/incluir-dfes', authMiddleware.verificarAutenticacao(), async (req, res) => {
-  try {
-    const { chave, documentos } = req.body;
-    
-    // Validar documentos
-    const validacao = await mdfeService.validarDocumentosVinculados(documentos);
-    if (!validacao.valido) {
-      return res.status(400).json({
+router.post(
+  "/incluir-dfes",
+  authMiddleware.verificarAutenticacao(),
+  async (req, res) => {
+    try {
+      const { chave, documentos } = req.body;
+
+      // Validar documentos
+      const validacao =
+        await mdfeService.validarDocumentosVinculados(documentos);
+      if (!validacao.valido) {
+        return res.status(400).json({
+          sucesso: false,
+          erro: "Documentos inválidos",
+          detalhes: validacao.erros,
+        });
+      }
+
+      const resultado = await mdfeService.incluirDfes(
+        chave,
+        documentos,
+        req.user,
+      );
+
+      res.json({
+        sucesso: true,
+        ...resultado,
+      });
+    } catch (error) {
+      console.error("Erro ao incluir DFes:", error);
+      res.status(500).json({
         sucesso: false,
-        erro: 'Documentos inválidos',
-        detalhes: validacao.erros
+        erro: "Erro interno do servidor",
+        detalhes: error.message,
       });
     }
-    
-    const resultado = await mdfeService.incluirDfes(chave, documentos, req.user);
-    
-    res.json({
-      sucesso: true,
-      ...resultado
-    });
-    
-  } catch (error) {
-    console.error('Erro ao incluir DFes:', error);
-    res.status(500).json({
-      sucesso: false,
-      erro: 'Erro interno do servidor',
-      detalhes: error.message
-    });
-  }
-});
+  },
+);
 
 module.exports = router;

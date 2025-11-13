@@ -3,9 +3,9 @@
  * Implementação básica para compatibilidade
  */
 
-const fs = require('fs');
-const path = require('path');
-const logService = require('./log-service');
+const fs = require("fs");
+const path = require("path");
+const logService = require("./log-service");
 
 class CTeService {
   constructor() {
@@ -17,23 +17,24 @@ class CTeService {
    */
   async emitir(dadosCte) {
     try {
-      this.logService.info('Iniciando emissão de CTe', { chave: dadosCte.chave });
-      
+      this.logService.info("Iniciando emissão de CTe", {
+        chave: dadosCte.chave,
+      });
+
       // Implementação básica - retorna sucesso simulado
       const resultado = {
         sucesso: true,
         chave: dadosCte.chave || this.gerarChave(),
         protocolo: this.gerarProtocolo(),
         dataEmissao: new Date().toISOString(),
-        situacao: 'autorizado',
-        mensagem: 'CTe autorizado com sucesso'
+        situacao: "autorizado",
+        mensagem: "CTe autorizado com sucesso",
       };
 
-      this.logService.info('CTe emitido com sucesso', resultado);
+      this.logService.info("CTe emitido com sucesso", resultado);
       return resultado;
-
     } catch (error) {
-      this.logService.error('Erro ao emitir CTe', error);
+      this.logService.error("Erro ao emitir CTe", error);
       throw new Error(`Erro ao emitir CTe: ${error.message}`);
     }
   }
@@ -43,22 +44,21 @@ class CTeService {
    */
   async consultar(chave) {
     try {
-      this.logService.info('Consultando CTe', { chave });
-      
+      this.logService.info("Consultando CTe", { chave });
+
       // Implementação básica - retorna dados simulados
       const resultado = {
         sucesso: true,
         chave,
-        situacao: 'autorizado',
+        situacao: "autorizado",
         protocolo: this.gerarProtocolo(),
         dataEmissao: new Date().toISOString(),
-        valorTotal: 150.00
+        valorTotal: 150.0,
       };
 
       return resultado;
-
     } catch (error) {
-      this.logService.error('Erro ao consultar CTe', error);
+      this.logService.error("Erro ao consultar CTe", error);
       throw new Error(`Erro ao consultar CTe: ${error.message}`);
     }
   }
@@ -68,21 +68,20 @@ class CTeService {
    */
   async obterHistorico(filtros = {}) {
     try {
-      this.logService.info('Obtendo histórico de CTe', filtros);
-      
+      this.logService.info("Obtendo histórico de CTe", filtros);
+
       // Implementação básica - retorna lista vazia
       const resultado = {
         sucesso: true,
         ctes: [],
         total: 0,
         pagina: filtros.pagina || 1,
-        totalPaginas: 0
+        totalPaginas: 0,
       };
 
       return resultado;
-
     } catch (error) {
-      this.logService.error('Erro ao obter histórico de CTe', error);
+      this.logService.error("Erro ao obter histórico de CTe", error);
       throw new Error(`Erro ao obter histórico de CTe: ${error.message}`);
     }
   }
@@ -92,19 +91,18 @@ class CTeService {
    */
   async validarVinculos(dadosVinculo) {
     try {
-      this.logService.info('Validando vínculos de CTe', dadosVinculo);
-      
+      this.logService.info("Validando vínculos de CTe", dadosVinculo);
+
       // Implementação básica - retorna validação bem-sucedida
       const resultado = {
         sucesso: true,
         vinculosValidos: true,
-        mensagem: 'Vínculos validados com sucesso'
+        mensagem: "Vínculos validados com sucesso",
       };
 
       return resultado;
-
     } catch (error) {
-      this.logService.error('Erro ao validar vínculos de CTe', error);
+      this.logService.error("Erro ao validar vínculos de CTe", error);
       throw new Error(`Erro ao validar vínculos de CTe: ${error.message}`);
     }
   }
@@ -114,8 +112,8 @@ class CTeService {
    */
   async calcularFrete(dadosFrete) {
     try {
-      this.logService.info('Calculando frete para CTe', dadosFrete);
-      
+      this.logService.info("Calculando frete para CTe", dadosFrete);
+
       // Implementação básica - cálculo simulado
       const valorBase = dadosFrete.peso * (dadosFrete.distancia || 100) * 0.5;
       const resultado = {
@@ -124,14 +122,13 @@ class CTeService {
         detalhes: {
           peso: dadosFrete.peso,
           distancia: dadosFrete.distancia || 100,
-          valorPorKm: 0.5
-        }
+          valorPorKm: 0.5,
+        },
       };
 
       return resultado;
-
     } catch (error) {
-      this.logService.error('Erro ao calcular frete', error);
+      this.logService.error("Erro ao calcular frete", error);
       throw new Error(`Erro ao calcular frete: ${error.message}`);
     }
   }

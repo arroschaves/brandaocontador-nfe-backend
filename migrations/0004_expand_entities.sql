@@ -1,0 +1,24 @@
+BEGIN TRANSACTION;
+
+ALTER TABLE usuarios ADD COLUMN perfil TEXT;
+ALTER TABLE usuarios ADD COLUMN telefone TEXT;
+ALTER TABLE usuarios ADD COLUMN role TEXT;
+ALTER TABLE usuarios ADD COLUMN updatedAt TEXT;
+
+ALTER TABLE clientes ADD COLUMN endereco_json TEXT;
+ALTER TABLE clientes ADD COLUMN telefone TEXT;
+ALTER TABLE clientes ADD COLUMN updatedAt TEXT;
+
+ALTER TABLE produtos ADD COLUMN gtin TEXT;
+ALTER TABLE produtos ADD COLUMN preco REAL;
+ALTER TABLE produtos ADD COLUMN updatedAt TEXT;
+
+ALTER TABLE nfes ADD COLUMN updatedAt TEXT;
+
+ALTER TABLE logs ADD COLUMN traceId TEXT;
+ALTER TABLE logs ADD COLUMN batchId TEXT;
+ALTER TABLE logs ADD COLUMN updatedAt TEXT;
+
+ALTER TABLE configuracoes ADD COLUMN updatedAt TEXT;
+
+COMMIT;

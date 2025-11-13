@@ -4,14 +4,14 @@
  * SEGURANÇA: Usa criptografia AES-256-GCM para armazenar certificados e senhas
  */
 
-const fs = require('fs').promises;
-const path = require('path');
-const crypto = require('crypto');
-const encryptionService = require('./encryption-service');
+const fs = require("fs").promises;
+const path = require("path");
+const crypto = require("crypto");
+const encryptionService = require("./encryption-service");
 
 class CertificateService {
   constructor() {
-    this.certificatesPath = path.join(process.cwd(), 'certs');
+    this.certificatesPath = path.join(process.cwd(), "certs");
     this.certificates = new Map(); // Cache de certificados em memória
     this.ensureCertsDirectory();
   }
@@ -33,24 +33,24 @@ class CertificateService {
   async installCertificate(userId, buffer, senha, originalname) {
     try {
       if (!buffer) {
-        throw new Error('Arquivo de certificado não fornecido');
+        throw new Error("Arquivo de certificado não fornecido");
       }
 
       if (!senha) {
-        throw new Error('Senha do certificado é obrigatória');
+        throw new Error("Senha do certificado é obrigatória");
       }
 
       // Valida tipo de arquivo
-      const extensoesPermitidas = ['.pfx', '.p12'];
+      const extensoesPermitidas = [".pfx", ".p12"];
       const extensao = path.extname(originalname).toLowerCase();
-      
+
       if (!extensoesPermitidas.includes(extensao)) {
-        throw new Error('Tipo de arquivo não suportado. Use .pfx ou .p12');
+        throw new Error("Tipo de arquivo não suportado. Use .pfx ou .p12");
       }
 
       // Valida tamanho do arquivo (máximo 5MB)
       if (buffer.length > 5 * 1024 * 1024) {
-        throw new Error('Arquivo muito grande. Máximo 5MB');
+        throw new Error("Arquivo muito grande. Máximo 5MB");
       }
 
       // Gera nome único para o arquivo
@@ -60,7 +60,7 @@ class CertificateService {
 
       // SEGURANÇA: Criptografa o certificado antes de salvar no disco
       const certificadoCriptografado = encryptionService.encryptBuffer(buffer);
-      await fs.writeFile(caminhoArquivo, certificadoCriptografado, 'utf8');
+      await fs.writeFile(caminhoArquivo, certificadoCriptografado, "utf8");
 
       // Valida o certificado (usando buffer original)
       const dadosCertificado = await this.validarCertificado(buffer, senha);
@@ -77,7 +77,7 @@ class CertificateService {
         senha: senhaCriptografada, // Senha criptografada
         dadosCertificado,
         dataUpload: new Date().toISOString(),
-        ativo: true
+        ativo: true,
       };
 
       this.certificates.set(userId, certificadoInfo);
@@ -87,11 +87,10 @@ class CertificateService {
         titular: dadosCertificado.titular,
         cnpj: dadosCertificado.cnpj,
         dataVencimento: dadosCertificado.dataVencimento,
-        emissor: dadosCertificado.emissor
+        emissor: dadosCertificado.emissor,
       };
-
     } catch (error) {
-      console.error('❌ Erro no upload do certificado:', error.message);
+      console.error("❌ Erro no upload do certificado:", error.message);
       throw new Error(`Falha no upload do certificado: ${error.message}`);
     }
   }
@@ -105,8 +104,8 @@ class CertificateService {
     try {
       // Se recebeu caminho, lê e descriptografa o arquivo
       let certificadoBuffer;
-      if (typeof certificado === 'string') {
-        const encrypted = await fs.readFile(certificado, 'utf8');
+      if (typeof certificado === "string") {
+        const encrypted = await fs.readFile(certificado, "utf8");
         certificadoBuffer = encryptionService.decryptBuffer(encrypted);
       } else {
         certificadoBuffer = certificado;
@@ -114,43 +113,44 @@ class CertificateService {
 
       // Simula validação do certificado (em produção, usar biblioteca específica)
       // Por exemplo: node-forge, pkcs12, etc.
-      
+
       // Validação básica do formato
       if (certificadoBuffer.length < 100) {
-        throw new Error('Arquivo de certificado inválido');
+        throw new Error("Arquivo de certificado inválido");
       }
 
       // Simula extração de dados do certificado
       const dadosCertificado = {
-        titular: 'EMPRESA TESTE LTDA',
-        cnpj: '12345678000123',
+        titular: "EMPRESA TESTE LTDA",
+        cnpj: "12345678000123",
         dataInicio: new Date().toISOString(),
-        dataVencimento: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(), // 1 ano
-        emissor: 'AC TESTE',
-        numeroSerie: '123456789',
-        algoritmo: 'RSA-2048',
-        uso: ['assinatura_digital', 'nfe', 'nfce'],
-        valido: true
+        dataVencimento: new Date(
+          Date.now() + 365 * 24 * 60 * 60 * 1000,
+        ).toISOString(), // 1 ano
+        emissor: "AC TESTE",
+        numeroSerie: "123456789",
+        algoritmo: "RSA-2048",
+        uso: ["assinatura_digital", "nfe", "nfce"],
+        valido: true,
       };
 
       // Verifica se o certificado não está vencido
       const agora = new Date();
       const vencimento = new Date(dadosCertificado.dataVencimento);
-      
+
       if (vencimento < agora) {
-        throw new Error('Certificado vencido');
+        throw new Error("Certificado vencido");
       }
 
       // Verifica se ainda não está válido
       const inicio = new Date(dadosCertificado.dataInicio);
       if (inicio > agora) {
-        throw new Error('Certificado ainda não é válido');
+        throw new Error("Certificado ainda não é válido");
       }
 
       return dadosCertificado;
-
     } catch (error) {
-      console.error('❌ Erro na validação do certificado:', error.message);
+      console.error("❌ Erro na validação do certificado:", error.message);
       throw new Error(`Certificado inválido: ${error.message}`);
     }
   }
@@ -161,11 +161,11 @@ class CertificateService {
   async obterCertificado(userId) {
     try {
       const certificado = this.certificates.get(userId);
-      
+
       if (!certificado) {
         return {
           success: false,
-          message: 'Nenhum certificado encontrado para este usuário'
+          message: "Nenhum certificado encontrado para este usuário",
         };
       }
 
@@ -175,7 +175,7 @@ class CertificateService {
       } catch (error) {
         // Remove certificado inválido do cache
         this.certificates.delete(userId);
-        throw new Error('Arquivo de certificado não encontrado');
+        throw new Error("Arquivo de certificado não encontrado");
       }
 
       // Remove dados sensíveis
@@ -183,11 +183,10 @@ class CertificateService {
 
       return {
         success: true,
-        data: certificadoSeguro
+        data: certificadoSeguro,
       };
-
     } catch (error) {
-      console.error('❌ Erro ao obter certificado:', error.message);
+      console.error("❌ Erro ao obter certificado:", error.message);
       throw new Error(`Falha ao obter certificado: ${error.message}`);
     }
   }
@@ -198,16 +197,19 @@ class CertificateService {
   async removerCertificado(userId) {
     try {
       const certificado = this.certificates.get(userId);
-      
+
       if (!certificado) {
-        throw new Error('Nenhum certificado encontrado para este usuário');
+        throw new Error("Nenhum certificado encontrado para este usuário");
       }
 
       // Remove arquivo físico
       try {
         await fs.unlink(certificado.caminhoArquivo);
       } catch (error) {
-        console.warn('⚠️ Arquivo de certificado já foi removido:', error.message);
+        console.warn(
+          "⚠️ Arquivo de certificado já foi removido:",
+          error.message,
+        );
       }
 
       // Remove do cache
@@ -215,11 +217,10 @@ class CertificateService {
 
       return {
         success: true,
-        message: 'Certificado removido com sucesso'
+        message: "Certificado removido com sucesso",
       };
-
     } catch (error) {
-      console.error('❌ Erro ao remover certificado:', error.message);
+      console.error("❌ Erro ao remover certificado:", error.message);
       throw new Error(`Falha ao remover certificado: ${error.message}`);
     }
   }
@@ -230,26 +231,28 @@ class CertificateService {
   async verificarStatusCertificado(userId) {
     try {
       const certificado = this.certificates.get(userId);
-      
+
       if (!certificado) {
         return {
           success: true,
           data: {
             temCertificado: false,
-            status: 'nao_configurado'
-          }
+            status: "nao_configurado",
+          },
         };
       }
 
       const agora = new Date();
       const vencimento = new Date(certificado.dadosCertificado.dataVencimento);
-      const diasRestantes = Math.ceil((vencimento - agora) / (1000 * 60 * 60 * 24));
+      const diasRestantes = Math.ceil(
+        (vencimento - agora) / (1000 * 60 * 60 * 24),
+      );
 
-      let status = 'valido';
+      let status = "valido";
       if (diasRestantes <= 0) {
-        status = 'vencido';
+        status = "vencido";
       } else if (diasRestantes <= 30) {
-        status = 'vencendo';
+        status = "vencendo";
       }
 
       return {
@@ -260,13 +263,17 @@ class CertificateService {
           diasRestantes,
           dataVencimento: certificado.dadosCertificado.dataVencimento,
           titular: certificado.dadosCertificado.titular,
-          emissor: certificado.dadosCertificado.emissor
-        }
+          emissor: certificado.dadosCertificado.emissor,
+        },
       };
-
     } catch (error) {
-      console.error('❌ Erro ao verificar status do certificado:', error.message);
-      throw new Error(`Falha ao verificar status do certificado: ${error.message}`);
+      console.error(
+        "❌ Erro ao verificar status do certificado:",
+        error.message,
+      );
+      throw new Error(
+        `Falha ao verificar status do certificado: ${error.message}`,
+      );
     }
   }
 
@@ -276,33 +283,34 @@ class CertificateService {
   async getCertificateStatus() {
     try {
       const certificate = await this.loadCertificate(true); // Modo opcional
-      
+
       if (!certificate) {
         return {
-          status: 'not_configured',
+          status: "not_configured",
           info: null,
-          message: 'Certificado digital não configurado - Cliente deve importar via interface'
+          message:
+            "Certificado digital não configurado - Cliente deve importar via interface",
         };
       }
-      
+
       const info = this.getCertificateInfo(certificate);
-      
+
       return {
-        status: 'valid',
+        status: "valid",
         info,
-        message: 'Certificado carregado e válido'
+        message: "Certificado carregado e válido",
       };
     } catch (error) {
       return {
-        status: 'error',
+        status: "error",
         info: null,
         message: error.message,
         suggestions: [
-          'Verifique se o arquivo do certificado existe',
-          'Confirme se a senha do certificado está correta',
-          'Verifique se o certificado não expirou',
-          'Certifique-se de que o arquivo é um certificado PFX válido'
-        ]
+          "Verifique se o arquivo do certificado existe",
+          "Confirme se a senha do certificado está correta",
+          "Verifique se o certificado não expirou",
+          "Certifique-se de que o arquivo é um certificado PFX válido",
+        ],
       };
     }
   }
@@ -316,15 +324,19 @@ class CertificateService {
       const agora = new Date();
 
       for (const [userId, certificado] of this.certificates) {
-        const vencimento = new Date(certificado.dadosCertificado.dataVencimento);
-        const diasRestantes = Math.ceil((vencimento - agora) / (1000 * 60 * 60 * 24));
+        const vencimento = new Date(
+          certificado.dadosCertificado.dataVencimento,
+        );
+        const diasRestantes = Math.ceil(
+          (vencimento - agora) / (1000 * 60 * 60 * 24),
+        );
 
         if (diasRestantes <= diasLimite && diasRestantes > 0) {
           certificadosVencendo.push({
             userId,
             titular: certificado.dadosCertificado.titular,
             diasRestantes,
-            dataVencimento: certificado.dadosCertificado.dataVencimento
+            dataVencimento: certificado.dadosCertificado.dataVencimento,
           });
         }
       }
@@ -332,12 +344,13 @@ class CertificateService {
       return {
         success: true,
         data: certificadosVencendo,
-        total: certificadosVencendo.length
+        total: certificadosVencendo.length,
       };
-
     } catch (error) {
-      console.error('❌ Erro ao listar certificados vencendo:', error.message);
-      throw new Error(`Falha ao listar certificados vencendo: ${error.message}`);
+      console.error("❌ Erro ao listar certificados vencendo:", error.message);
+      throw new Error(
+        `Falha ao listar certificados vencendo: ${error.message}`,
+      );
     }
   }
 
@@ -347,17 +360,17 @@ class CertificateService {
   async obterCertificadoParaAssinatura(userId) {
     try {
       const certificado = this.certificates.get(userId);
-      
+
       if (!certificado) {
-        throw new Error('Certificado não encontrado');
+        throw new Error("Certificado não encontrado");
       }
 
       // Verifica validade
       const agora = new Date();
       const vencimento = new Date(certificado.dadosCertificado.dataVencimento);
-      
+
       if (vencimento < agora) {
-        throw new Error('Certificado vencido');
+        throw new Error("Certificado vencido");
       }
 
       // Retorna dados necessários para assinatura
@@ -366,13 +379,17 @@ class CertificateService {
         data: {
           caminhoArquivo: certificado.caminhoArquivo,
           senha: certificado.senha,
-          dadosCertificado: certificado.dadosCertificado
-        }
+          dadosCertificado: certificado.dadosCertificado,
+        },
       };
-
     } catch (error) {
-      console.error('❌ Erro ao obter certificado para assinatura:', error.message);
-      throw new Error(`Falha ao obter certificado para assinatura: ${error.message}`);
+      console.error(
+        "❌ Erro ao obter certificado para assinatura:",
+        error.message,
+      );
+      throw new Error(
+        `Falha ao obter certificado para assinatura: ${error.message}`,
+      );
     }
   }
 
@@ -382,12 +399,12 @@ class CertificateService {
   async loadCertificate() {
     try {
       const caminhosPadrao = [
-        'certificado.pfx',
-        'cert.pfx', 
-        'nfe.pfx',
-        path.join(process.cwd(), 'certificado.pfx'),
-        path.join(process.cwd(), 'cert.pfx'),
-        path.join(process.cwd(), 'nfe.pfx')
+        "certificado.pfx",
+        "cert.pfx",
+        "nfe.pfx",
+        path.join(process.cwd(), "certificado.pfx"),
+        path.join(process.cwd(), "cert.pfx"),
+        path.join(process.cwd(), "nfe.pfx"),
       ];
 
       for (const caminho of caminhosPadrao) {
@@ -395,15 +412,13 @@ class CertificateService {
           await fs.access(caminho);
           return {
             path: caminho,
-            privateKey: 'mock-private-key',
-            certificate: 'mock-certificate'
           };
         } catch (error) {
           // Continua para o próximo caminho
         }
       }
 
-      throw new Error('Nenhum certificado encontrado nos caminhos padrão');
+      throw new Error("Nenhum certificado encontrado nos caminhos padrão");
     } catch (error) {
       throw new Error(`Erro ao carregar certificado: ${error.message}`);
     }
@@ -417,8 +432,6 @@ class CertificateService {
       await fs.access(caminho);
       return {
         path: caminho,
-        privateKey: 'mock-private-key',
-        certificate: 'mock-certificate'
       };
     } catch (error) {
       throw new Error(`Certificado não encontrado em: ${caminho}`);
@@ -431,15 +444,17 @@ class CertificateService {
   getCertificateInfo(certificate) {
     return {
       subject: {
-        commonName: 'EMPRESA TESTE LTDA'
+        commonName: "EMPRESA TESTE LTDA",
       },
       issuer: {
-        commonName: 'AC TESTE'
+        commonName: "AC TESTE",
       },
       validity: {
-        notAfter: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString()
+        notAfter: new Date(
+          Date.now() + 365 * 24 * 60 * 60 * 1000,
+        ).toISOString(),
       },
-      path: certificate.path
+      path: certificate.path,
     };
   }
 }
